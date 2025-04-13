@@ -1,0 +1,28 @@
+name: flutter_app_korea
+description: "A new Flutter project."
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.7.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  shared_preferences: ^2.2.2
+  csv: ^6.0.0
+  cupertino_icons: ^1.0.8
+  intl: ^0.18.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^5.0.0
+
+flutter:
+  assets:
+    - assets/asesores.csv
+    - assets/clientes.csv
+
+  uses-material-design: true

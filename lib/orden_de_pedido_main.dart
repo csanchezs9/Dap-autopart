@@ -1,0 +1,137 @@
+import 'package:flutter/material.dart';
+import 'orden.dart';
+import 'main.dart';
+
+class OrdenDePedidoMain extends StatelessWidget {
+  const OrdenDePedidoMain({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Botón de cerrar sesión
+          Positioned(
+            top: 40,
+            right: 20,
+            child: Column(
+              children: [
+                IconButton(
+                  icon: Icon(Icons.power_settings_new, color: Colors.cyan, size: 36),
+                  onPressed: () {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (context) => LoginScreen()),
+                    );
+                  },
+                ),
+                Text(
+                  'CERRAR CESION',
+                  style: TextStyle(fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+
+          // Contenido centrado horizontal con botón y logo alineados
+          Center(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Botón ORDEN DE PEDIDO
+                ElevatedButton.icon(
+                  icon: Icon(Icons.shopping_cart_checkout_rounded, size: 24),
+                  label: Text(
+                    'ORDEN DE PEDIDO',
+                    style: TextStyle(fontSize: 16),
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => OrdenDePedido()),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    backgroundColor: Colors.blue[800],
+                    padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+
+                // Logo DAP AutoPart's (aumentado 50%)
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'DAP',
+                      style: TextStyle(
+                        fontSize: 54, // 36 + 50%
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue[900],
+                      ),
+                    ),
+                    Text(
+                      'AutoPart´s',
+                      style: TextStyle(
+                        fontSize: 33, // 22 + 50%
+                        color: Colors.red[700],
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          // Botones inferiores: CATÁLOGO y LISTA DE PRECIOS
+          Positioned(
+            bottom: 30,
+            right: 20,
+            child: Row(
+              children: [
+                ElevatedButton.icon(
+                  icon: Icon(Icons.menu_book),
+                  label: Text("CATÁLOGO"),
+                  onPressed: () {
+                    // Aquí iría la navegación al catálogo
+                  },
+                  style: ElevatedButton.styleFrom(
+                    foregroundColor: Colors.black,
+                    backgroundColor: Colors.white,
+                    padding: EdgeInsets.all(12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      side: BorderSide(color: Colors.blue),
+                    ),
+                  ),
+                ),
+                SizedBox(width: 10),
+                ElevatedButton.icon(
+                  icon: Icon(Icons.price_change),
+                  label: Text("LISTA DE\nPRECIOS", textAlign: TextAlign.center),
+                  onPressed: () {
+                    // Aquí iría la navegación a la lista de precios
+                  },
+                  style: ElevatedButton.styleFrom(
+                    foregroundColor: Colors.black,
+                    backgroundColor: Colors.white,
+                    padding: EdgeInsets.all(12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      side: BorderSide(color: Colors.blue),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
