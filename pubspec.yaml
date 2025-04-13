@@ -13,6 +13,9 @@ dependencies:
   csv: ^6.0.0
   cupertino_icons: ^1.0.8
   intl: ^0.18.0
+  http: ^0.13.5
+  googleapis: ^9.2.0
+  googleapis_auth: ^1.3.1
 
 dev_dependencies:
   flutter_test:
@@ -24,5 +27,6 @@ flutter:
   assets:
     - assets/asesores.csv
     - assets/clientes.csv
+    - assets/productos.csv
 
   uses-material-design: true

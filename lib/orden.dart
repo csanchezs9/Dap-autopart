@@ -4,6 +4,7 @@ import 'package:csv/csv.dart';
 import 'dart:convert';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart'; // Añadido para inicializar locales
+import 'productos_orden.dart';
 
 class OrdenDePedido extends StatefulWidget {
   const OrdenDePedido({super.key});
@@ -358,7 +359,18 @@ class _OrdenDePedidoState extends State<OrdenDePedido> {
                   // Botón de Inicio centrado
                   Center(
                     child: ElevatedButton(
-                      onPressed: () {},
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ProductosOrden(
+                              clienteData: clienteData,
+                              asesorData: asesorData,
+                              ordenNumero: ordenNumero,
+                            ),
+                          ),
+                        );
+                      },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white,
                         foregroundColor: Colors.black,
