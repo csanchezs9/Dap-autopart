@@ -1,7 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show rootBundle;
-import 'package:csv/csv.dart';
-import 'dart:convert';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'producto_service.dart';
@@ -233,8 +230,9 @@ class _ProductosOrdenState extends State<ProductosOrden> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Productos a Solicitar'),
+        title: const Text('Productos a Solicitar', style: TextStyle(color: Colors.white),),
         backgroundColor: const Color(0xFF1A4379),
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: isLoading 
         ? const Center(child: CircularProgressIndicator())

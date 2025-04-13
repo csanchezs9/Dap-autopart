@@ -205,8 +205,9 @@ class _OrdenDePedidoState extends State<OrdenDePedido> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Orden de Pedido'),
+        title: Text('Orden de Pedido', style: TextStyle(color: Colors.white)),
         backgroundColor: Color(0xFF1A4379),
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: isLoading 
         ? Center(child: CircularProgressIndicator())
