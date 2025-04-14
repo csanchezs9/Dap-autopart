@@ -19,14 +19,17 @@ class ProductosOrden extends StatefulWidget {
   State<ProductosOrden> createState() => _ProductosOrdenState();
 }
 
-class _ProductosOrdenState extends State<ProductosOrden> {
+class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStateMixin {
   List<Map<String, dynamic>> productosAgregados = [];
-  final TextEditingController codigoController = TextEditingController();
+  final TextEditingController numeroController = TextEditingController(); // Cambiado de codigoController
   final TextEditingController cantidadController = TextEditingController();
   final TextEditingController observacionesController = TextEditingController();
   
   bool isLoading = false;
   String errorMessage = '';
+  
+  // Controlador de animación
+  late AnimationController _animationController;
   
   // Valores para los checkboxes
   bool isNormal = true;
@@ -46,6 +49,18 @@ class _ProductosOrdenState extends State<ProductosOrden> {
   void initState() {
     super.initState();
     initializeDateFormatting('es_ES', null);
+    
+    // Inicializar el controlador de animación
+    _animationController = AnimationController(
+      duration: const Duration(seconds: 2),
+      vsync: this,
+    )..repeat();
+  }
+  
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
   }
 
   String obtenerFechaActual() {
@@ -60,15 +75,16 @@ class _ProductosOrdenState extends State<ProductosOrden> {
     }
   }
 
-  void buscarProductoPorCodigo() async {
-    String codigo = codigoController.text.trim();
-    if (codigo.isEmpty) {
+  void buscarProductoPorNumero() async {
+    String numero = numeroController.text.trim();
+    if (numero.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Por favor ingrese un código de producto')),
+        const SnackBar(content: Text('Por favor ingrese un número de producto')),
       );
       return;
     }
     
+    // Mostrar indicador de carga
     setState(() {
       isLoading = true;
     });
@@ -80,95 +96,92 @@ class _ProductosOrdenState extends State<ProductosOrden> {
         cantidad = int.tryParse(cantidadController.text.trim()) ?? 1;
       }
       
-      // Buscar producto en Google Sheets
-      final productoEncontrado = await ProductoService.buscarProductoPorCodigo(codigo);
+      // Buscar producto por número en Google Sheets
+      final productoEncontrado = await ProductoService.buscarProductoPorNumero(numero);
       
       if (productoEncontrado != null) {
-        // Procesar el producto encontrado
-        Map<String, dynamic> producto = {
-          '#': (productosAgregados.length + 1).toString(),
-          'CODIGO': codigo,
-          'CANT': cantidad
-        };
-        
-        // Mapeo específico para los campos de tu hoja
-        producto['UB'] = productoEncontrado['Bod'] ?? '';
-        producto['REF'] = productoEncontrado['Ref'] ?? '';
-        producto['ORIGEN'] = productoEncontrado['Origen'] ?? '';
-        producto['DESCRIPCION'] = productoEncontrado['Descripción'] ?? '';
-        producto['VEHICULO'] = productoEncontrado['Vehiculo'] ?? '';
-        producto['MARCA'] = productoEncontrado['Marca'] ?? '';
-        
-        // Procesar precio
-        double valorUnidad = 0;
-        if (productoEncontrado.containsKey('Precio Antes de Iva')) {
-          String precioStr = productoEncontrado['Precio Antes de Iva'].toString()
-              .replaceAll('\$', '')
-              .replaceAll('.', '')
-              .replaceAll(',', '')
-              .trim();
-          valorUnidad = double.tryParse(precioStr) ?? 0;
-        }
-        producto['VLR ANTES DE IVA'] = valorUnidad;
-        
-        // Procesar descuento
-        double descuento = 0;
-        if (productoEncontrado.containsKey('Dscto')) {
-          String dsctoStr = productoEncontrado['Dscto'].toString()
-              .replaceAll('%', '')
-              .trim();
-          descuento = double.tryParse(dsctoStr) ?? 0;
-        }
-        producto['DSCTO'] = descuento;
-        
-        // Verificar si está agotado
+        // Verificar si está agotado antes de procesarlo
         bool agotado = false;
         if (productoEncontrado.containsKey('AGOTADO')) {
           agotado = productoEncontrado['AGOTADO'].toString().toUpperCase().contains('AGOTADO');
+        } else if (productoEncontrado.containsKey('ESTADO')) {
+          agotado = productoEncontrado['ESTADO'].toString().toUpperCase().contains('AGOTADO');
         }
         
         if (agotado) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('ADVERTENCIA: El producto está AGOTADO')),
+          // Mostrar alerta de producto agotado
+          showDialog(
+            context: context,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                title: const Text('Producto Agotado'),
+                content: Text('El producto número $numero está agotado y no puede ser añadido a la orden.'),
+                actions: [
+                  TextButton(
+                    child: const Text('Aceptar'),
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                  ),
+                ],
+              );
+            },
           );
+        } else {
+          // Procesar el producto encontrado (que no está agotado)
+          String codigo = productoEncontrado['CODIGO'] ?? '';
+          
+          Map<String, dynamic> producto = {
+            '#': (productosAgregados.length + 1).toString(),
+            'CODIGO': codigo,
+            'CANT': cantidad
+          };
+          
+          // Mapeo específico para los campos de tu hoja
+          producto['UB'] = productoEncontrado['Bod'] ?? '';
+          producto['REF'] = productoEncontrado['Ref'] ?? '';
+          producto['ORIGEN'] = productoEncontrado['Origen'] ?? '';
+          producto['DESCRIPCION'] = productoEncontrado['Descripción'] ?? '';
+          producto['VEHICULO'] = productoEncontrado['Vehiculo'] ?? '';
+          producto['MARCA'] = productoEncontrado['Marca'] ?? '';
+          
+          // Procesar precio
+          double valorUnidad = 0;
+          if (productoEncontrado.containsKey('Precio Antes de Iva')) {
+            String precioStr = productoEncontrado['Precio Antes de Iva'].toString()
+                .replaceAll('\$', '')
+                .replaceAll('.', '')
+                .replaceAll(',', '')
+                .trim();
+            valorUnidad = double.tryParse(precioStr) ?? 0;
+          }
+          producto['VLR ANTES DE IVA'] = valorUnidad;
+          
+          // Procesar descuento
+          double descuento = 0;
+          if (productoEncontrado.containsKey('Dscto')) {
+            String dsctoStr = productoEncontrado['Dscto'].toString()
+                .replaceAll('%', '')
+                .trim();
+            descuento = double.tryParse(dsctoStr) ?? 0;
+          }
+          producto['DSCTO'] = descuento;
+          
+          // Calcular valor bruto
+          double valorBruto = valorUnidad * cantidad * (1 - descuento/100);
+          producto['V.BRUTO'] = valorBruto;
+          
+          setState(() {
+            productosAgregados.add(producto);
+            numeroController.clear();
+            cantidadController.clear();
+            calcularTotales();
+          });
         }
-        
-        // Calcular valor bruto
-        double valorBruto = valorUnidad * cantidad * (1 - descuento/100);
-        producto['V.BRUTO'] = valorBruto;
-        
-        setState(() {
-          productosAgregados.add(producto);
-          codigoController.clear();
-          cantidadController.clear();
-          calcularTotales();
-        });
       } else {
-        // Si no se encuentra, crear producto genérico
-        Map<String, dynamic> productoGenerico = {
-          '#': (productosAgregados.length + 1).toString(),
-          'CODIGO': codigo,
-          'UB': '',
-          'REF': '',
-          'ORIGEN': '',
-          'DESCRIPCION': 'Producto con código $codigo',
-          'VEHICULO': '',
-          'MARCA': '',
-          'VLR ANTES DE IVA': 0,
-          'DSCTO': 0,
-          'CANT': cantidad,
-          'V.BRUTO': 0
-        };
-        
-        setState(() {
-          productosAgregados.add(productoGenerico);
-          codigoController.clear();
-          cantidadController.clear();
-          calcularTotales();
-        });
-        
+        // Si no se encuentra, mostrar mensaje
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('No se encontró producto con código: $codigo')),
+          SnackBar(content: Text('No se encontró producto con número: $numero')),
         );
       }
     } catch (e) {
@@ -235,7 +248,40 @@ class _ProductosOrdenState extends State<ProductosOrden> {
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: isLoading 
-        ? const Center(child: CircularProgressIndicator())
+        ? Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Logo animado para carga
+                AnimatedBuilder(
+                  animation: _animationController,
+                  builder: (context, child) {
+                    return Transform.rotate(
+                      angle: _animationController.value * 2 * 3.14159,
+                      child: Container(
+                        width: 80,
+                        height: 80,
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.blue[900]!, width: 2),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text('DAP', style: TextStyle(color: Colors.blue[900], fontWeight: FontWeight.bold, fontSize: 16)),
+                            Text('Auto', style: TextStyle(color: Colors.red[700], fontWeight: FontWeight.bold, fontSize: 14)),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 20),
+                const Text('Cargando...', style: TextStyle(fontSize: 16)),
+              ],
+            ),
+          )
         : errorMessage.isNotEmpty 
           ? Center(child: Text('Error: $errorMessage', style: const TextStyle(color: Colors.red)))
           : SingleChildScrollView(
@@ -328,12 +374,13 @@ class _ProductosOrdenState extends State<ProductosOrden> {
                       Expanded(
                         flex: 2,
                         child: TextField(
-                          controller: codigoController,
+                          controller: numeroController,
                           decoration: const InputDecoration(
-                            labelText: 'Código Producto',
+                            labelText: '# Producto', // Cambiado de 'Código Producto'
                             border: OutlineInputBorder(),
                             contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                           ),
+                          keyboardType: TextInputType.number, // Cambiado para aceptar sólo números
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -351,7 +398,7 @@ class _ProductosOrdenState extends State<ProductosOrden> {
                       ),
                       const SizedBox(width: 10),
                       ElevatedButton(
-                        onPressed: buscarProductoPorCodigo,
+                        onPressed: buscarProductoPorNumero, // Cambiado de buscarProductoPorCodigo
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF1A4379),
                           padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
