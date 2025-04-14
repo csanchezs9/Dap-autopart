@@ -27,6 +27,6 @@ flutter:
   assets:
     - assets/asesores.csv
     - assets/clientes.csv
-    - assets/productos.csv
-
+    - assets/imagenesProductos/
+    
   uses-material-design: true

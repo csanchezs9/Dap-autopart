@@ -64,11 +64,10 @@ class ProductoService {
 
           for (int j = 0; j < headers.length && j < row.length; j++) {
             producto[headers[j]] = row[j];
-            
           }
 
-          // Añadimos un índice basado en la posición en la hoja (fila)
-          producto['INDICE'] = (i - headerRowIndex).toString();
+          // Ya no necesitamos añadir un índice propio, usamos el # de la hoja
+          // producto['INDICE'] = (i - headerRowIndex).toString();
 
           if (row.length > codigoIndex) {  
             productos.add(producto);
@@ -111,7 +110,6 @@ class ProductoService {
     }
   }
 
-  // Nueva función para buscar por número de producto (índice)
   static Future<Map<String, dynamic>?> buscarProductoPorNumero(String numero) async {
     print("Buscando producto con número: $numero");
     try {
@@ -124,18 +122,18 @@ class ProductoService {
       // Mostrar los primeros productos para depuración
       print("Muestra de productos disponibles:");
       for (int i = 0; i < min(5, productos.length); i++) {
-        print("Producto $i: INDICE=${productos[i]['INDICE']}, CODIGO=${productos[i]['CODIGO']}");
+        print("Producto $i: #=${productos[i]['#']}, CODIGO=${productos[i]['CODIGO']}");
       }
       
-      // Buscar por el índice exacto
+      // Buscar por el número (#) exacto
       for (var producto in productos) {
-        if (producto['INDICE']?.toString().trim() == numero.trim()) {
-          print("¡Producto encontrado por índice!: $producto");
+        if (producto['#']?.toString().trim() == numero.trim()) {
+          print("¡Producto encontrado por #!: $producto");
           return producto;
         }
       }
       
-      // Si no se encuentra por índice, intentar buscar por posición en la lista
+      // Si no se encuentra por #, podríamos intentar buscar por posición en la lista
       int numeroInt = int.tryParse(numero) ?? 0;
       if (numeroInt > 0 && numeroInt <= productos.length) {
         print("¡Producto encontrado por posición!: ${productos[numeroInt - 1]}");

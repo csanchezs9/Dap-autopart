@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'dart:io';
+import 'package:flutter/services.dart';
 import 'producto_service.dart';
 
 class ProductosOrden extends StatefulWidget {
@@ -21,7 +23,7 @@ class ProductosOrden extends StatefulWidget {
 
 class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStateMixin {
   List<Map<String, dynamic>> productosAgregados = [];
-  final TextEditingController numeroController = TextEditingController(); // Cambiado de codigoController
+  final TextEditingController numeroController = TextEditingController();
   final TextEditingController cantidadController = TextEditingController();
   final TextEditingController observacionesController = TextEditingController();
   
@@ -44,6 +46,12 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
   double subtotal = 0;
   double iva = 0;
   double total = 0;
+  
+  // Variable para el producto seleccionado actual
+  String? productoCodigoSeleccionado;
+  
+  // Cache de imágenes disponibles
+  final Map<String, bool> _imagenesDisponibles = {};
 
   @override
   void initState() {
@@ -176,6 +184,12 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
             numeroController.clear();
             cantidadController.clear();
             calcularTotales();
+            
+            // Actualizar el código del producto seleccionado para mostrar su imagen
+            productoCodigoSeleccionado = codigo;
+            
+            // Verificar si la imagen existe
+            _checkImageExistence(codigo);
           });
         }
       } else {
@@ -237,6 +251,38 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
       iva = subtotal * 0.19; // 19% IVA
       total = subtotal + iva;
     });
+  }
+  
+  // Método para seleccionar un producto de la tabla
+  void seleccionarProducto(Map<String, dynamic> producto) {
+    final codigo = producto['CODIGO']?.toString() ?? '';
+    setState(() {
+      productoCodigoSeleccionado = codigo;
+      // Verificar si la imagen existe cuando seleccionamos un producto
+      _checkImageExistence(codigo);
+    });
+  }
+  
+      // Verificar si la imagen existe y cachear el resultado
+  Future<void> _checkImageExistence(String codigo) async {
+    if (_imagenesDisponibles.containsKey(codigo)) {
+      return; // Ya verificamos esta imagen
+    }
+    
+    try {
+      // Añadimos la 'm' al principio del código, según el formato mencionado
+      final assetPath = 'assets/imagenesProductos/m$codigo.jpg';
+      await rootBundle.load(assetPath);
+      _imagenesDisponibles[codigo] = true;
+    } catch (e) {
+      print("Imagen no encontrada para $codigo: $e");
+      _imagenesDisponibles[codigo] = false;
+    }
+    
+    // Forzar reconstrucción del widget para mostrar la imagen o el placeholder
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   @override
@@ -376,11 +422,11 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
                         child: TextField(
                           controller: numeroController,
                           decoration: const InputDecoration(
-                            labelText: '# Producto', // Cambiado de 'Código Producto'
+                            labelText: '# Producto',
                             border: OutlineInputBorder(),
                             contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                           ),
-                          keyboardType: TextInputType.number, // Cambiado para aceptar sólo números
+                          keyboardType: TextInputType.number,
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -398,7 +444,7 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
                       ),
                       const SizedBox(width: 10),
                       ElevatedButton(
-                        onPressed: buscarProductoPorNumero, // Cambiado de buscarProductoPorCodigo
+                        onPressed: buscarProductoPorNumero,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF1A4379),
                           padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
@@ -433,20 +479,26 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
                         DataColumn(label: _headerText('V.BRUTO')),
                       ],
                       rows: productosAgregados.map((producto) {
-                        return DataRow(cells: [
-                          DataCell(Text(producto['#']?.toString() ?? '')),
-                          DataCell(Text(producto['CODIGO']?.toString() ?? '')),
-                          DataCell(Text(producto['UB']?.toString() ?? '')),
-                          DataCell(Text(producto['REF']?.toString() ?? '')),
-                          DataCell(Text(producto['ORIGEN']?.toString() ?? '')),
-                          DataCell(Text(producto['DESCRIPCION']?.toString() ?? '')),
-                          DataCell(Text(producto['VEHICULO']?.toString() ?? '')),
-                          DataCell(Text(producto['MARCA']?.toString() ?? '')),
-                          DataCell(Text(formatCurrency(producto['VLR ANTES DE IVA']))),
-                          DataCell(Text('${producto['DSCTO']}%')),
-                          DataCell(Text(producto['CANT']?.toString() ?? '')),
-                          DataCell(Text(formatCurrency(producto['V.BRUTO']))),
-                        ]);
+                        return DataRow(
+                          cells: [
+                            DataCell(Text(producto['#']?.toString() ?? '')),
+                            DataCell(Text(producto['CODIGO']?.toString() ?? '')),
+                            DataCell(Text(producto['UB']?.toString() ?? '')),
+                            DataCell(Text(producto['REF']?.toString() ?? '')),
+                            DataCell(Text(producto['ORIGEN']?.toString() ?? '')),
+                            DataCell(Text(producto['DESCRIPCION']?.toString() ?? '')),
+                            DataCell(Text(producto['VEHICULO']?.toString() ?? '')),
+                            DataCell(Text(producto['MARCA']?.toString() ?? '')),
+                            DataCell(Text(formatCurrency(producto['VLR ANTES DE IVA']))),
+                            DataCell(Text('${producto['DSCTO']}%')),
+                            DataCell(Text(producto['CANT']?.toString() ?? '')),
+                            DataCell(Text(formatCurrency(producto['V.BRUTO']))),
+                          ],
+                          onSelectChanged: (_) {
+                            seleccionarProducto(producto);
+                          },
+                          selected: producto['CODIGO'] == productoCodigoSeleccionado,
+                        );
                       }).toList(),
                     ),
                   ),
@@ -457,7 +509,7 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Imagen (placeholder)
+                      // Imagen del producto
                       Container(
                         width: 180,
                         height: 140,
@@ -465,16 +517,7 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
                           border: Border.all(color: Colors.grey),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: const [
-                              Icon(Icons.cable, size: 48, color: Colors.grey),
-                              SizedBox(height: 8),
-                              Text('Imagen de Producto', style: TextStyle(color: Colors.grey)),
-                            ],
-                          ),
-                        ),
+                        child: _buildImagenProducto(),
                       ),
                       
                       const SizedBox(width: 16),
@@ -556,6 +599,91 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
               ),
             ),
     );
+  }
+  
+  // Widget para mostrar la imagen del producto, simplificado
+  Widget _buildImagenProducto() {
+    if (productoCodigoSeleccionado == null) {
+      // No hay producto seleccionado
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: const [
+            Icon(Icons.image, size: 48, color: Colors.grey),
+            SizedBox(height: 8),
+            Text('Seleccione un producto', style: TextStyle(color: Colors.grey)),
+          ],
+        ),
+      );
+    }
+    
+    final codigo = productoCodigoSeleccionado!;
+    final bool imagenDisponible = _imagenesDisponibles[codigo] ?? false;
+    
+    if (!imagenDisponible) {
+      // La imagen no existe o no se ha verificado aún
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.hide_image, size: 48, color: Colors.grey),
+            const SizedBox(height: 8),
+            Text(
+              'No hay imagen para\n$codigo',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.grey),
+            ),
+          ],
+        ),
+      );
+    }
+    
+    // Mostrar la imagen con el prefijo "m"
+    try {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.asset(
+          'assets/imagenesProductos/m$codigo.jpg',
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) {
+            // Si hay un error al cargar la imagen
+            print("Error al cargar imagen: $error");
+            _imagenesDisponibles[codigo] = false;
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.broken_image, size: 48, color: Colors.red),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Error al cargar imagen\n$codigo',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      );
+    } catch (e) {
+      print("Error general al mostrar imagen: $e");
+      _imagenesDisponibles[codigo] = false;
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.broken_image, size: 48, color: Colors.red),
+            const SizedBox(height: 8),
+            Text(
+              'Error: $e',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.red),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   // Formato para moneda
