@@ -25,7 +25,8 @@ class _OrdenDePedidoState extends State<OrdenDePedido> {
   
   bool isLoading = true;
   String errorMessage = '';
-  String ordenNumero = 'OP-00001';
+  final TextEditingController ordenNumeroController = TextEditingController();
+
 
   @override
   void initState() {
@@ -276,8 +277,20 @@ class _OrdenDePedidoState extends State<OrdenDePedido> {
                           Text('FECHA: ${obtenerFechaActual()}', 
                                style: TextStyle(fontWeight: FontWeight.bold)),
                           SizedBox(height: 5),
-                          Text('ORDEN DE PEDIDO #: $ordenNumero', 
-                               style: TextStyle(fontWeight: FontWeight.bold)),
+                          SizedBox(
+                                    width: 200,
+                                    child: TextField(
+                                      controller: ordenNumeroController,
+                                      decoration: InputDecoration(
+                                        labelText: 'Orden de Pedido #',
+                                        border: OutlineInputBorder(),
+                                        hintText: 'Ej: OP-00023',
+                                        isDense: true,
+                                        contentPadding: EdgeInsets.all(8),
+                                      ),
+                                    ),
+                                  ),
+
                         ],
                       ),
                     ],
@@ -367,7 +380,8 @@ class _OrdenDePedidoState extends State<OrdenDePedido> {
                             builder: (context) => ProductosOrden(
                               clienteData: clienteData,
                               asesorData: asesorData,
-                              ordenNumero: ordenNumero,
+                              ordenNumero: ordenNumeroController.text,
+
                             ),
                           ),
                         );

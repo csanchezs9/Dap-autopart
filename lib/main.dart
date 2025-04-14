@@ -4,39 +4,16 @@ import 'package:csv/csv.dart';
 import 'orden_de_pedido_main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  final prefs = await SharedPreferences.getInstance();
-  final recordarDatos = prefs.getBool('recordar') ?? false;
-  final correoGuardado = prefs.getString('correo') ?? '';
-  final passwordGuardado = prefs.getString('password') ?? '';
-
-  runApp(MyApp(
-    recordarDatos: recordarDatos,
-    correoGuardado: correoGuardado,
-    passwordGuardado: passwordGuardado,
-  ));
+void main() {
+  runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  final bool recordarDatos;
-  final String correoGuardado;
-  final String passwordGuardado;
-
-  const MyApp({
-    Key? key,
-    required this.recordarDatos,
-    required this.correoGuardado,
-    required this.passwordGuardado,
-  }) : super(key: key);
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Login App',
-      home: recordarDatos && correoGuardado.isNotEmpty && passwordGuardado.isNotEmpty
-          ? OrdenDePedidoMain() // Redirige automáticamente si los datos están guardados
-          : LoginScreen(),
+      home: LoginScreen(),
       debugShowCheckedModeBanner: false,
     );
   }
@@ -74,9 +51,6 @@ class _LoginScreenState extends State<LoginScreen> {
     if (recordarDatos) {
       await prefs.setString('correo', _emailController.text);
       await prefs.setString('password', _passwordController.text);
-    } else {
-      await prefs.remove('correo');
-      await prefs.remove('password');
     }
     await prefs.setBool('recordar', recordarDatos);
   }
