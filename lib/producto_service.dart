@@ -64,14 +64,13 @@ class ProductoService {
 
           for (int j = 0; j < headers.length && j < row.length; j++) {
             producto[headers[j]] = row[j];
+            
           }
 
           // Añadimos un índice basado en la posición en la hoja (fila)
           producto['INDICE'] = (i - headerRowIndex).toString();
 
-          if (row.length > codigoIndex) {
-            producto['CODIGO'] = row[codigoIndex].toString().trim();
-            print("Producto procesado - CODIGO: ${producto['CODIGO']}, INDICE: ${producto['INDICE']}");
+          if (row.length > codigoIndex) {  
             productos.add(producto);
           }
         }

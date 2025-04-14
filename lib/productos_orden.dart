@@ -132,12 +132,12 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
           String codigo = productoEncontrado['CODIGO'] ?? '';
           
           Map<String, dynamic> producto = {
-            '#': (productosAgregados.length + 1).toString(),
             'CODIGO': codigo,
             'CANT': cantidad
           };
           
           // Mapeo específico para los campos de tu hoja
+          producto['#'] = productoEncontrado['#'] ?? '';
           producto['UB'] = productoEncontrado['Bod'] ?? '';
           producto['REF'] = productoEncontrado['Ref'] ?? '';
           producto['ORIGEN'] = productoEncontrado['Origen'] ?? '';
