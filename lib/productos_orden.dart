@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'dart:io';
 import 'package:flutter/services.dart';
 import 'producto_service.dart';
 
@@ -138,17 +137,14 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
         } else {
           // Procesar el producto encontrado (que no está agotado)
           String codigo = productoEncontrado['CODIGO']?.toString() ?? '';
-print("DEPURACIÓN: Código del producto encontrado: $codigo");
           
           Map<String, dynamic> producto = {
             'CODIGO': codigo,
             'CANT': cantidad,
             '#': numero
-            
           };
           
           // Mapeo específico para los campos de tu hoja
-         
           producto['UB'] = productoEncontrado['Bod'] ?? '';
           producto['REF'] = productoEncontrado['Ref'] ?? '';
           producto['ORIGEN'] = productoEncontrado['Origen'] ?? '';
@@ -183,15 +179,13 @@ print("DEPURACIÓN: Código del producto encontrado: $codigo");
           producto['V.BRUTO'] = valorBruto;
           
           setState(() {
-          productosAgregados.add(producto);
-          numeroController.clear();
-          cantidadController.clear();
-          calcularTotales();
-          
-          productoCodigoSeleccionado = codigo;
-          print("DEPURACIÓN: Código seleccionado establecido a: $productoCodigoSeleccionado");
-          
-          _checkImageExistence(codigo);
+            productosAgregados.add(producto);
+            numeroController.clear();
+            cantidadController.clear();
+            calcularTotales();
+            
+            productoCodigoSeleccionado = codigo;
+            _checkImageExistence(codigo);
           });
         }
       } else {
@@ -257,16 +251,15 @@ print("DEPURACIÓN: Código del producto encontrado: $codigo");
   
   // Método para seleccionar un producto de la tabla
   void seleccionarProducto(Map<String, dynamic> producto) {
-  final codigo = producto['CODIGO']?.toString() ?? '';
-  print("DEPURACIÓN seleccionarProducto: Seleccionando producto con código: $codigo");
-  setState(() {
-    productoCodigoSeleccionado = codigo;
-    // Verificar si la imagen existe cuando seleccionamos un producto
-    _checkImageExistence(codigo);
-  });
-}
+    final codigo = producto['CODIGO']?.toString() ?? '';
+    setState(() {
+      productoCodigoSeleccionado = codigo;
+      // Verificar si la imagen existe cuando seleccionamos un producto
+      _checkImageExistence(codigo);
+    });
+  }
   
-      // Verificar si la imagen existe y cachear el resultado
+  // Verificar si la imagen existe y cachear el resultado
   Future<void> _checkImageExistence(String codigo) async {
     if (_imagenesDisponibles.containsKey(codigo)) {
       return; // Ya verificamos esta imagen
@@ -545,11 +538,13 @@ print("DEPURACIÓN: Código del producto encontrado: $codigo");
                                   controller: observacionesController,
                                   maxLines: null,
                                   expands: true,
+                                  textAlignVertical: TextAlignVertical.top, // Añade esta línea para que el texto comience desde arriba
                                   decoration: const InputDecoration(
                                     filled: true,
                                     fillColor: Colors.white,
                                     contentPadding: EdgeInsets.all(8),
                                     border: OutlineInputBorder(),
+                                    alignLabelWithHint: true, // También añade esta propiedad para mejor alineación
                                   ),
                                 ),
                               ),
@@ -604,7 +599,7 @@ print("DEPURACIÓN: Código del producto encontrado: $codigo");
     );
   }
   
-  // Widget para mostrar la imagen del producto, simplificado
+  // Widget para mostrar la imagen del producto
   Widget _buildImagenProducto() {
     if (productoCodigoSeleccionado == null) {
       // No hay producto seleccionado
@@ -641,16 +636,18 @@ print("DEPURACIÓN: Código del producto encontrado: $codigo");
       );
     }
     
-    // Mostrar la imagen con el prefijo "m"
-    try {
-      return ClipRRect(
+    // Mostrar la imagen con el prefijo "m" y hacerla presionable
+    return GestureDetector(
+      onTap: () {
+        _mostrarImagenGrande(codigo);
+      },
+      child: ClipRRect(
         borderRadius: BorderRadius.circular(8),
         child: Image.asset(
           'assets/imagenesProductos/m$codigo.jpg',
           fit: BoxFit.contain,
           errorBuilder: (context, error, stackTrace) {
             // Si hay un error al cargar la imagen
-            print("Error al cargar imagen: $error");
             _imagenesDisponibles[codigo] = false;
             return Center(
               child: Column(
@@ -668,25 +665,88 @@ print("DEPURACIÓN: Código del producto encontrado: $codigo");
             );
           },
         ),
-      );
-    } catch (e) {
-      print("Error general al mostrar imagen: $e");
-      _imagenesDisponibles[codigo] = false;
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.broken_image, size: 48, color: Colors.red),
-            const SizedBox(height: 8),
-            Text(
-              'Error: $e',
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.red),
-            ),
-          ],
-        ),
-      );
-    }
+      ),
+    );
+  }
+
+  // Método para mostrar la imagen en tamaño grande
+  void _mostrarImagenGrande(String codigo) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.all(20),
+          child: Stack(
+            children: [
+              // Contenedor con la imagen
+              Container(
+                width: MediaQuery.of(context).size.width * 0.7,
+                height: MediaQuery.of(context).size.height * 0.7,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.5),
+                      spreadRadius: 5,
+                      blurRadius: 7,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Image.asset(
+                    'assets/imagenesProductos/m$codigo.jpg',
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.broken_image, size: 64, color: Colors.red),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Error al cargar la imagen\n$codigo',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(color: Colors.red, fontSize: 16),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+              
+              // Botón para cerrar
+              Positioned(
+                right: 10,
+                top: 10,
+                child: InkWell(
+                  onTap: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(5),
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.close,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   // Formato para moneda

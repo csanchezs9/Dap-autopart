@@ -10,7 +10,6 @@ dependencies:
   flutter:
     sdk: flutter
   shared_preferences: ^2.2.2
-  csv: ^6.0.0
   cupertino_icons: ^1.0.8
   intl: ^0.18.0
   http: ^0.13.5
@@ -25,8 +24,6 @@ dev_dependencies:
 
 flutter:
   assets:
-    - assets/asesores.csv
-    - assets/clientes.csv
     - assets/imagenesProductos/
     
   uses-material-design: true
