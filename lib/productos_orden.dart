@@ -542,11 +542,13 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
                                   controller: observacionesController,
                                   maxLines: null,
                                   expands: true,
+                                  textAlignVertical: TextAlignVertical.top, // Esto hace que el texto comience desde arriba
                                   decoration: const InputDecoration(
                                     filled: true,
                                     fillColor: Colors.white,
                                     contentPadding: EdgeInsets.all(8),
                                     border: OutlineInputBorder(),
+                                    alignLabelWithHint: true, // Alinea la etiqueta con el inicio del texto
                                   ),
                                 ),
                               ),
@@ -640,30 +642,36 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
     
     // Mostrar la imagen con el prefijo "m"
     try {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: Image.asset(
-          'assets/imagenesProductos/m$codigo.jpg',
-          fit: BoxFit.contain,
-          errorBuilder: (context, error, stackTrace) {
-            // Si hay un error al cargar la imagen
-            print("Error al cargar imagen: $error");
-            _imagenesDisponibles[codigo] = false;
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.broken_image, size: 48, color: Colors.red),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Error al cargar imagen\n$codigo',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.red),
-                  ),
-                ],
-              ),
-            );
-          },
+      return GestureDetector(
+        onTap: () {
+          // Al presionar la imagen, mostrarla más grande
+          _mostrarImagenGrande(context, codigo);
+        },
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.asset(
+            'assets/imagenesProductos/m$codigo.jpg',
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) {
+              // Si hay un error al cargar la imagen
+              print("Error al cargar imagen: $error");
+              _imagenesDisponibles[codigo] = false;
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.broken_image, size: 48, color: Colors.red),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Error al cargar imagen\n$codigo',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
         ),
       );
     } catch (e) {
@@ -684,6 +692,81 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
         ),
       );
     }
+  }
+
+  // Añade este método nuevo a la clase _ProductosOrdenState
+  void _mostrarImagenGrande(BuildContext context, String codigo) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.all(20),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              // Contenedor con la imagen grande
+              Container(
+                width: MediaQuery.of(context).size.width * 0.7,
+                height: MediaQuery.of(context).size.height * 0.7,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(15),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.5),
+                      spreadRadius: 2,
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(15),
+                  child: Image.asset(
+                    'assets/imagenesProductos/m$codigo.jpg',
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.broken_image, size: 64, color: Colors.red),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No se pudo cargar la imagen para\n$codigo',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: Colors.red, fontSize: 16),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+              ),
+              
+              // Botón para cerrar el diálogo
+              Positioned(
+                top: 10,
+                right: 10,
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.close, color: Colors.white, size: 20),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   // Formato para moneda
