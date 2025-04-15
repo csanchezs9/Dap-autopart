@@ -137,15 +137,18 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
           );
         } else {
           // Procesar el producto encontrado (que no está agotado)
-          String codigo = productoEncontrado['CODIGO'] ?? '';
+          String codigo = productoEncontrado['CODIGO']?.toString() ?? '';
+print("DEPURACIÓN: Código del producto encontrado: $codigo");
           
           Map<String, dynamic> producto = {
             'CODIGO': codigo,
-            'CANT': cantidad
+            'CANT': cantidad,
+            '#': numero
+            
           };
           
           // Mapeo específico para los campos de tu hoja
-          producto['#'] = productoEncontrado['#'] ?? '';
+         
           producto['UB'] = productoEncontrado['Bod'] ?? '';
           producto['REF'] = productoEncontrado['Ref'] ?? '';
           producto['ORIGEN'] = productoEncontrado['Origen'] ?? '';
@@ -180,16 +183,15 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
           producto['V.BRUTO'] = valorBruto;
           
           setState(() {
-            productosAgregados.add(producto);
-            numeroController.clear();
-            cantidadController.clear();
-            calcularTotales();
-            
-            // Actualizar el código del producto seleccionado para mostrar su imagen
-            productoCodigoSeleccionado = codigo;
-            
-            // Verificar si la imagen existe
-            _checkImageExistence(codigo);
+          productosAgregados.add(producto);
+          numeroController.clear();
+          cantidadController.clear();
+          calcularTotales();
+          
+          productoCodigoSeleccionado = codigo;
+          print("DEPURACIÓN: Código seleccionado establecido a: $productoCodigoSeleccionado");
+          
+          _checkImageExistence(codigo);
           });
         }
       } else {
@@ -255,13 +257,14 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
   
   // Método para seleccionar un producto de la tabla
   void seleccionarProducto(Map<String, dynamic> producto) {
-    final codigo = producto['CODIGO']?.toString() ?? '';
-    setState(() {
-      productoCodigoSeleccionado = codigo;
-      // Verificar si la imagen existe cuando seleccionamos un producto
-      _checkImageExistence(codigo);
-    });
-  }
+  final codigo = producto['CODIGO']?.toString() ?? '';
+  print("DEPURACIÓN seleccionarProducto: Seleccionando producto con código: $codigo");
+  setState(() {
+    productoCodigoSeleccionado = codigo;
+    // Verificar si la imagen existe cuando seleccionamos un producto
+    _checkImageExistence(codigo);
+  });
+}
   
       // Verificar si la imagen existe y cachear el resultado
   Future<void> _checkImageExistence(String codigo) async {
@@ -542,13 +545,11 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
                                   controller: observacionesController,
                                   maxLines: null,
                                   expands: true,
-                                  textAlignVertical: TextAlignVertical.top, // Esto hace que el texto comience desde arriba
                                   decoration: const InputDecoration(
                                     filled: true,
                                     fillColor: Colors.white,
                                     contentPadding: EdgeInsets.all(8),
                                     border: OutlineInputBorder(),
-                                    alignLabelWithHint: true, // Alinea la etiqueta con el inicio del texto
                                   ),
                                 ),
                               ),
@@ -642,36 +643,30 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
     
     // Mostrar la imagen con el prefijo "m"
     try {
-      return GestureDetector(
-        onTap: () {
-          // Al presionar la imagen, mostrarla más grande
-          _mostrarImagenGrande(context, codigo);
-        },
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: Image.asset(
-            'assets/imagenesProductos/m$codigo.jpg',
-            fit: BoxFit.contain,
-            errorBuilder: (context, error, stackTrace) {
-              // Si hay un error al cargar la imagen
-              print("Error al cargar imagen: $error");
-              _imagenesDisponibles[codigo] = false;
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.broken_image, size: 48, color: Colors.red),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Error al cargar imagen\n$codigo',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: Colors.red),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.asset(
+          'assets/imagenesProductos/m$codigo.jpg',
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) {
+            // Si hay un error al cargar la imagen
+            print("Error al cargar imagen: $error");
+            _imagenesDisponibles[codigo] = false;
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.broken_image, size: 48, color: Colors.red),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Error al cargar imagen\n$codigo',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                ],
+              ),
+            );
+          },
         ),
       );
     } catch (e) {
@@ -692,81 +687,6 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
         ),
       );
     }
-  }
-
-  // Añade este método nuevo a la clase _ProductosOrdenState
-  void _mostrarImagenGrande(BuildContext context, String codigo) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          insetPadding: const EdgeInsets.all(20),
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              // Contenedor con la imagen grande
-              Container(
-                width: MediaQuery.of(context).size.width * 0.7,
-                height: MediaQuery.of(context).size.height * 0.7,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(15),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.5),
-                      spreadRadius: 2,
-                      blurRadius: 10,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(15),
-                  child: Image.asset(
-                    'assets/imagenesProductos/m$codigo.jpg',
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.broken_image, size: 64, color: Colors.red),
-                          const SizedBox(height: 16),
-                          Text(
-                            'No se pudo cargar la imagen para\n$codigo',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(color: Colors.red, fontSize: 16),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                ),
-              ),
-              
-              // Botón para cerrar el diálogo
-              Positioned(
-                top: 10,
-                right: 10,
-                child: GestureDetector(
-                  onTap: () {
-                    Navigator.of(context).pop();
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: const BoxDecoration(
-                      color: Colors.red,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.close, color: Colors.white, size: 20),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
   }
 
   // Formato para moneda

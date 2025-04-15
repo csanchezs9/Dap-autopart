@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show rootBundle;
-import 'package:csv/csv.dart';
-import 'orden_de_pedido_main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'orden_de_pedido_main.dart';
+import 'asesor_service.dart';
 
 void main() {
   runApp(MyApp());
@@ -12,7 +11,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Login App',
+      title: 'DAP AutoPart\'s',
       home: LoginScreen(),
       debugShowCheckedModeBanner: false,
     );
@@ -28,6 +27,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool recordarDatos = false;
+  bool isLoading = false;
 
   @override
   void initState() {
@@ -55,28 +55,51 @@ class _LoginScreenState extends State<LoginScreen> {
     await prefs.setBool('recordar', recordarDatos);
   }
 
-  Future<List<String>> cargarCorreosDesdeCSV() async {
-    final rawData = await rootBundle.loadString('assets/asesores.csv');
-    final List<List<dynamic>> lista = const CsvToListConverter().convert(rawData);
-    return lista.skip(1).map((fila) => fila[3].toString().trim().toLowerCase()).toList();
-  }
-
   void _login() async {
     final emailIngresado = _emailController.text.trim().toLowerCase();
     final password = _passwordController.text.trim();
 
-    final listaCorreos = await cargarCorreosDesdeCSV();
-
-    if (listaCorreos.contains(emailIngresado) && password == "1234") {
-      await _guardarDatos();
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => OrdenDePedidoMain()),
-      );
-    } else {
+    if (emailIngresado.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Correo o contraseña incorrectos')),
+        SnackBar(content: Text('Por favor ingrese su correo electrónico')),
       );
+      return;
+    }
+
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      // Buscamos al asesor por su correo electrónico
+      final asesorEncontrado = await AsesorService.buscarAsesorPorCorreo(emailIngresado);
+      
+      if (asesorEncontrado != null && password == "1234") {
+        await _guardarDatos();
+        
+        // Guardamos información del asesor en sesión
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('asesor_id', asesorEncontrado['ID']?.toString() ?? '');
+        await prefs.setString('asesor_nombre', asesorEncontrado['NOMBRE']?.toString() ?? '');
+        await prefs.setString('asesor_zona', asesorEncontrado['ZONA']?.toString() ?? '');
+        
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => OrdenDePedidoMain()),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Correo o contraseña incorrectos')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al iniciar sesión: $e')),
+      );
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
     }
   }
 
@@ -140,12 +163,21 @@ class _LoginScreenState extends State<LoginScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: _login,
+                        onPressed: isLoading ? null : _login,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.red,
                           padding: EdgeInsets.symmetric(vertical: 14),
                         ),
-                        child: Text('Ingresar', style: TextStyle(color: Colors.white)),
+                        child: isLoading 
+                          ? SizedBox(
+                              width: 20, 
+                              height: 20, 
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              )
+                            )
+                          : Text('Ingresar', style: TextStyle(color: Colors.white)),
                       ),
                     ),
                   ],

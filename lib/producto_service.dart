@@ -64,8 +64,9 @@ class ProductoService {
 
           for (int j = 0; j < headers.length && j < row.length; j++) {
             producto[headers[j]] = row[j];
+            
           }
-
+          
           // Ya no necesitamos añadir un índice propio, usamos el # de la hoja
           // producto['INDICE'] = (i - headerRowIndex).toString();
 
@@ -86,67 +87,41 @@ class ProductoService {
     }
   }
 
-  static Future<Map<String, dynamic>?> buscarProductoPorCodigo(String codigo) async {
-    print("Buscando producto con código: $codigo");
-    try {
-      final productos = await obtenerProductos();
-      if (productos.isEmpty) {
-        print("No se cargaron productos de la hoja");
-        return null;
-      }
-      
-      for (var producto in productos) {
-        if (producto['CODIGO']?.toString().trim() == codigo.trim()) {
-          print("¡Producto encontrado!: $producto");
-          return producto;
-        }
-      }
-      
-      print("No se encontró ningún producto con código: $codigo");
-      return null;
-    } catch (e) {
-      print("Error en buscarProductoPorCodigo: $e");
+  
+ static Future<Map<String, dynamic>?> buscarProductoPorNumero(String numero) async {
+  print("Buscando producto con número: $numero");
+  try {
+    final productos = await obtenerProductos();
+    if (productos.isEmpty) {
+      print("No se cargaron productos de la hoja");
       return null;
     }
-  }
-
-  static Future<Map<String, dynamic>?> buscarProductoPorNumero(String numero) async {
-    print("Buscando producto con número: $numero");
-    try {
-      final productos = await obtenerProductos();
-      if (productos.isEmpty) {
-        print("No se cargaron productos de la hoja");
-        return null;
-      }
-      
-      // Mostrar los primeros productos para depuración
-      print("Muestra de productos disponibles:");
-      for (int i = 0; i < min(5, productos.length); i++) {
-        print("Producto $i: #=${productos[i]['#']}, CODIGO=${productos[i]['CODIGO']}");
-      }
-      
-      // Buscar por el número (#) exacto
-      for (var producto in productos) {
-        if (producto['#']?.toString().trim() == numero.trim()) {
-          print("¡Producto encontrado por #!: $producto");
-          return producto;
-        }
-      }
-      
-      // Si no se encuentra por #, podríamos intentar buscar por posición en la lista
-      int numeroInt = int.tryParse(numero) ?? 0;
-      if (numeroInt > 0 && numeroInt <= productos.length) {
-        print("¡Producto encontrado por posición!: ${productos[numeroInt - 1]}");
-        return productos[numeroInt - 1];
-      }
-      
-      print("No se encontró ningún producto con número: $numero");
-      return null;
-    } catch (e) {
-      print("Error en buscarProductoPorNumero: $e");
-      return null;
+    
+    // Depuración: mostrar algunas filas para ver estructura
+    print("Primeros 10 productos disponibles:");
+    for (int i = 0; i < min(10, productos.length); i++) {
+      print("Índice $i: #=${productos[i]['#']}, CODIGO=${productos[i]['CODIGO']}");
     }
+    
+    // Convertir el número a un índice (asumiendo que quieres el producto en esa posición)
+    int numeroInt = int.tryParse(numero) ?? 0;
+    
+    // Si el número es válido y está dentro del rango
+    if (numeroInt > 0 && numeroInt <= productos.length) {
+      // Restamos 1 porque los índices comienzan en 0, pero la numeración humana desde 1
+      int indice = numeroInt - 1;
+      print("Buscando producto en el índice: $indice");
+      print("¡Producto encontrado por índice!: ${productos[indice]}");
+      return productos[indice];
+    }
+    
+    print("No se encontró ningún producto con número/índice: $numero");
+    return null;
+  } catch (e) {
+    print("Error en buscarProductoPorNumero: $e");
+    return null;
   }
+}
 }
 
 // Función min para compatibilidad

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show rootBundle;
-import 'package:csv/csv.dart';
-import 'dart:convert';
 import 'package:intl/intl.dart';
-import 'package:intl/date_symbol_data_local.dart'; // Añadido para inicializar locales
+import 'package:intl/date_symbol_data_local.dart';
+import 'cliente_service.dart';
+import 'asesor_service.dart';
 import 'productos_orden.dart';
+
 
 class OrdenDePedido extends StatefulWidget {
   const OrdenDePedido({super.key});
@@ -19,22 +19,16 @@ class _OrdenDePedidoState extends State<OrdenDePedido> {
 
   Map<String, String> clienteData = {};
   Map<String, String> asesorData = {};
-
-  List<List<dynamic>> clientesCsv = [];
-  List<List<dynamic>> asesoresCsv = [];
   
-  bool isLoading = true;
+  bool isLoading = false;
   String errorMessage = '';
   final TextEditingController ordenNumeroController = TextEditingController();
-
 
   @override
   void initState() {
     super.initState();
     // Inicializar la localización antes de usarla
-    initializeDateFormatting('es_ES', null).then((_) {
-      cargarCSVs();
-    });
+    initializeDateFormatting('es_ES', null);
   }
 
   String obtenerFechaActual() {
@@ -43,7 +37,10 @@ class _OrdenDePedidoState extends State<OrdenDePedido> {
     String fecha = formatter.format(now).toUpperCase();
     return fecha;
   }
-
+  
+  // Esta función ya no es necesaria porque usamos los servicios directamente
+  // Eliminamos la carga de CSV locales y pasamos a usar los servicios web
+  /*
   Future<void> cargarCSVs() async {
     try {
       setState(() {
@@ -51,124 +48,126 @@ class _OrdenDePedidoState extends State<OrdenDePedido> {
         errorMessage = '';
       });
       
-      // Cargar archivo de clientes con Latin-1 encoding
-      final clientesBytes = await rootBundle.load('assets/clientes.csv');
-      final clientesString = latin1.decode(clientesBytes.buffer.asUint8List());
-      final clientesData = const CsvToListConverter().convert(clientesString);
-      
-      // Cargar archivo de asesores con Latin-1 encoding
-      final asesoresBytes = await rootBundle.load('assets/asesores.csv');
-      final asesoresString = latin1.decode(asesoresBytes.buffer.asUint8List());
-      final asesoresData = const CsvToListConverter().convert(asesoresString);
+      // Ahora los datos se cargan bajo demanda usando los servicios
+      // No necesitamos precargar todos los datos
       
       setState(() {
-        clientesCsv = clientesData;
-        asesoresCsv = asesoresData;
         isLoading = false;
       });
       
     } catch (e) {
       setState(() {
         isLoading = false;
-        errorMessage = 'Error al cargar los CSV: $e';
+        errorMessage = 'Error al cargar los datos: $e';
       });
-      print("Error al cargar los CSV: $e");
+      print("Error al cargar los datos: $e");
     }
   }
+  */
 
-  void buscarClientePorNIT(String nit) {
-    if (clientesCsv.isEmpty) {
+  // Método para buscar cliente por NIT usando el servicio
+  void buscarClientePorNIT(String nit) async {
+    if (nit.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Datos de clientes no disponibles')),
+        SnackBar(content: Text('Por favor ingrese un NIT')),
       );
       return;
     }
     
-    final headers = clientesCsv[0];
-    final rows = clientesCsv.skip(1).toList();
-
-    // Resetear datos del cliente
     setState(() {
+      isLoading = true;
       clienteData = {};
     });
-
-    // Buscar el NIT exacto ignorando espacios
-    for (var row in rows) {
-      if (row.isNotEmpty) {
-        String rowNit = row[0].toString().trim();
-        
-        if (rowNit == nit.trim()) {
-          try {
-            Map<String, String> newData = {};
-            for (int i = 0; i < headers.length && i < row.length; i++) {
-              newData[headers[i].toString()] = row[i].toString();
-            }
-            
-            setState(() {
-              clienteData = newData;
-              
-              // Si encontramos el cliente, también podemos buscar su asesor automáticamente
-              if (clienteData.containsKey('ID ASESOR') && clienteData['ID ASESOR'] != null) {
-                String idAsesor = clienteData['ID ASESOR']!;
-                idAsesorController.text = idAsesor;
-                buscarAsesorPorID(idAsesor);
-              }
-            });
-            return;
-          } catch (e) {
-            print("Error al procesar datos del cliente: $e");
-          }
-        }
-      }
-    }
     
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('No se encontró cliente con NIT: $nit')),
-    );
+    try {
+      final clienteEncontrado = await ClienteService.buscarClientePorNIT(nit);
+      
+      if (clienteEncontrado != null) {
+        // Convertir el Map<String, dynamic> a Map<String, String>
+        Map<String, String> newData = {};
+        clienteEncontrado.forEach((key, value) {
+          newData[key] = value.toString();
+        });
+        
+        setState(() {
+          clienteData = newData;
+          
+          // Si encontramos el cliente, también podemos buscar su asesor automáticamente
+          String idAsesor = '';
+          if (clienteData.containsKey('ID ASESOR')) {
+            idAsesor = clienteData['ID ASESOR']!;
+          } else if (clienteData.containsKey('ASESOR ID')) {
+            idAsesor = clienteData['ASESOR ID']!;
+          }
+          
+          if (idAsesor.isNotEmpty) {
+            idAsesorController.text = idAsesor;
+            buscarAsesorPorID(idAsesor);
+          }
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No se encontró cliente con NIT: $nit')),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        errorMessage = 'Error al buscar cliente: $e';
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al buscar cliente: $e')),
+      );
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
   }
 
-  void buscarAsesorPorID(String id) {
-    if (asesoresCsv.isEmpty) {
+  // Método para buscar asesor por ID usando el servicio
+  void buscarAsesorPorID(String id) async {
+    if (id.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Datos de asesores no disponibles')),
+        SnackBar(content: Text('Por favor ingrese un ID de asesor')),
       );
       return;
     }
     
-    final headers = asesoresCsv[0];
-    final rows = asesoresCsv.skip(1).toList();
-
-    // Resetear datos del asesor
     setState(() {
+      isLoading = true;
       asesorData = {};
     });
-
-    // El ID del asesor está en la columna 1 (índice 1) según tu CSV
-    for (var row in rows) {
-      if (row.isNotEmpty) {
-        String rowId = row[1].toString().trim();
-        
-        if (rowId == id.trim()) {
-          try {
-            Map<String, String> newData = {};
-            for (int i = 0; i < headers.length && i < row.length; i++) {
-              newData[headers[i].toString()] = row[i].toString();
-            }
-            
-            setState(() {
-              asesorData = newData;
-            });
-            return;
-          } catch (e) {
-            print("Error al procesar datos del asesor: $e");
-          }
-        }
-      }
-    }
     
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('No se encontró asesor con ID: $id')),
-    );
+    try {
+      final asesorEncontrado = await AsesorService.buscarAsesorPorID(id);
+      
+      if (asesorEncontrado != null) {
+        // Convertir el Map<String, dynamic> a Map<String, String>
+        Map<String, String> newData = {};
+        asesorEncontrado.forEach((key, value) {
+          newData[key] = value.toString();
+        });
+        
+        setState(() {
+          asesorData = newData;
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No se encontró asesor con ID: $id')),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        errorMessage = 'Error al buscar asesor: $e';
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al buscar asesor: $e')),
+      );
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
   }
 
   // Método para crear las filas de la tabla
@@ -278,19 +277,18 @@ class _OrdenDePedidoState extends State<OrdenDePedido> {
                                style: TextStyle(fontWeight: FontWeight.bold)),
                           SizedBox(height: 5),
                           SizedBox(
-                                    width: 200,
-                                    child: TextField(
-                                      controller: ordenNumeroController,
-                                      decoration: InputDecoration(
-                                        labelText: 'Orden de Pedido #',
-                                        border: OutlineInputBorder(),
-                                        hintText: 'Ej: OP-00023',
-                                        isDense: true,
-                                        contentPadding: EdgeInsets.all(8),
-                                      ),
-                                    ),
-                                  ),
-
+                            width: 200,
+                            child: TextField(
+                              controller: ordenNumeroController,
+                              decoration: InputDecoration(
+                                labelText: 'Orden de Pedido #',
+                                border: OutlineInputBorder(),
+                                hintText: 'Ej: OP-00023',
+                                isDense: true,
+                                contentPadding: EdgeInsets.all(8),
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                     ],
@@ -381,7 +379,6 @@ class _OrdenDePedidoState extends State<OrdenDePedido> {
                               clienteData: clienteData,
                               asesorData: asesorData,
                               ordenNumero: ordenNumeroController.text,
-
                             ),
                           ),
                         );
