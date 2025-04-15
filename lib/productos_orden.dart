@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter/services.dart';
+import 'dart:ui' as ui;
+import 'package:flutter/rendering.dart';
 import 'producto_service.dart';
 
 class ProductosOrden extends StatefulWidget {
@@ -51,6 +53,9 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
   
   // Cache de imágenes disponibles
   final Map<String, bool> _imagenesDisponibles = {};
+  
+  // GlobalKey para capturar la vista previa
+  final GlobalKey _vistaPreviewKey = GlobalKey();
 
   @override
   void initState() {
@@ -280,6 +285,466 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
       setState(() {});
     }
   }
+  
+  // Método para mostrar la vista previa
+  void mostrarVistaPrevia() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          backgroundColor: Colors.white,
+          insetPadding: EdgeInsets.all(16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Container(
+            width: MediaQuery.of(context).size.width * 0.95,
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.95,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Solo un botón para cerrar sin AppBar
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    IconButton(
+                      icon: Icon(Icons.close, color: Colors.black),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ],
+                ),
+                // Contenido de la vista previa (scrollable)
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.all(20),
+                    child: RepaintBoundary(
+                      key: _vistaPreviewKey,
+                      child: Container(
+                        color: Colors.white,
+                        padding: EdgeInsets.all(20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Encabezado
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Logo
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    RichText(
+                                      text: TextSpan(
+                                        style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
+                                        children: [
+                                          TextSpan(
+                                            text: 'DAP\n',
+                                            style: TextStyle(color: Color(0xFF1A4379)),
+                                          ),
+                                          TextSpan(
+                                            text: 'AutoPart´s',
+                                            style: TextStyle(color: Colors.red[700]),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    SizedBox(height: 5),
+                                    Text('Distribuciones Autoparts S.A.S'),
+                                    Text('Nit: 901.110.424-1', style: TextStyle(decoration: TextDecoration.underline)),
+                                  ],
+                                ),
+                                Spacer(),
+                                // Información de la orden
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text('FECHA: ${obtenerFechaActual()}', style: TextStyle(fontWeight: FontWeight.bold)),
+                                    Text('ORDEN DE PEDIDO #: ${widget.ordenNumero}', style: TextStyle(fontWeight: FontWeight.bold)),
+                                    SizedBox(height: 10),
+                                    Row(
+                                      children: [
+                                        Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                Icon(isNormal ? Icons.check_box_outlined : Icons.check_box_outline_blank, size: 14),
+                                                SizedBox(width: 4),
+                                                Text('NORMAL', style: TextStyle(fontSize: 10)),
+                                              ],
+                                            ),
+                                            Row(
+                                              children: [
+                                                Icon(isParcial ? Icons.check_box_outlined : Icons.check_box_outline_blank, size: 14),
+                                                SizedBox(width: 4),
+                                                Text('PARCIAL', style: TextStyle(fontSize: 10)),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                        SizedBox(width: 15),
+                                        Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                Icon(isCondicionado ? Icons.check_box_outlined : Icons.check_box_outline_blank, size: 14),
+                                                SizedBox(width: 4),
+                                                Text('CONDICIONADO', style: TextStyle(fontSize: 10)),
+                                              ],
+                                            ),
+                                            Row(
+                                              children: [
+                                                Icon(isTotal ? Icons.check_box_outlined : Icons.check_box_outline_blank, size: 14),
+                                                SizedBox(width: 4),
+                                                Text('TOTAL', style: TextStyle(fontSize: 10)),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                    Row(
+                                      children: [
+                                        Icon(isContado ? Icons.check_box_outlined : Icons.check_box_outline_blank, size: 14),
+                                        SizedBox(width: 4),
+                                        Text('CONTADO', style: TextStyle(fontSize: 10)),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            
+                            SizedBox(height: 20),
+                            
+                            // Información del cliente
+                            Container(
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.grey),
+                                borderRadius: BorderRadius.circular(5),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Container(
+                                    padding: EdgeInsets.all(8),
+                                    color: Color(0xFF1A4379),
+                                    width: double.infinity,
+                                    child: Text(
+                                      'INFORMACIÓN DEL CLIENTE',
+                                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                  Padding(
+                                    padding: EdgeInsets.all(8),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        _buildInfoRow('NIT:', widget.clienteData['NIT CLIENTE'] ?? ''),
+                                        _buildInfoRow('NOMBRE:', widget.clienteData['NOMBRE'] ?? ''),
+                                        _buildInfoRow('ESTABLECIMIENTO:', widget.clienteData['ESTABLECIMIENTO'] ?? ''),
+                                        _buildInfoRow('DIRECCIÓN:', widget.clienteData['DIRECCION'] ?? ''),
+                                        _buildInfoRow('TELÉFONO:', widget.clienteData['TELEFONO'] ?? ''),
+                                        _buildInfoRow('DESCUENTO:', widget.clienteData['DESCTO'] ?? ''),
+                                        _buildInfoRow('CIUDAD:', widget.clienteData['CLI_CIUDAD'] ?? ''),
+                                      ],
+                                    ),
+                            ),
+                            
+                            SizedBox(height: 15),
+                            
+                            // Información del asesor
+                            Container(
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.grey),
+                                borderRadius: BorderRadius.circular(5),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Container(
+                                    padding: EdgeInsets.all(8),
+                                    color: Color(0xFF1A4379),
+                                    width: double.infinity,
+                                    child: Text(
+                                      'INFORMACIÓN DEL ASESOR',
+                                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                  Padding(
+                                    padding: EdgeInsets.all(8),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        _buildInfoRow('ID:', widget.asesorData['ID'] ?? ''),
+                                        _buildInfoRow('NOMBRE:', widget.asesorData['NOMBRE'] ?? ''),
+                                        _buildInfoRow('ZONA:', widget.asesorData['ZONA'] ?? ''),
+                                        _buildInfoRow('TELÉFONO:', widget.asesorData['CEL'] ?? ''),
+                                        _buildInfoRow('CORREO:', widget.asesorData['MAIL'] ?? ''),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            
+                            SizedBox(height: 20),
+                            
+                            // Encabezado de Productos
+                            Container(
+                              width: double.infinity,
+                              color: Color(0xFF1A4379),
+                              padding: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                              child: Text(
+                                'PRODUCTOS',
+                                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                              ),
+                            ),
+                            
+                            // Tabla simplificada de productos (formato más parecido a la imagen proporcionada)
+                            Table(
+                              border: TableBorder.all(color: Colors.grey.shade300),
+                              columnWidths: const {
+                                0: IntrinsicColumnWidth(),
+                                1: IntrinsicColumnWidth(),
+                                2: IntrinsicColumnWidth(),
+                                3: IntrinsicColumnWidth(),
+                                4: IntrinsicColumnWidth(),
+                                5: FlexColumnWidth(3),
+                                6: IntrinsicColumnWidth(),
+                                7: IntrinsicColumnWidth(),
+                                8: IntrinsicColumnWidth(),
+                                9: IntrinsicColumnWidth(),
+                                10: IntrinsicColumnWidth(),
+                                11: IntrinsicColumnWidth(),
+                              },
+                              children: [
+                                // Encabezado de la tabla
+                                TableRow(
+                                  decoration: BoxDecoration(color: Color(0xFFCFD5E1)),
+                                  children: [
+                                    Padding(
+                                      padding: EdgeInsets.all(8.0),
+                                      child: Text('#', style: TextStyle(fontWeight: FontWeight.bold)),
+                                    ),
+                                    Padding(
+                                      padding: EdgeInsets.all(8.0),
+                                      child: Text('CÓDIGO', style: TextStyle(fontWeight: FontWeight.bold)),
+                                    ),
+                                    Padding(
+                                      padding: EdgeInsets.all(8.0),
+                                      child: Text('UB', style: TextStyle(fontWeight: FontWeight.bold)),
+                                    ),
+                                    Padding(
+                                      padding: EdgeInsets.all(8.0),
+                                      child: Text('REF', style: TextStyle(fontWeight: FontWeight.bold)),
+                                    ),
+                                    Padding(
+                                      padding: EdgeInsets.all(8.0),
+                                      child: Text('ORIGEN', style: TextStyle(fontWeight: FontWeight.bold)),
+                                    ),
+                                    Padding(
+                                      padding: EdgeInsets.all(8.0),
+                                      child: Text('DESCRIPCIÓN', style: TextStyle(fontWeight: FontWeight.bold)),
+                                    ),
+                                    Padding(
+                                      padding: EdgeInsets.all(8.0),
+                                      child: Text('VEHÍCULO', style: TextStyle(fontWeight: FontWeight.bold)),
+                                    ),
+                                    Padding(
+                                      padding: EdgeInsets.all(8.0),
+                                      child: Text('MARCA', style: TextStyle(fontWeight: FontWeight.bold)),
+                                    ),
+                                    Padding(
+                                      padding: EdgeInsets.all(8.0),
+                                      child: Text('VLR ANTES\nDE IVA', style: TextStyle(fontWeight: FontWeight.bold)),
+                                    ),
+                                    Padding(
+                                      padding: EdgeInsets.all(8.0),
+                                      child: Text('DSCTO', style: TextStyle(fontWeight: FontWeight.bold)),
+                                    ),
+                                    Padding(
+                                      padding: EdgeInsets.all(8.0),
+                                      child: Text('CANT', style: TextStyle(fontWeight: FontWeight.bold)),
+                                    ),
+                                    Padding(
+                                      padding: EdgeInsets.all(8.0),
+                                      child: Text('V.BRUTO', style: TextStyle(fontWeight: FontWeight.bold)),
+                                    ),
+                                  ],
+                                ),
+                                // Filas de productos
+                                ...productosAgregados.map((producto) => TableRow(
+                                  children: [
+                                    Padding(
+                                      padding: EdgeInsets.all(8.0),
+                                      child: Text(producto['#']?.toString() ?? ''),
+                                    ),
+                                    Padding(
+                                      padding: EdgeInsets.all(8.0),
+                                      child: Text(producto['CODIGO']?.toString() ?? ''),
+                                    ),
+                                    Padding(
+                                      padding: EdgeInsets.all(8.0),
+                                      child: Text(producto['UB']?.toString() ?? ''),
+                                    ),
+                                    Padding(
+                                      padding: EdgeInsets.all(8.0),
+                                      child: Text(producto['REF']?.toString() ?? ''),
+                                    ),
+                                    Padding(
+                                      padding: EdgeInsets.all(8.0),
+                                      child: Text(producto['ORIGEN']?.toString() ?? ''),
+                                    ),
+                                    Padding(
+                                      padding: EdgeInsets.all(8.0),
+                                      child: Text(producto['DESCRIPCION']?.toString() ?? ''),
+                                    ),
+                                    Padding(
+                                      padding: EdgeInsets.all(8.0),
+                                      child: Text(producto['VEHICULO']?.toString() ?? ''),
+                                    ),
+                                    Padding(
+                                      padding: EdgeInsets.all(8.0),
+                                      child: Text(producto['MARCA']?.toString() ?? ''),
+                                    ),
+                                    Padding(
+                                      padding: EdgeInsets.all(8.0),
+                                      child: Text(formatCurrency(producto['VLR ANTES DE IVA'])),
+                                    ),
+                                    Padding(
+                                      padding: EdgeInsets.all(8.0),
+                                      child: Text('${producto['DSCTO']}%'),
+                                    ),
+                                    Padding(
+                                      padding: EdgeInsets.all(8.0),
+                                      child: Text(producto['CANT']?.toString() ?? ''),
+                                    ),
+                                    Padding(
+                                      padding: EdgeInsets.all(8.0),
+                                      child: Text(formatCurrency(producto['V.BRUTO'])),
+                                    ),
+                                  ],
+                                )).toList(),
+                              ],
+                            ),
+                                ],
+                              ),
+                            ),
+                            
+                            SizedBox(height: 20),
+                            
+                            // Observaciones y totales
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Observaciones
+                                Expanded(
+                                  flex: 3,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      border: Border.all(color: Colors.grey),
+                                      borderRadius: BorderRadius.circular(5),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Container(
+                                          padding: EdgeInsets.all(8),
+                                          color: Color(0xFF1A4379),
+                                          width: double.infinity,
+                                          child: Text(
+                                            'OBSERVACIONES',
+                                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                                          ),
+                                        ),
+                                        Padding(
+                                          padding: EdgeInsets.all(8),
+                                          child: Text(observacionesController.text.isEmpty ? 
+                                                     'Sin observaciones' : observacionesController.text),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                
+                                SizedBox(width: 20),
+                                
+                                // Totales
+                                Expanded(
+                                  flex: 2,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      border: Border.all(color: Colors.grey),
+                                      borderRadius: BorderRadius.circular(5),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        _buildTotalRow('V.BRUTO', formatCurrency(valorBrutoTotal)),
+                                        _buildTotalRow('DSCTO', formatCurrency(descuentoTotal)),
+                                        _buildTotalRow('SUBTOTAL', formatCurrency(subtotal)),
+                                        _buildTotalRow('IVA', formatCurrency(iva)),
+                                        Container(
+                                          color: Color(0xFF1A4379),
+                                          padding: EdgeInsets.all(8),
+                                          child: Row(
+                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Text('TOTAL', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+                                              Text(formatCurrency(total), style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+  
+  // Widget para línea de firma
+  Widget _buildFirmaField(String label) {
+    return Column(
+      children: [
+        Container(
+          width: 200,
+          height: 1,
+          color: Colors.black,
+        ),
+        SizedBox(height: 5),
+        Text(label, style: TextStyle(fontSize: 12)),
+      ],
+    );
+  }
+  
+  // Método para capturar la vista previa como imagen
+  Future<ui.Image?> _capturarVistaPrevia() async {
+    try {
+      RenderRepaintBoundary boundary = _vistaPreviewKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+      ui.Image image = await boundary.toImage(pixelRatio: 3.0);
+      return image;
+    } catch (e) {
+      print("Error al capturar vista previa: $e");
+      return null;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -345,9 +810,9 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
                             1: FlexColumnWidth(3),
                           },
                           children: [
-                            _buildInfoRow('NIT CLIENTE', widget.clienteData['NIT CLIENTE'] ?? '', isHeader: true),
-                            _buildInfoRow('NOMBRE', widget.clienteData['NOMBRE'] ?? ''),
-                            _buildInfoRow('ESTABLECIMIENTO', widget.clienteData['ESTABLECIMIENTO'] ?? ''),
+                            _buildInfoRow2('NIT CLIENTE', widget.clienteData['NIT CLIENTE'] ?? '', isHeader: true),
+                            _buildInfoRow2('NOMBRE', widget.clienteData['NOMBRE'] ?? ''),
+                            _buildInfoRow2('ESTABLECIMIENTO', widget.clienteData['ESTABLECIMIENTO'] ?? ''),
                           ],
                         ),
                       ),
@@ -365,7 +830,7 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
                             Text('ORDEN DE PEDIDO #: ${widget.ordenNumero}', 
                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                             const SizedBox(height: 10),
-                            
+
                             // Checkboxes en filas
                             Row(
                               children: [
@@ -538,13 +1003,13 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
                                   controller: observacionesController,
                                   maxLines: null,
                                   expands: true,
-                                  textAlignVertical: TextAlignVertical.top, // Añade esta línea para que el texto comience desde arriba
+                                  textAlignVertical: TextAlignVertical.top,
                                   decoration: const InputDecoration(
                                     filled: true,
                                     fillColor: Colors.white,
                                     contentPadding: EdgeInsets.all(8),
                                     border: OutlineInputBorder(),
-                                    alignLabelWithHint: true, // También añade esta propiedad para mejor alineación
+                                    alignLabelWithHint: true,
                                   ),
                                 ),
                               ),
@@ -565,11 +1030,11 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
                             1: FlexColumnWidth(1),
                           },
                           children: [
-                            _buildTotalRow('V.BRUTO', formatCurrency(valorBrutoTotal)),
-                            _buildTotalRow('DSCTO', formatCurrency(descuentoTotal)),
-                            _buildTotalRow('SUBTOTAL', formatCurrency(subtotal)),
-                            _buildTotalRow('IVA', formatCurrency(iva)),
-                            _buildTotalRow('TOTAL', formatCurrency(total), isTotal: true),
+                            _buildTotalRow2('V.BRUTO', formatCurrency(valorBrutoTotal)),
+                            _buildTotalRow2('DSCTO', formatCurrency(descuentoTotal)),
+                            _buildTotalRow2('SUBTOTAL', formatCurrency(subtotal)),
+                            _buildTotalRow2('IVA', formatCurrency(iva)),
+                            _buildTotalRow2('TOTAL', formatCurrency(total), isTotal: true),
                           ],
                         ),
                       ),
@@ -578,19 +1043,39 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
                   
                   const SizedBox(height: 20),
                   
-                  // Botón para cancelar orden
+                  // Botones
                   Center(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: Colors.black,
-                        side: const BorderSide(color: Colors.grey),
-                        padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
-                      ),
-                      child: const Text('CANCELAR ORDEN'),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // Botón Vista Previa
+                        ElevatedButton(
+                          onPressed: () {
+                            mostrarVistaPrevia();
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Color(0xFF1A4379),
+                            foregroundColor: Colors.white,
+                            side: const BorderSide(color: Colors.grey),
+                            padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
+                          ),
+                          child: const Text('VISTA PREVIA'),
+                        ),
+                        SizedBox(width: 20), // Espaciado entre botones
+                        // Botón Cancelar Orden
+                        ElevatedButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: Colors.black,
+                            side: const BorderSide(color: Colors.grey),
+                            padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
+                          ),
+                          child: const Text('CANCELAR ORDEN'),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -764,7 +1249,7 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
   }
 
   // Widgets auxiliares
-  TableRow _buildInfoRow(String label, String value, {bool isHeader = false}) {
+  TableRow _buildInfoRow2(String label, String value, {bool isHeader = false}) {
     return TableRow(
       decoration: BoxDecoration(
         color: isHeader ? const Color(0xFF1A4379) : const Color(0xFFCFD5E1),
@@ -810,7 +1295,7 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
     );
   }
 
-  TableRow _buildTotalRow(String label, String value, {bool isTotal = false}) {
+  TableRow _buildTotalRow2(String label, String value, {bool isTotal = false}) {
     return TableRow(
       decoration: BoxDecoration(
         color: isTotal ? const Color(0xFF1A4379) : const Color(0xFFCFD5E1),
@@ -847,6 +1332,48 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
         fontWeight: FontWeight.bold,
         color: Colors.white,
         fontSize: 12,
+      ),
+    );
+  }
+  
+  // Widget para fila de información en vista previa
+  Widget _buildInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(
+              label,
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(fontSize: 12),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  // Widget para fila de totales en vista previa
+  Widget _buildTotalRow(String label, String value) {
+    return Container(
+      padding: EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: Colors.grey)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: TextStyle(fontWeight: FontWeight.bold)),
+          Text(value),
+        ],
       ),
     );
   }
