@@ -2,9 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'orden_de_pedido_main.dart';
 import 'asesor_service.dart';
+import 'package:flutter/services.dart';
+
 
 void main() {
-  runApp(MyApp());
+  // Aseguramos que Flutter esté inicializado antes de configurar la orientación
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Forzar orientación horizontal en toda la aplicación
+  SystemChrome.setPreferredOrientations([
+    DeviceOrientation.landscapeLeft,
+    DeviceOrientation.landscapeRight,
+  ]).then((_) {
+    // Una vez configurada la orientación, ejecutamos la app
+    runApp(MyApp());
+  });
 }
 
 class MyApp extends StatelessWidget {

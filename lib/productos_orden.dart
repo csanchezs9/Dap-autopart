@@ -849,62 +849,70 @@ Future<Uint8List?> _generarPDFMejorado() async {
                             
                             // Tabla simplificada de productos
                             SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: Table(
-                                border: TableBorder.all(color: Colors.grey.shade300),
-                                columnWidths: const {
-                                  0: IntrinsicColumnWidth(),
-                                  1: IntrinsicColumnWidth(),
-                                  2: IntrinsicColumnWidth(),
-                                  3: IntrinsicColumnWidth(),
-                                  4: IntrinsicColumnWidth(),
-                                  5: FixedColumnWidth(180), // Ancho fijo para DESCRIPCIÓN
-                                  6: IntrinsicColumnWidth(),
-                                  7: IntrinsicColumnWidth(),
-                                  8: IntrinsicColumnWidth(),
-                                  9: IntrinsicColumnWidth(),
-                                  10: IntrinsicColumnWidth(),
-                                  11: IntrinsicColumnWidth(),
-                                },
-                                children: [
-                                  // Encabezado de la tabla
-                                  TableRow(
-                                    decoration: BoxDecoration(color: Color(0xFFCFD5E1)),
-                                    children: [
-                                      _buildTableCell('#', isHeader: true),
-                                      _buildTableCell('CÓDIGO', isHeader: true),
-                                      _buildTableCell('UB', isHeader: true),
-                                      _buildTableCell('REF', isHeader: true),
-                                      _buildTableCell('ORIGEN', isHeader: true),
-                                      _buildTableCell('DESCRIPCIÓN', isHeader: true),
-                                      _buildTableCell('VEHÍCULO', isHeader: true),
-                                      _buildTableCell('MARCA', isHeader: true),
-                                      _buildTableCell('VLR ANTES\nDE IVA', isHeader: true),
-                                      _buildTableCell('DSCTO', isHeader: true),
-                                      _buildTableCell('CANT', isHeader: true),
-                                      _buildTableCell('V.BRUTO', isHeader: true),
-                                    ],
+                                    scrollDirection: Axis.horizontal,
+                                    child: Container(
+                                      // Establecer un ancho mínimo para la tabla completa
+                                      width: max(MediaQuery.of(context).size.width, 950),
+                                      child: DataTable(
+                                        headingRowColor: MaterialStateColor.resolveWith((_) => const Color(0xFF1A4379)),
+                                        dataRowHeight: 40,
+                                        headingRowHeight: 40,
+                                        columnSpacing: 20,
+                                        columns: [
+                                          DataColumn(label: _headerText('#')),
+                                          DataColumn(label: _headerText('CÓDIGO')),
+                                          DataColumn(label: _headerText('UB')),
+                                          DataColumn(label: _headerText('REF')),
+                                          DataColumn(label: _headerText('ORIGEN')),
+                                          // Definir un ancho fijo para la columna de descripción
+                                          DataColumn(
+                                            label: Container(
+                                              width: 180, // Ancho fijo para descripción
+                                              child: _headerText('DESCRIPCION'),
+                                            ),
+                                          ),
+                                          DataColumn(label: _headerText('VEHICULO')),
+                                          DataColumn(label: _headerText('MARCA')),
+                                          DataColumn(label: _headerText('VLR ANTES\nDE IVA')),
+                                          DataColumn(label: _headerText('DSCTO')),
+                                          DataColumn(label: _headerText('CANT')),
+                                          DataColumn(label: _headerText('V.BRUTO')),
+                                        ],
+                                        rows: productosAgregados.map((producto) {
+                                          return DataRow(
+                                            cells: [
+                                              DataCell(Text(producto['#']?.toString() ?? '')),
+                                              DataCell(Text(producto['CODIGO']?.toString() ?? '')),
+                                              DataCell(Text(producto['UB']?.toString() ?? '')),
+                                              DataCell(Text(producto['REF']?.toString() ?? '')),
+                                              DataCell(Text(producto['ORIGEN']?.toString() ?? '')),
+                                              // Celda con ancho fijo para la descripción
+                                              DataCell(
+                                                Container(
+                                                  width: 180, // Mismo ancho que el encabezado
+                                                  child: Text(
+                                                    producto['DESCRIPCION']?.toString() ?? '',
+                                                    overflow: TextOverflow.ellipsis,
+                                                    maxLines: 2, // Permitir hasta 2 líneas
+                                                  ),
+                                                ),
+                                              ),
+                                              DataCell(Text(producto['VEHICULO']?.toString() ?? '')),
+                                              DataCell(Text(producto['MARCA']?.toString() ?? '')),
+                                              DataCell(Text(formatCurrency(producto['VLR ANTES DE IVA']))),
+                                              DataCell(Text('${producto['DSCTO']}%')),
+                                              DataCell(Text(producto['CANT']?.toString() ?? '')),
+                                              DataCell(Text(formatCurrency(producto['V.BRUTO']))),
+                                            ],
+                                            onSelectChanged: (_) {
+                                              seleccionarProducto(producto);
+                                            },
+                                            selected: producto['CODIGO'] == productoCodigoSeleccionado,
+                                          );
+                                        }).toList(),
+                                      ),
+                                    ),
                                   ),
-                                  // Filas de productos
-                                  ...productosAgregados.map((producto) => TableRow(
-                                    children: [
-                                      _buildTableCell(producto['#']?.toString() ?? ''),
-                                      _buildTableCell(producto['CODIGO']?.toString() ?? ''),
-                                      _buildTableCell(producto['UB']?.toString() ?? ''),
-                                      _buildTableCell(producto['REF']?.toString() ?? ''),
-                                      _buildTableCell(producto['ORIGEN']?.toString() ?? ''),
-                                      _buildTableCell(producto['DESCRIPCION']?.toString() ?? '', maxLines: 2),
-                                      _buildTableCell(producto['VEHICULO']?.toString() ?? ''),
-                                      _buildTableCell(producto['MARCA']?.toString() ?? ''),
-                                      _buildTableCell(formatCurrency(producto['VLR ANTES DE IVA'])),
-                                      _buildTableCell('${producto['DSCTO']}%'),
-                                      _buildTableCell(producto['CANT']?.toString() ?? ''),
-                                      _buildTableCell(formatCurrency(producto['V.BRUTO'])),
-                                    ],
-                                  )).toList(),
-                                ],
-                              ),
-                            ),
                                 ],
                               ),
                             ),
@@ -1417,71 +1425,100 @@ DAP AutoPart's
                   const SizedBox(height: 20),
                   
                   // Tabla de productos
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Container(
-                      // Establecer un ancho mínimo para la tabla completa
-                      width: max(MediaQuery.of(context).size.width, 950),
-                      child: DataTable(
-                        headingRowColor: MaterialStateColor.resolveWith((_) => const Color(0xFF1A4379)),
-                        dataRowHeight: 40,
-                        headingRowHeight: 40,
-                        columnSpacing: 20,
-                        columns: [
-                          DataColumn(label: _headerText('#')),
-                          DataColumn(label: _headerText('CÓDIGO')),
-                          DataColumn(label: _headerText('UB')),
-                          DataColumn(label: _headerText('REF')),
-                          DataColumn(label: _headerText('ORIGEN')),
-                          // Definir un ancho fijo para la columna de descripción
-                          DataColumn(
-                            label: Container(
-                              width: 180, // Ancho fijo para descripción
-                              child: _headerText('DESCRIPCION'),
-                            ),
-                          ),
-                          DataColumn(label: _headerText('VEHICULO')),
-                          DataColumn(label: _headerText('MARCA')),
-                          DataColumn(label: _headerText('VLR ANTES\nDE IVA')),
-                          DataColumn(label: _headerText('DSCTO')),
-                          DataColumn(label: _headerText('CANT')),
-                          DataColumn(label: _headerText('V.BRUTO')),
-                        ],
-                        rows: productosAgregados.map((producto) {
-                          return DataRow(
-                            cells: [
-                              DataCell(Text(producto['#']?.toString() ?? '')),
-                              DataCell(Text(producto['CODIGO']?.toString() ?? '')),
-                              DataCell(Text(producto['UB']?.toString() ?? '')),
-                              DataCell(Text(producto['REF']?.toString() ?? '')),
-                              DataCell(Text(producto['ORIGEN']?.toString() ?? '')),
-                              // Celda con ancho fijo para la descripción
-                              DataCell(
-                                Container(
-                                  width: 180, // Mismo ancho que el encabezado
-                                  child: Text(
-                                    producto['DESCRIPCION']?.toString() ?? '',
-                                    overflow: TextOverflow.ellipsis,
-                                    maxLines: 2, // Permitir hasta 2 líneas
-                                  ),
-                                ),
-                              ),
-                              DataCell(Text(producto['VEHICULO']?.toString() ?? '')),
-                              DataCell(Text(producto['MARCA']?.toString() ?? '')),
-                              DataCell(Text(formatCurrency(producto['VLR ANTES DE IVA']))),
-                              DataCell(Text('${producto['DSCTO']}%')),
-                              DataCell(Text(producto['CANT']?.toString() ?? '')),
-                              DataCell(Text(formatCurrency(producto['V.BRUTO']))),
-                            ],
-                            onSelectChanged: (_) {
-                              seleccionarProducto(producto);
-                            },
-                            selected: producto['CODIGO'] == productoCodigoSeleccionado,
-                          );
-                        }).toList(),
-                      ),
-                    ),
-                  ),
+                  Container(
+  width: MediaQuery.of(context).size.width,
+  child: Column(
+    children: [
+      // Cabecera de la tabla
+      Table(
+        border: TableBorder.all(color: const Color(0xFF1A4379)),
+        columnWidths: const {
+          0: FractionColumnWidth(0.05), // #
+          1: FractionColumnWidth(0.09), // CÓDIGO
+          2: FractionColumnWidth(0.05), // UB
+          3: FractionColumnWidth(0.09), // REF
+          4: FractionColumnWidth(0.08), // ORIGEN
+          5: FractionColumnWidth(0.15), // DESCRIPCIÓN
+          6: FractionColumnWidth(0.12), // VEHÍCULO
+          7: FractionColumnWidth(0.09), // MARCA
+          8: FractionColumnWidth(0.09), // ANTES IVA
+          9: FractionColumnWidth(0.05), // DSCTO
+          10: FractionColumnWidth(0.05), // CANT
+          11: FractionColumnWidth(0.09), // V.BRUTO
+        },
+        children: [
+          TableRow(
+            decoration: BoxDecoration(
+              color: const Color(0xFF1A4379),
+            ),
+            children: [
+              _buildHeaderCell('#'),
+              _buildHeaderCell('CÓDIGO'),
+              _buildHeaderCell('UB'),
+              _buildHeaderCell('REF'),
+              _buildHeaderCell('ORIGEN'),
+              _buildHeaderCell('DESCRIPCIÓN'),
+              _buildHeaderCell('VEHÍCULO'),
+              _buildHeaderCell('MARCA'),
+              _buildHeaderCell('ANTES IVA'),
+              _buildHeaderCell('DSCTO'),
+              _buildHeaderCell('CANT'),
+              _buildHeaderCell('V.BRUTO'),
+            ],
+          ),
+        ],
+      ),
+
+      // Cuerpo de la tabla con scroll vertical
+      Container(
+        height: MediaQuery.of(context).size.height * 0.3,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Table(
+            border: TableBorder.all(color: Colors.grey.shade300),
+            columnWidths: const {
+              0: FractionColumnWidth(0.05), // #
+              1: FractionColumnWidth(0.09), // CÓDIGO
+              2: FractionColumnWidth(0.05), // UB
+              3: FractionColumnWidth(0.09), // REF
+              4: FractionColumnWidth(0.08), // ORIGEN
+              5: FractionColumnWidth(0.15), // DESCRIPCIÓN
+              6: FractionColumnWidth(0.12), // VEHÍCULO
+              7: FractionColumnWidth(0.09), // MARCA
+              8: FractionColumnWidth(0.09), // ANTES IVA
+              9: FractionColumnWidth(0.05), // DSCTO
+              10: FractionColumnWidth(0.05), // CANT
+              11: FractionColumnWidth(0.09), // V.BRUTO
+            },
+            defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+            children: productosAgregados.map((producto) {
+              bool isSelected = producto['CODIGO'] == productoCodigoSeleccionado;
+              return TableRow(
+                decoration: BoxDecoration(
+                  color: isSelected ? Colors.blue.withOpacity(0.1) : Colors.transparent,
+                ),
+                children: [
+                  _buildDataCell(producto['#']?.toString() ?? '', producto: producto),
+                  _buildDataCell(producto['CODIGO']?.toString() ?? '', producto: producto),
+                  _buildDataCell(producto['UB']?.toString() ?? '', producto: producto),
+                  _buildDataCell(producto['REF']?.toString() ?? '', producto: producto),
+                  _buildDataCell(producto['ORIGEN']?.toString() ?? '', producto: producto),
+                  _buildDataCell(producto['DESCRIPCION']?.toString() ?? '', maxLines: 2, producto: producto),
+                  _buildDataCell(producto['VEHICULO']?.toString() ?? '', producto: producto),
+                  _buildDataCell(producto['MARCA']?.toString() ?? '', producto: producto),
+                  _buildDataCell(formatCurrency(producto['VLR ANTES DE IVA']), producto: producto),
+                  _buildDataCell('${producto['DSCTO']}%', producto: producto),
+                  _buildDataCell(producto['CANT']?.toString() ?? '', producto: producto),
+                  _buildDataCell(formatCurrency(producto['V.BRUTO']), producto: producto),
+                ],
+              );
+            }).toList(),
+          ),
+        ),
+      ),
+    ],
+  ),
+),
                   
                   const SizedBox(height: 20),
                   
@@ -1769,17 +1806,32 @@ DAP AutoPart's
 
   // Formato para moneda
   String formatCurrency(dynamic value) {
-    if (value == null) return '\$0';
-    
-    double numValue;
-    if (value is num) {
-      numValue = value.toDouble();
-    } else {
-      numValue = double.tryParse(value.toString()) ?? 0;
+  if (value == null) return '\$0';
+  
+  double numValue;
+  if (value is num) {
+    numValue = value.toDouble();
+  } else {
+    try {
+      // Limpia el valor de cualquier formato no numérico
+      String cleanValue = value.toString()
+          .replaceAll('\$', '')
+          .replaceAll('.', '')
+          .replaceAll(',', '')
+          .trim();
+      numValue = double.tryParse(cleanValue) ?? 0;
+    } catch (e) {
+      numValue = 0;
     }
-    
-    return '\$${NumberFormat('#,###').format(numValue)}';
   }
+  
+  try {
+    return '\$${NumberFormat('#,###').format(numValue)}';
+  } catch (e) {
+    // En caso de error, devolver un valor por defecto formateado
+    return '\$0';
+  }
+}
 
   // Widgets auxiliares
   TableRow _buildInfoRow2(String label, String value, {bool isHeader = false}) {
@@ -1913,21 +1965,79 @@ DAP AutoPart's
       ),
     );
   }
-  
-  // Método auxiliar para crear celdas de tabla
-  Widget _buildTableCell(String text, {bool isHeader = false, int maxLines = 1}) {
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
+  Widget _buildTableHeader(String text, {required int flex}) {
+  return Expanded(
+    flex: flex,
+    child: Container(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
       child: Text(
         text,
-        style: TextStyle(
-          fontWeight: isHeader ? FontWeight.bold : FontWeight.normal,
-          fontSize: 12,
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: 10, // Letra más pequeña
         ),
+        textAlign: TextAlign.center,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+      ),
+    ),
+  );
+}
+  // Método auxiliar para crear celdas de tabla
+  Widget _buildTableCell(String text, {required int flex, int maxLines = 1}) {
+  return Expanded(
+    flex: flex,
+    child: Container(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: Colors.grey.shade300),
+        ),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(fontSize: 10), // Letra más pequeña
         overflow: TextOverflow.ellipsis,
         maxLines: maxLines,
-        textAlign: isHeader ? TextAlign.center : TextAlign.start,
       ),
-    );
-  }
+    ),
+  );
+}
+Widget _buildHeaderCell(String text) {
+  return Container(
+    padding: const EdgeInsets.all(4),
+    child: Text(
+      text,
+      style: const TextStyle(
+        color: Colors.white,
+        fontWeight: FontWeight.bold,
+        fontSize: 9, // Texto más pequeño para caber
+      ),
+      textAlign: TextAlign.center,
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+    ),
+  );
+}
+
+Widget _buildDataCell(String text, {int maxLines = 1, Map<String, dynamic>? producto}) {
+  return GestureDetector(
+    onTap: () {
+      if (producto != null) {
+        seleccionarProducto(producto);
+      }
+    },
+    child: Container(
+      padding: const EdgeInsets.all(4),
+      child: Text(
+        text,
+        style: const TextStyle(fontSize: 9),
+        overflow: TextOverflow.ellipsis,
+        maxLines: maxLines,
+        textAlign: TextAlign.center,
+      ),
+    ),
+  );
+}
 }
