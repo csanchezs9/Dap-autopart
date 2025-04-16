@@ -12,6 +12,8 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'producto_service.dart';
 import 'dart:math'; // Añadir esta importación al inicio del archivo
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class ProductosOrden extends StatefulWidget {
   final Map<String, String> clienteData;
@@ -218,6 +220,339 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
       });
     }
   }
+  pw.Widget _buildPDFInfoRow(String label, String value) {
+  return pw.Row(
+    crossAxisAlignment: pw.CrossAxisAlignment.start,
+    children: [
+      pw.SizedBox(
+        width: 120,
+        child: pw.Text(
+          label,
+          style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+        ),
+      ),
+      pw.Expanded(
+        child: pw.Text(value),
+      ),
+    ],
+  );
+}
+
+pw.Widget _buildPDFTotalRow(String label, String value) {
+  return pw.Container(
+    padding: pw.EdgeInsets.all(8),
+    decoration: pw.BoxDecoration(
+      border: pw.Border(bottom: pw.BorderSide()),
+    ),
+    child: pw.Row(
+      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+      children: [
+        pw.Text(label, style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+        pw.Text(value),
+      ],
+    ),
+  );
+}
+// Agregar justo después de _generarPDF() o reemplazar esa función si prefieres
+Future<Uint8List?> _generarPDFMejorado() async {
+  try {
+    // Crear un documento PDF directamente
+    final pdf = pw.Document();
+    
+    pdf.addPage(
+      pw.Page(
+        build: (pw.Context context) {
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              // Encabezado con logo DAP
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  // Logo
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text(
+                        'DAP',
+                        style: pw.TextStyle(
+                          fontSize: 30,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.blue900,
+                        ),
+                      ),
+                      pw.Text(
+                        'AutoPart\'s',
+                        style: pw.TextStyle(
+                          fontSize: 24,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.red700,
+                        ),
+                      ),
+                      pw.SizedBox(height: 5),
+                      pw.Text('Distribuciones Autoparts S.A.S'),
+                      pw.Text('Nit: 901.110.424-1'),
+                    ],
+                  ),
+                  
+                  // Información de la orden
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.end,
+                    children: [
+                      pw.Text('FECHA: ${obtenerFechaActual()}', 
+                            style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                      pw.Text('ORDEN DE PEDIDO #: ${widget.ordenNumero}', 
+                            style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    ],
+                  ),
+                ],
+              ),
+              
+              pw.SizedBox(height: 20),
+              
+              // Información del cliente
+              pw.Container(
+                decoration: pw.BoxDecoration(
+                  border: pw.Border.all(),
+                ),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Container(
+                      color: PdfColors.blue900,
+                      padding: pw.EdgeInsets.all(8),
+                      width: double.infinity,
+                      child: pw.Text(
+                        'INFORMACIÓN DEL CLIENTE',
+                        style: pw.TextStyle(
+                          color: PdfColors.white,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    pw.Padding(
+                      padding: pw.EdgeInsets.all(8),
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          _buildPDFInfoRow('NIT:', widget.clienteData['NIT CLIENTE'] ?? ''),
+                          _buildPDFInfoRow('NOMBRE:', widget.clienteData['NOMBRE'] ?? ''),
+                          _buildPDFInfoRow('ESTABLECIMIENTO:', widget.clienteData['ESTABLECIMIENTO'] ?? ''),
+                          _buildPDFInfoRow('DIRECCIÓN:', widget.clienteData['DIRECCION'] ?? ''),
+                          _buildPDFInfoRow('TELÉFONO:', widget.clienteData['TELEFONO'] ?? ''),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              pw.SizedBox(height: 20),
+              
+              // Información del asesor
+              pw.Container(
+                decoration: pw.BoxDecoration(
+                  border: pw.Border.all(),
+                ),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Container(
+                      color: PdfColors.blue900,
+                      padding: pw.EdgeInsets.all(8),
+                      width: double.infinity,
+                      child: pw.Text(
+                        'INFORMACIÓN DEL ASESOR',
+                        style: pw.TextStyle(
+                          color: PdfColors.white,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    pw.Padding(
+                      padding: pw.EdgeInsets.all(8),
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          _buildPDFInfoRow('ID:', widget.asesorData['ID'] ?? ''),
+                          _buildPDFInfoRow('NOMBRE:', widget.asesorData['NOMBRE'] ?? ''),
+                          _buildPDFInfoRow('ZONA:', widget.asesorData['ZONA'] ?? ''),
+                          _buildPDFInfoRow('TELÉFONO:', widget.asesorData['CEL'] ?? ''),
+                          _buildPDFInfoRow('CORREO:', widget.asesorData['MAIL'] ?? ''),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              pw.SizedBox(height: 20),
+              
+              // Productos
+              pw.Container(
+                color: PdfColors.blue900,
+                padding: pw.EdgeInsets.all(8),
+                width: double.infinity,
+                child: pw.Text(
+                  'PRODUCTOS',
+                  style: pw.TextStyle(
+                    color: PdfColors.white,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+              ),
+              
+              // Tabla de productos
+              pw.Table(
+                border: pw.TableBorder.all(),
+                children: [
+                  // Encabezado
+                  pw.TableRow(
+                    decoration: pw.BoxDecoration(color: PdfColors.grey300),
+                    children: [
+                      pw.Padding(
+                        padding: pw.EdgeInsets.all(5),
+                        child: pw.Text('#', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                      ),
+                      pw.Padding(
+                        padding: pw.EdgeInsets.all(5),
+                        child: pw.Text('DESCRIPCIÓN', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                      ),
+                      pw.Padding(
+                        padding: pw.EdgeInsets.all(5),
+                        child: pw.Text('CANT', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                      ),
+                      pw.Padding(
+                        padding: pw.EdgeInsets.all(5),
+                        child: pw.Text('VLR', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                      ),
+                      pw.Padding(
+                        padding: pw.EdgeInsets.all(5),
+                        child: pw.Text('DSCTO', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                      ),
+                      pw.Padding(
+                        padding: pw.EdgeInsets.all(5),
+                        child: pw.Text('SUBTOTAL', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                      ),
+                    ],
+                  ),
+                  
+                  // Filas de productos
+                  ...productosAgregados.map((producto) => pw.TableRow(
+                    children: [
+                      pw.Padding(
+                        padding: pw.EdgeInsets.all(5),
+                        child: pw.Text(producto['#']?.toString() ?? ''),
+                      ),
+                      pw.Padding(
+                        padding: pw.EdgeInsets.all(5),
+                        child: pw.Text(producto['DESCRIPCION']?.toString() ?? ''),
+                      ),
+                      pw.Padding(
+                        padding: pw.EdgeInsets.all(5),
+                        child: pw.Text(producto['CANT']?.toString() ?? ''),
+                      ),
+                      pw.Padding(
+                        padding: pw.EdgeInsets.all(5),
+                        child: pw.Text(formatCurrency(producto['VLR ANTES DE IVA'])),
+                      ),
+                      pw.Padding(
+                        padding: pw.EdgeInsets.all(5),
+                        child: pw.Text('${producto['DSCTO']}%'),
+                      ),
+                      pw.Padding(
+                        padding: pw.EdgeInsets.all(5),
+                        child: pw.Text(formatCurrency(producto['V.BRUTO'])),
+                      ),
+                    ],
+                  )).toList(),
+                ],
+              ),
+              
+              pw.SizedBox(height: 20),
+              
+              // Observaciones y totales
+              pw.Row(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  // Observaciones
+                  pw.Expanded(
+                    flex: 3,
+                    child: pw.Container(
+                      decoration: pw.BoxDecoration(
+                        border: pw.Border.all(),
+                      ),
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Container(
+                            color: PdfColors.blue900,
+                            padding: pw.EdgeInsets.all(8),
+                            width: double.infinity,
+                            child: pw.Text(
+                              'OBSERVACIONES',
+                              style: pw.TextStyle(
+                                color: PdfColors.white,
+                                fontWeight: pw.FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          pw.Padding(
+                            padding: pw.EdgeInsets.all(8),
+                            child: pw.Text(observacionesController.text.isEmpty ? 
+                              'Sin observaciones' : observacionesController.text),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  
+                  pw.SizedBox(width: 20),
+                  
+                  // Totales
+                  pw.Expanded(
+                    flex: 2,
+                    child: pw.Container(
+                      decoration: pw.BoxDecoration(
+                        border: pw.Border.all(),
+                      ),
+                      child: pw.Column(
+                        children: [
+                          _buildPDFTotalRow('V.BRUTO', formatCurrency(valorBrutoTotal)),
+                          _buildPDFTotalRow('DSCTO', formatCurrency(descuentoTotal)),
+                          _buildPDFTotalRow('SUBTOTAL', formatCurrency(subtotal)),
+                          _buildPDFTotalRow('IVA', formatCurrency(iva)),
+                          pw.Container(
+                            color: PdfColors.blue900,
+                            padding: pw.EdgeInsets.all(8),
+                            child: pw.Row(
+                              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                              children: [
+                                pw.Text('TOTAL', 
+                                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white)),
+                                pw.Text(formatCurrency(total), 
+                                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white)),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    
+    return pdf.save();
+  } catch (e) {
+    print("Error al generar PDF mejorado: $e");
+    return null;
+  }
+}
 
   void calcularTotales() {
     double vBruto = 0;
@@ -728,105 +1063,188 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
     }
   }
 
-  Future<void> _enviarCorreoAlCliente() async {
-    setState(() {
-      isLoading = true;
-    });
+ Future<void> _enviarCorreoPorServidor() async {
+  setState(() {
+    isLoading = true;
+  });
 
-    try {
-      // 1. Generar el PDF
-      final pdf = await _generarPDF();
-      
-      if (pdf == null) {
-        throw Exception("No se pudo generar el PDF");
+  try {
+    print("Generando PDF...");
+    final pdf = await _generarPDFMejorado();
+    print("PDF generado correctamente: ${pdf?.length ?? 0} bytes");
+    
+    if (pdf == null) {
+      throw Exception("No se pudo generar el PDF");
+    }
+    
+    // Guardar PDF en almacenamiento temporal
+    final dir = await getTemporaryDirectory();
+    final fileName = 'orden_${widget.ordenNumero}.pdf';
+    final pdfFile = File('${dir.path}/$fileName');
+    await pdfFile.writeAsBytes(pdf);
+    
+    // Buscar el correo del cliente
+    String emailCliente = '';
+    
+    // Buscar en todas las posibles claves
+    final posiblesClaves = ['CLI_EMAIL', 'EMAIL', 'CORREO', 'MAIL'];
+    for (var clave in posiblesClaves) {
+      if (widget.clienteData.containsKey(clave) && 
+          widget.clienteData[clave]!.isNotEmpty) {
+        emailCliente = widget.clienteData[clave]!;
+        break;
       }
-      
-      // 2. Guardar PDF en almacenamiento temporal
-      final dir = await getTemporaryDirectory();
-      final pdfFile = File('${dir.path}/orden_${widget.ordenNumero}.pdf');
-      await pdfFile.writeAsBytes(pdf);
-      
-      // 3. Verificar si existe correo del cliente
-      String emailCliente = '';
-      if (widget.clienteData.containsKey('CLI_EMAIL')) {
-        emailCliente = widget.clienteData['CLI_EMAIL']!;
-      } else if (widget.clienteData.containsKey('EMAIL')) {
-        emailCliente = widget.clienteData['EMAIL']!;
-      }
-      
-      if (emailCliente.isEmpty) {
-        // No hay correo electrónico, mostrar diálogo de error
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('El cliente no tiene correo electrónico registrado')),
-        );
-        setState(() {
-          isLoading = false;
-        });
-        return;
-      }
-      
-      // 4. Configurar el correo electrónico
-      final Email email = Email(
-        body: '''Estimado cliente ${widget.clienteData['NOMBRE'] ?? ''},
-        
-  Adjunto encontrará su orden de pedido #${widget.ordenNumero}.
-  
-  Gracias por su preferencia,
-  
-  ${widget.asesorData['NOMBRE'] ?? 'Su asesor'}
-  DAP AutoPart's
-  ''',
-        subject: 'Orden de Pedido ${widget.ordenNumero} - DAP AutoPart\'s',
-        recipients: [emailCliente],
-        cc: [widget.asesorData['MAIL'] ?? ''],
-        attachmentPaths: [pdfFile.path],
-        isHTML: false,
-      );
-      
-      // 5. Enviar el correo
-      await FlutterEmailSender.send(email);
-      
-      // 6. Mostrar confirmación
-      showDialog(
+    }
+    
+    // Si no se encuentra, solicitar manualmente
+    if (emailCliente.isEmpty) {
+      final TextEditingController emailController = TextEditingController();
+      await showDialog(
         context: context,
-        builder: (BuildContext context) {
+        barrierDismissible: false,
+        builder: (context) {
           return AlertDialog(
-            title: Text('Correo enviado'),
+            title: Text('Correo electrónico'),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.check_circle, color: Colors.green, size: 48),
-                SizedBox(height: 16),
-                Text('La orden ha sido enviada correctamente a:'),
-                SizedBox(height: 8),
-                Text(emailCliente, style: TextStyle(fontWeight: FontWeight.bold)),
+                Text('Por favor ingrese el correo del cliente:'),
+                SizedBox(height: 10),
+                TextField(
+                  controller: emailController,
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(),
+                    hintText: 'correo@ejemplo.com',
+                  ),
+                  keyboardType: TextInputType.emailAddress,
+                ),
               ],
             ),
             actions: [
               TextButton(
-                child: Text('Aceptar'),
                 onPressed: () {
                   Navigator.of(context).pop();
-                  Navigator.of(context).pop(); // Volver a la pantalla anterior después de enviar
                 },
+                child: Text('Cancelar'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: Text('Aceptar'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Color(0xFF1A4379),
+                  foregroundColor: Colors.white,
+                ),
               ),
             ],
           );
         },
       );
       
-    } catch (e) {
-      print("Error al enviar correo: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al enviar el correo: $e')),
-      );
-    } finally {
-      setState(() {
-        isLoading = false;
-      });
+      emailCliente = emailController.text.trim();
+      if (emailCliente.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No se proporcionó un correo electrónico')),
+        );
+        setState(() {
+          isLoading = false;
+        });
+        return;
+      }
     }
+    
+    // Crear solicitud al servidor
+    print("Preparando solicitud al servidor...");
+    final request = http.MultipartRequest(
+      'POST',
+      // Cambia esta URL según dónde esté ejecutándose tu servidor
+      //Uri.parse('http://localhost:3000/send-email'), // Para web
+      Uri.parse('http://10.0.2.2:3000/send-email'), // Para emulador Android
+      // Uri.parse('http://192.168.1.X:3000/send-email'), // Para dispositivo real (cambia la IP)
+    );
+    
+    // Agregar los campos
+    request.fields['clienteEmail'] = emailCliente;
+    request.fields['asesorEmail'] = widget.asesorData['MAIL'] ?? '';
+    request.fields['asunto'] = 'Orden de Pedido ${widget.ordenNumero} - DAP AutoPart\'s';
+    request.fields['cuerpo'] = '''Estimado cliente ${widget.clienteData['NOMBRE'] ?? ''},
+        
+Adjunto encontrará su orden de pedido #${widget.ordenNumero}.
+  
+Gracias por su preferencia,
+  
+${widget.asesorData['NOMBRE'] ?? 'Su asesor'}
+DAP AutoPart's
+''';
+    
+    // Agregar el archivo PDF
+    print("Adjuntando archivo PDF...");
+    request.files.add(
+      await http.MultipartFile.fromPath(
+        'pdf',
+        pdfFile.path,
+        filename: fileName,
+      ),
+    );
+    
+    // Enviar la solicitud
+    print("Enviando solicitud al servidor...");
+    final streamedResponse = await request.send();
+    print("Respuesta del servidor recibida: ${streamedResponse.statusCode}");
+    final response = await http.Response.fromStream(streamedResponse);
+    print("Cuerpo de la respuesta: ${response.body}");
+    
+    if (response.statusCode == 200) {
+      final jsonResponse = json.decode(response.body);
+      
+      if (jsonResponse['success']) {
+        // Mostrar diálogo de éxito
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: Text('Correo enviado'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.check_circle, color: Colors.green, size: 48),
+                  SizedBox(height: 16),
+                  Text('La orden ha sido enviada correctamente a:'),
+                  SizedBox(height: 8),
+                  Text(emailCliente, style: TextStyle(fontWeight: FontWeight.bold)),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  child: Text('Aceptar'),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    Navigator.of(context).pop(); // Volver a la pantalla anterior
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      } else {
+        throw Exception("Error del servidor: ${jsonResponse['message']}");
+      }
+    } else {
+      throw Exception("Error de conexión: ${response.statusCode}");
+    }
+    
+  } catch (e) {
+    print("Error detallado: ${e.toString()}");
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error al enviar el correo: $e')),
+    );
+  } finally {
+    setState(() {
+      isLoading = false;
+    });
   }
-
+}
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1166,7 +1584,7 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
                         // Botón Enviar
                         ElevatedButton(
                           onPressed: () {
-                            _enviarCorreoAlCliente();
+                            _enviarCorreoPorServidor(); // Cambio aquí
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.green,
@@ -1175,7 +1593,7 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
                             padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
                           ),
                           child: const Text('ENVIAR'),
-                        ),
+                        ),  
                         SizedBox(width: 20),
                         // Botón Cancelar Orden
                         ElevatedButton(
