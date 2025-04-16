@@ -4,7 +4,14 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter/services.dart';
 import 'dart:ui' as ui;
 import 'package:flutter/rendering.dart';
+import 'dart:typed_data'; 
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:flutter_email_sender/flutter_email_sender.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
 import 'producto_service.dart';
+import 'dart:math'; // Añadir esta importación al inicio del archivo
 
 class ProductosOrden extends StatefulWidget {
   final Map<String, String> clienteData;
@@ -15,6 +22,7 @@ class ProductosOrden extends StatefulWidget {
     Key? key, 
     required this.clienteData, 
     required this.asesorData,
+    
     required this.ordenNumero,
   }) : super(key: key);
 
@@ -504,132 +512,63 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
                               ),
                             ),
                             
-                            // Tabla simplificada de productos (formato más parecido a la imagen proporcionada)
-                            Table(
-                              border: TableBorder.all(color: Colors.grey.shade300),
-                              columnWidths: const {
-                                0: IntrinsicColumnWidth(),
-                                1: IntrinsicColumnWidth(),
-                                2: IntrinsicColumnWidth(),
-                                3: IntrinsicColumnWidth(),
-                                4: IntrinsicColumnWidth(),
-                                5: FlexColumnWidth(3),
-                                6: IntrinsicColumnWidth(),
-                                7: IntrinsicColumnWidth(),
-                                8: IntrinsicColumnWidth(),
-                                9: IntrinsicColumnWidth(),
-                                10: IntrinsicColumnWidth(),
-                                11: IntrinsicColumnWidth(),
-                              },
-                              children: [
-                                // Encabezado de la tabla
-                                TableRow(
-                                  decoration: BoxDecoration(color: Color(0xFFCFD5E1)),
-                                  children: [
-                                    Padding(
-                                      padding: EdgeInsets.all(8.0),
-                                      child: Text('#', style: TextStyle(fontWeight: FontWeight.bold)),
-                                    ),
-                                    Padding(
-                                      padding: EdgeInsets.all(8.0),
-                                      child: Text('CÓDIGO', style: TextStyle(fontWeight: FontWeight.bold)),
-                                    ),
-                                    Padding(
-                                      padding: EdgeInsets.all(8.0),
-                                      child: Text('UB', style: TextStyle(fontWeight: FontWeight.bold)),
-                                    ),
-                                    Padding(
-                                      padding: EdgeInsets.all(8.0),
-                                      child: Text('REF', style: TextStyle(fontWeight: FontWeight.bold)),
-                                    ),
-                                    Padding(
-                                      padding: EdgeInsets.all(8.0),
-                                      child: Text('ORIGEN', style: TextStyle(fontWeight: FontWeight.bold)),
-                                    ),
-                                    Padding(
-                                      padding: EdgeInsets.all(8.0),
-                                      child: Text('DESCRIPCIÓN', style: TextStyle(fontWeight: FontWeight.bold)),
-                                    ),
-                                    Padding(
-                                      padding: EdgeInsets.all(8.0),
-                                      child: Text('VEHÍCULO', style: TextStyle(fontWeight: FontWeight.bold)),
-                                    ),
-                                    Padding(
-                                      padding: EdgeInsets.all(8.0),
-                                      child: Text('MARCA', style: TextStyle(fontWeight: FontWeight.bold)),
-                                    ),
-                                    Padding(
-                                      padding: EdgeInsets.all(8.0),
-                                      child: Text('VLR ANTES\nDE IVA', style: TextStyle(fontWeight: FontWeight.bold)),
-                                    ),
-                                    Padding(
-                                      padding: EdgeInsets.all(8.0),
-                                      child: Text('DSCTO', style: TextStyle(fontWeight: FontWeight.bold)),
-                                    ),
-                                    Padding(
-                                      padding: EdgeInsets.all(8.0),
-                                      child: Text('CANT', style: TextStyle(fontWeight: FontWeight.bold)),
-                                    ),
-                                    Padding(
-                                      padding: EdgeInsets.all(8.0),
-                                      child: Text('V.BRUTO', style: TextStyle(fontWeight: FontWeight.bold)),
-                                    ),
-                                  ],
-                                ),
-                                // Filas de productos
-                                ...productosAgregados.map((producto) => TableRow(
-                                  children: [
-                                    Padding(
-                                      padding: EdgeInsets.all(8.0),
-                                      child: Text(producto['#']?.toString() ?? ''),
-                                    ),
-                                    Padding(
-                                      padding: EdgeInsets.all(8.0),
-                                      child: Text(producto['CODIGO']?.toString() ?? ''),
-                                    ),
-                                    Padding(
-                                      padding: EdgeInsets.all(8.0),
-                                      child: Text(producto['UB']?.toString() ?? ''),
-                                    ),
-                                    Padding(
-                                      padding: EdgeInsets.all(8.0),
-                                      child: Text(producto['REF']?.toString() ?? ''),
-                                    ),
-                                    Padding(
-                                      padding: EdgeInsets.all(8.0),
-                                      child: Text(producto['ORIGEN']?.toString() ?? ''),
-                                    ),
-                                    Padding(
-                                      padding: EdgeInsets.all(8.0),
-                                      child: Text(producto['DESCRIPCION']?.toString() ?? ''),
-                                    ),
-                                    Padding(
-                                      padding: EdgeInsets.all(8.0),
-                                      child: Text(producto['VEHICULO']?.toString() ?? ''),
-                                    ),
-                                    Padding(
-                                      padding: EdgeInsets.all(8.0),
-                                      child: Text(producto['MARCA']?.toString() ?? ''),
-                                    ),
-                                    Padding(
-                                      padding: EdgeInsets.all(8.0),
-                                      child: Text(formatCurrency(producto['VLR ANTES DE IVA'])),
-                                    ),
-                                    Padding(
-                                      padding: EdgeInsets.all(8.0),
-                                      child: Text('${producto['DSCTO']}%'),
-                                    ),
-                                    Padding(
-                                      padding: EdgeInsets.all(8.0),
-                                      child: Text(producto['CANT']?.toString() ?? ''),
-                                    ),
-                                    Padding(
-                                      padding: EdgeInsets.all(8.0),
-                                      child: Text(formatCurrency(producto['V.BRUTO'])),
-                                    ),
-                                  ],
-                                )).toList(),
-                              ],
+                            // Tabla simplificada de productos
+                            SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Table(
+                                border: TableBorder.all(color: Colors.grey.shade300),
+                                columnWidths: const {
+                                  0: IntrinsicColumnWidth(),
+                                  1: IntrinsicColumnWidth(),
+                                  2: IntrinsicColumnWidth(),
+                                  3: IntrinsicColumnWidth(),
+                                  4: IntrinsicColumnWidth(),
+                                  5: FixedColumnWidth(180), // Ancho fijo para DESCRIPCIÓN
+                                  6: IntrinsicColumnWidth(),
+                                  7: IntrinsicColumnWidth(),
+                                  8: IntrinsicColumnWidth(),
+                                  9: IntrinsicColumnWidth(),
+                                  10: IntrinsicColumnWidth(),
+                                  11: IntrinsicColumnWidth(),
+                                },
+                                children: [
+                                  // Encabezado de la tabla
+                                  TableRow(
+                                    decoration: BoxDecoration(color: Color(0xFFCFD5E1)),
+                                    children: [
+                                      _buildTableCell('#', isHeader: true),
+                                      _buildTableCell('CÓDIGO', isHeader: true),
+                                      _buildTableCell('UB', isHeader: true),
+                                      _buildTableCell('REF', isHeader: true),
+                                      _buildTableCell('ORIGEN', isHeader: true),
+                                      _buildTableCell('DESCRIPCIÓN', isHeader: true),
+                                      _buildTableCell('VEHÍCULO', isHeader: true),
+                                      _buildTableCell('MARCA', isHeader: true),
+                                      _buildTableCell('VLR ANTES\nDE IVA', isHeader: true),
+                                      _buildTableCell('DSCTO', isHeader: true),
+                                      _buildTableCell('CANT', isHeader: true),
+                                      _buildTableCell('V.BRUTO', isHeader: true),
+                                    ],
+                                  ),
+                                  // Filas de productos
+                                  ...productosAgregados.map((producto) => TableRow(
+                                    children: [
+                                      _buildTableCell(producto['#']?.toString() ?? ''),
+                                      _buildTableCell(producto['CODIGO']?.toString() ?? ''),
+                                      _buildTableCell(producto['UB']?.toString() ?? ''),
+                                      _buildTableCell(producto['REF']?.toString() ?? ''),
+                                      _buildTableCell(producto['ORIGEN']?.toString() ?? ''),
+                                      _buildTableCell(producto['DESCRIPCION']?.toString() ?? '', maxLines: 2),
+                                      _buildTableCell(producto['VEHICULO']?.toString() ?? ''),
+                                      _buildTableCell(producto['MARCA']?.toString() ?? ''),
+                                      _buildTableCell(formatCurrency(producto['VLR ANTES DE IVA'])),
+                                      _buildTableCell('${producto['DSCTO']}%'),
+                                      _buildTableCell(producto['CANT']?.toString() ?? ''),
+                                      _buildTableCell(formatCurrency(producto['V.BRUTO'])),
+                                    ],
+                                  )).toList(),
+                                ],
+                              ),
                             ),
                                 ],
                               ),
@@ -743,6 +682,148 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
     } catch (e) {
       print("Error al capturar vista previa: $e");
       return null;
+    }
+  }
+
+  Future<Uint8List?> _generarPDF() async {
+    try {
+      // Primero capturamos la vista previa como imagen
+      final image = await _capturarVistaPrevia();
+      
+      if (image == null) {
+        return null;
+      }
+      
+      // Convertir la imagen UI a bytes
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      
+      if (byteData == null) {
+        return null;
+      }
+      
+      final imageBytes = byteData.buffer.asUint8List();
+      
+      // Crear un documento PDF
+      final pdf = pw.Document();
+      
+      // Añadir la imagen al PDF
+      final pdfImage = pw.MemoryImage(imageBytes);
+      
+      pdf.addPage(
+        pw.Page(
+          build: (pw.Context context) {
+            return pw.Center(
+              child: pw.Image(pdfImage),
+            );
+          },
+        ),
+      );
+      
+      // Guardar el PDF a bytes
+      return pdf.save();
+      
+    } catch (e) {
+      print("Error al generar PDF: $e");
+      return null;
+    }
+  }
+
+  Future<void> _enviarCorreoAlCliente() async {
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      // 1. Generar el PDF
+      final pdf = await _generarPDF();
+      
+      if (pdf == null) {
+        throw Exception("No se pudo generar el PDF");
+      }
+      
+      // 2. Guardar PDF en almacenamiento temporal
+      final dir = await getTemporaryDirectory();
+      final pdfFile = File('${dir.path}/orden_${widget.ordenNumero}.pdf');
+      await pdfFile.writeAsBytes(pdf);
+      
+      // 3. Verificar si existe correo del cliente
+      String emailCliente = '';
+      if (widget.clienteData.containsKey('CLI_EMAIL')) {
+        emailCliente = widget.clienteData['CLI_EMAIL']!;
+      } else if (widget.clienteData.containsKey('EMAIL')) {
+        emailCliente = widget.clienteData['EMAIL']!;
+      }
+      
+      if (emailCliente.isEmpty) {
+        // No hay correo electrónico, mostrar diálogo de error
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('El cliente no tiene correo electrónico registrado')),
+        );
+        setState(() {
+          isLoading = false;
+        });
+        return;
+      }
+      
+      // 4. Configurar el correo electrónico
+      final Email email = Email(
+        body: '''Estimado cliente ${widget.clienteData['NOMBRE'] ?? ''},
+        
+  Adjunto encontrará su orden de pedido #${widget.ordenNumero}.
+  
+  Gracias por su preferencia,
+  
+  ${widget.asesorData['NOMBRE'] ?? 'Su asesor'}
+  DAP AutoPart's
+  ''',
+        subject: 'Orden de Pedido ${widget.ordenNumero} - DAP AutoPart\'s',
+        recipients: [emailCliente],
+        cc: [widget.asesorData['MAIL'] ?? ''],
+        attachmentPaths: [pdfFile.path],
+        isHTML: false,
+      );
+      
+      // 5. Enviar el correo
+      await FlutterEmailSender.send(email);
+      
+      // 6. Mostrar confirmación
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text('Correo enviado'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.check_circle, color: Colors.green, size: 48),
+                SizedBox(height: 16),
+                Text('La orden ha sido enviada correctamente a:'),
+                SizedBox(height: 8),
+                Text(emailCliente, style: TextStyle(fontWeight: FontWeight.bold)),
+              ],
+            ),
+            actions: [
+              TextButton(
+                child: Text('Aceptar'),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  Navigator.of(context).pop(); // Volver a la pantalla anterior después de enviar
+                },
+              ),
+            ],
+          );
+        },
+      );
+      
+    } catch (e) {
+      print("Error al enviar correo: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al enviar el correo: $e')),
+      );
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
     }
   }
 
@@ -920,47 +1001,67 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
                   // Tabla de productos
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
-                    child: DataTable(
-                      headingRowColor: MaterialStateColor.resolveWith((_) => const Color(0xFF1A4379)),
-                      dataRowHeight: 40,
-                      headingRowHeight: 40,
-                      columnSpacing: 20,
-                      columns: [
-                        DataColumn(label: _headerText('#')),
-                        DataColumn(label: _headerText('CÓDIGO')),
-                        DataColumn(label: _headerText('UB')),
-                        DataColumn(label: _headerText('REF')),
-                        DataColumn(label: _headerText('ORIGEN')),
-                        DataColumn(label: _headerText('DESCRIPCION')),
-                        DataColumn(label: _headerText('VEHICULO')),
-                        DataColumn(label: _headerText('MARCA')),
-                        DataColumn(label: _headerText('VLR ANTES\nDE IVA')),
-                        DataColumn(label: _headerText('DSCTO')),
-                        DataColumn(label: _headerText('CANT')),
-                        DataColumn(label: _headerText('V.BRUTO')),
-                      ],
-                      rows: productosAgregados.map((producto) {
-                        return DataRow(
-                          cells: [
-                            DataCell(Text(producto['#']?.toString() ?? '')),
-                            DataCell(Text(producto['CODIGO']?.toString() ?? '')),
-                            DataCell(Text(producto['UB']?.toString() ?? '')),
-                            DataCell(Text(producto['REF']?.toString() ?? '')),
-                            DataCell(Text(producto['ORIGEN']?.toString() ?? '')),
-                            DataCell(Text(producto['DESCRIPCION']?.toString() ?? '')),
-                            DataCell(Text(producto['VEHICULO']?.toString() ?? '')),
-                            DataCell(Text(producto['MARCA']?.toString() ?? '')),
-                            DataCell(Text(formatCurrency(producto['VLR ANTES DE IVA']))),
-                            DataCell(Text('${producto['DSCTO']}%')),
-                            DataCell(Text(producto['CANT']?.toString() ?? '')),
-                            DataCell(Text(formatCurrency(producto['V.BRUTO']))),
-                          ],
-                          onSelectChanged: (_) {
-                            seleccionarProducto(producto);
-                          },
-                          selected: producto['CODIGO'] == productoCodigoSeleccionado,
-                        );
-                      }).toList(),
+                    child: Container(
+                      // Establecer un ancho mínimo para la tabla completa
+                      width: max(MediaQuery.of(context).size.width, 950),
+                      child: DataTable(
+                        headingRowColor: MaterialStateColor.resolveWith((_) => const Color(0xFF1A4379)),
+                        dataRowHeight: 40,
+                        headingRowHeight: 40,
+                        columnSpacing: 20,
+                        columns: [
+                          DataColumn(label: _headerText('#')),
+                          DataColumn(label: _headerText('CÓDIGO')),
+                          DataColumn(label: _headerText('UB')),
+                          DataColumn(label: _headerText('REF')),
+                          DataColumn(label: _headerText('ORIGEN')),
+                          // Definir un ancho fijo para la columna de descripción
+                          DataColumn(
+                            label: Container(
+                              width: 180, // Ancho fijo para descripción
+                              child: _headerText('DESCRIPCION'),
+                            ),
+                          ),
+                          DataColumn(label: _headerText('VEHICULO')),
+                          DataColumn(label: _headerText('MARCA')),
+                          DataColumn(label: _headerText('VLR ANTES\nDE IVA')),
+                          DataColumn(label: _headerText('DSCTO')),
+                          DataColumn(label: _headerText('CANT')),
+                          DataColumn(label: _headerText('V.BRUTO')),
+                        ],
+                        rows: productosAgregados.map((producto) {
+                          return DataRow(
+                            cells: [
+                              DataCell(Text(producto['#']?.toString() ?? '')),
+                              DataCell(Text(producto['CODIGO']?.toString() ?? '')),
+                              DataCell(Text(producto['UB']?.toString() ?? '')),
+                              DataCell(Text(producto['REF']?.toString() ?? '')),
+                              DataCell(Text(producto['ORIGEN']?.toString() ?? '')),
+                              // Celda con ancho fijo para la descripción
+                              DataCell(
+                                Container(
+                                  width: 180, // Mismo ancho que el encabezado
+                                  child: Text(
+                                    producto['DESCRIPCION']?.toString() ?? '',
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 2, // Permitir hasta 2 líneas
+                                  ),
+                                ),
+                              ),
+                              DataCell(Text(producto['VEHICULO']?.toString() ?? '')),
+                              DataCell(Text(producto['MARCA']?.toString() ?? '')),
+                              DataCell(Text(formatCurrency(producto['VLR ANTES DE IVA']))),
+                              DataCell(Text('${producto['DSCTO']}%')),
+                              DataCell(Text(producto['CANT']?.toString() ?? '')),
+                              DataCell(Text(formatCurrency(producto['V.BRUTO']))),
+                            ],
+                            onSelectChanged: (_) {
+                              seleccionarProducto(producto);
+                            },
+                            selected: producto['CODIGO'] == productoCodigoSeleccionado,
+                          );
+                        }).toList(),
+                      ),
                     ),
                   ),
                   
@@ -1061,7 +1162,21 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
                           ),
                           child: const Text('VISTA PREVIA'),
                         ),
-                        SizedBox(width: 20), // Espaciado entre botones
+                        SizedBox(width: 20),
+                        // Botón Enviar
+                        ElevatedButton(
+                          onPressed: () {
+                            _enviarCorreoAlCliente();
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                            side: const BorderSide(color: Colors.grey),
+                            padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
+                          ),
+                          child: const Text('ENVIAR'),
+                        ),
+                        SizedBox(width: 20),
                         // Botón Cancelar Orden
                         ElevatedButton(
                           onPressed: () {
@@ -1333,6 +1448,9 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
         color: Colors.white,
         fontSize: 12,
       ),
+      softWrap: true,
+      overflow: TextOverflow.ellipsis,
+      maxLines: 2, // Permitir hasta 2 líneas para evitar texto vertical
     );
   }
   
@@ -1374,6 +1492,23 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
           Text(label, style: TextStyle(fontWeight: FontWeight.bold)),
           Text(value),
         ],
+      ),
+    );
+  }
+  
+  // Método auxiliar para crear celdas de tabla
+  Widget _buildTableCell(String text, {bool isHeader = false, int maxLines = 1}) {
+    return Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontWeight: isHeader ? FontWeight.bold : FontWeight.normal,
+          fontSize: 12,
+        ),
+        overflow: TextOverflow.ellipsis,
+        maxLines: maxLines,
+        textAlign: isHeader ? TextAlign.center : TextAlign.start,
       ),
     );
   }
