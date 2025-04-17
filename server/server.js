@@ -91,9 +91,6 @@ app.post('/send-email', upload.single('pdf'), async (req, res) => {
   }
 });
 
-// Función para procesar el archivo CSV de productos y extraer datos
-// Adaptada específicamente para el formato proporcionado
-const fs = require('fs');
 
 // Reemplaza la función procesarCsvProductos con esta versión mejorada
 function procesarCsvProductos(filePath) {
@@ -101,9 +98,8 @@ function procesarCsvProductos(filePath) {
     // Leer el archivo completo
     const fileContent = fs.readFileSync(filePath, 'utf8');
     
-    // Imprimir el contenido para diagnóstico
-    console.log("===== DIAGNÓSTICO DE CSV =====");
-    console.log(`Primeros 200 caracteres: ${fileContent.substring(0, 200)}`);
+ 
+    
     
     // Dividir por líneas
     const lines = fileContent.split('\n');
@@ -118,11 +114,11 @@ function procesarCsvProductos(filePath) {
     // Extraer encabezados manualmente dividiéndolos por comas
     // pero considerando posibles comillas que pueden contener comas
     const headerLine = lines[HEADER_ROW_INDEX];
-    console.log(`Línea de encabezados: ${headerLine}`);
+    
     
     // Dividir encabezados considerando comillas (parsing básico)
     const headers = dividirCSV(headerLine);
-    console.log("Encabezados procesados:", headers);
+   
     
     // Buscar posiciones de las columnas clave
     const ESTADO_INDEX = encontrarIndice(headers, ['ESTADO', 'STATUS']);
@@ -137,7 +133,7 @@ function procesarCsvProductos(filePath) {
     const PRECIO_INDEX = encontrarIndice(headers, ['PRECIO', 'PRICE', 'VLR']);
     const DSCTO_INDEX = encontrarIndice(headers, ['DSCTO', 'DESCUENTO', '%']);
     
-    console.log(`Índices: ESTADO=${ESTADO_INDEX}, #=${NUMERO_INDEX}, CODIGO=${CODIGO_INDEX}, DESC=${DESC_INDEX}, PRECIO=${PRECIO_INDEX}`);
+    
     
     // Procesar las líneas de datos 
     const productos = [];
@@ -159,13 +155,10 @@ function procesarCsvProductos(filePath) {
       const line = lines[i].trim();
       if (!line) continue; // Saltar líneas vacías
       
-      console.log(`\nProcesando línea ${i}:`);
-      console.log(`Línea: ${line.substring(0, 100)}...`);
       
       try {
         // Dividir la línea considerando comillas
         const campos = dividirCSV(line);
-        console.log(`Campos procesados (${campos.length}):`, campos.slice(0, 10));
         
         // Crear objeto producto con los campos básicos
         const producto = {};
@@ -188,7 +181,7 @@ function procesarCsvProductos(filePath) {
         if (CODIGO_INDEX >= 0 && CODIGO_INDEX < campos.length) {
           producto.CODIGO = campos[CODIGO_INDEX].trim();
         } else {
-          console.warn(`Línea ${i} sin código, saltando`);
+          
           continue;
         }
         
@@ -198,19 +191,19 @@ function procesarCsvProductos(filePath) {
         // Primero intentar obtener del CSV
         if (DESC_INDEX >= 0 && DESC_INDEX < campos.length) {
           descripcion = campos[DESC_INDEX].trim();
-          console.log(`Descripción extraída: "${descripcion}"`);
+         
         }
         
         // Si no tiene descripción, buscar en el mapeo directo por código
         if (!descripcion && producto.CODIGO && descripcionesFijas[producto.CODIGO]) {
           descripcion = descripcionesFijas[producto.CODIGO];
-          console.log(`Usando descripción fija por código: "${descripcion}"`);
+         
         }
         
         // Si aún no tiene, buscar en el mapeo por número
         if (!descripcion && producto['#'] && descripcionesFijas[producto['#']]) {
           descripcion = descripcionesFijas[producto['#']];
-          console.log(`Usando descripción fija por número: "${descripcion}"`);
+          
         }
         
         producto.DESCRIPCION = descripcion;
@@ -273,7 +266,7 @@ function procesarCsvProductos(filePath) {
       }
     }
     
-    console.log(`Total de productos procesados: ${productos.length}`);
+
     return productos;
   } catch (error) {
     console.error('Error al procesar CSV:', error);
