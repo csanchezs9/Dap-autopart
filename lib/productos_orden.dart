@@ -706,56 +706,7 @@ Future<Uint8List?> _generarPDFMejorado() async {
                                     Text('FECHA: ${obtenerFechaActual()}', style: TextStyle(fontWeight: FontWeight.bold)),
                                     Text('ORDEN DE PEDIDO #: ${widget.ordenNumero}', style: TextStyle(fontWeight: FontWeight.bold)),
                                     SizedBox(height: 10),
-                                    Row(
-                                      children: [
-                                        Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Row(
-                                              children: [
-                                                Icon(isNormal ? Icons.check_box_outlined : Icons.check_box_outline_blank, size: 14),
-                                                SizedBox(width: 4),
-                                                Text('NORMAL', style: TextStyle(fontSize: 10)),
-                                              ],
-                                            ),
-                                            Row(
-                                              children: [
-                                                Icon(isParcial ? Icons.check_box_outlined : Icons.check_box_outline_blank, size: 14),
-                                                SizedBox(width: 4),
-                                                Text('PARCIAL', style: TextStyle(fontSize: 10)),
-                                              ],
-                                            ),
-                                          ],
-                                        ),
-                                        SizedBox(width: 15),
-                                        Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Row(
-                                              children: [
-                                                Icon(isCondicionado ? Icons.check_box_outlined : Icons.check_box_outline_blank, size: 14),
-                                                SizedBox(width: 4),
-                                                Text('CONDICIONADO', style: TextStyle(fontSize: 10)),
-                                              ],
-                                            ),
-                                            Row(
-                                              children: [
-                                                Icon(isTotal ? Icons.check_box_outlined : Icons.check_box_outline_blank, size: 14),
-                                                SizedBox(width: 4),
-                                                Text('TOTAL', style: TextStyle(fontSize: 10)),
-                                              ],
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                    Row(
-                                      children: [
-                                        Icon(isContado ? Icons.check_box_outlined : Icons.check_box_outline_blank, size: 14),
-                                        SizedBox(width: 4),
-                                        Text('CONTADO', style: TextStyle(fontSize: 10)),
-                                      ],
-                                    ),
+                                    
                                   ],
                                 ),
                               ],
@@ -838,81 +789,74 @@ Future<Uint8List?> _generarPDFMejorado() async {
                             
                             // Encabezado de Productos
                             Container(
-                              width: double.infinity,
-                              color: Color(0xFF1A4379),
-                              padding: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-                              child: Text(
-                                'PRODUCTOS',
-                                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
-                              ),
-                            ),
-                            
-                            // Tabla simplificada de productos
-                            SingleChildScrollView(
-                                    scrollDirection: Axis.horizontal,
-                                    child: Container(
-                                      // Establecer un ancho mínimo para la tabla completa
-                                      width: max(MediaQuery.of(context).size.width, 950),
-                                      child: DataTable(
-                                        headingRowColor: MaterialStateColor.resolveWith((_) => const Color(0xFF1A4379)),
-                                        dataRowHeight: 40,
-                                        headingRowHeight: 40,
-                                        columnSpacing: 20,
-                                        columns: [
-                                          DataColumn(label: _headerText('#')),
-                                          DataColumn(label: _headerText('CÓDIGO')),
-                                          DataColumn(label: _headerText('UB')),
-                                          DataColumn(label: _headerText('REF')),
-                                          DataColumn(label: _headerText('ORIGEN')),
-                                          // Definir un ancho fijo para la columna de descripción
-                                          DataColumn(
-                                            label: Container(
-                                              width: 180, // Ancho fijo para descripción
-                                              child: _headerText('DESCRIPCION'),
-                                            ),
-                                          ),
-                                          DataColumn(label: _headerText('VEHICULO')),
-                                          DataColumn(label: _headerText('MARCA')),
-                                          DataColumn(label: _headerText('VLR ANTES\nDE IVA')),
-                                          DataColumn(label: _headerText('DSCTO')),
-                                          DataColumn(label: _headerText('CANT')),
-                                          DataColumn(label: _headerText('V.BRUTO')),
-                                        ],
-                                        rows: productosAgregados.map((producto) {
-                                          return DataRow(
-                                            cells: [
-                                              DataCell(Text(producto['#']?.toString() ?? '')),
-                                              DataCell(Text(producto['CODIGO']?.toString() ?? '')),
-                                              DataCell(Text(producto['UB']?.toString() ?? '')),
-                                              DataCell(Text(producto['REF']?.toString() ?? '')),
-                                              DataCell(Text(producto['ORIGEN']?.toString() ?? '')),
-                                              // Celda con ancho fijo para la descripción
-                                              DataCell(
-                                                Container(
-                                                  width: 180, // Mismo ancho que el encabezado
-                                                  child: Text(
-                                                    producto['DESCRIPCION']?.toString() ?? '',
-                                                    overflow: TextOverflow.ellipsis,
-                                                    maxLines: 2, // Permitir hasta 2 líneas
-                                                  ),
-                                                ),
-                                              ),
-                                              DataCell(Text(producto['VEHICULO']?.toString() ?? '')),
-                                              DataCell(Text(producto['MARCA']?.toString() ?? '')),
-                                              DataCell(Text(formatCurrency(producto['VLR ANTES DE IVA']))),
-                                              DataCell(Text('${producto['DSCTO']}%')),
-                                              DataCell(Text(producto['CANT']?.toString() ?? '')),
-                                              DataCell(Text(formatCurrency(producto['V.BRUTO']))),
-                                            ],
-                                            onSelectChanged: (_) {
-                                              seleccionarProducto(producto);
-                                            },
-                                            selected: producto['CODIGO'] == productoCodigoSeleccionado,
-                                          );
-                                        }).toList(),
-                                      ),
-                                    ),
-                                  ),
+  width: double.infinity,
+  color: Color(0xFF1A4379),
+  padding: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+  child: Text(
+    'PRODUCTOS',
+    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+  ),
+),
+
+// Tabla de productos - VERSIÓN CORREGIDA
+Container(
+  width: MediaQuery.of(context).size.width * 0.95, // Ajusta el ancho al dialog
+  child: Table(
+    border: TableBorder.all(color: Colors.grey.shade300),
+    columnWidths: const {
+      0: IntrinsicColumnWidth(), // #
+      1: IntrinsicColumnWidth(), // CÓDIGO
+      2: IntrinsicColumnWidth(), // UB
+      3: IntrinsicColumnWidth(), // REF
+      4: IntrinsicColumnWidth(), // ORIGEN
+      5: FlexColumnWidth(2), // DESCRIPCIÓN
+      6: FlexColumnWidth(1), // VEHÍCULO
+      7: IntrinsicColumnWidth(), // MARCA
+      8: IntrinsicColumnWidth(), // ANTES IVA
+      9: IntrinsicColumnWidth(), // DSCTO
+      10: IntrinsicColumnWidth(), // CANT
+      11: IntrinsicColumnWidth(), // V.BRUTO
+    },
+    defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+    children: [
+      // Encabezado
+      TableRow(
+        decoration: BoxDecoration(color: Color(0xFF1A4379)),
+        children: [
+          _buildTableViewHeaderCell('#'),
+          _buildTableViewHeaderCell('CÓDIGO'),
+          _buildTableViewHeaderCell('UB'),
+          _buildTableViewHeaderCell('REF'),
+          _buildTableViewHeaderCell('ORIGEN'),
+          _buildTableViewHeaderCell('DESCRIPCIÓN'),
+          _buildTableViewHeaderCell('VEHÍCULO'),
+          _buildTableViewHeaderCell('MARCA'),
+          _buildTableViewHeaderCell('ANTES IVA'),
+          _buildTableViewHeaderCell('DSCTO'),
+          _buildTableViewHeaderCell('CANT'),
+          _buildTableViewHeaderCell('V.BRUTO'),
+        ],
+      ),
+      // Filas de productos
+      ...productosAgregados.map((producto) => TableRow(
+        children: [
+          _buildTableViewCell(producto['#']?.toString() ?? ''),
+          _buildTableViewCell(producto['CODIGO']?.toString() ?? ''),
+          _buildTableViewCell(producto['UB']?.toString() ?? ''),
+          _buildTableViewCell(producto['REF']?.toString() ?? ''),
+          _buildTableViewCell(producto['ORIGEN']?.toString() ?? ''),
+          _buildTableViewCell(producto['DESCRIPCION']?.toString() ?? '', maxLines: 2),
+          _buildTableViewCell(producto['VEHICULO']?.toString() ?? ''),
+          _buildTableViewCell(producto['MARCA']?.toString() ?? ''),
+          _buildTableViewCell(formatCurrency(producto['VLR ANTES DE IVA'])),
+          _buildTableViewCell('${producto['DSCTO']}%'),
+          _buildTableViewCell(producto['CANT']?.toString() ?? ''),
+          _buildTableViewCell(formatCurrency(producto['V.BRUTO'])),
+        ],
+      )).toList(),
+    ],
+  ),
+),
                                 ],
                               ),
                             ),
@@ -1000,6 +944,34 @@ Future<Uint8List?> _generarPDFMejorado() async {
       },
     );
   }
+
+  Widget _buildTableViewHeaderCell(String text) {
+  return Padding(
+    padding: EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+    child: Text(
+      text,
+      style: TextStyle(
+        color: Colors.white,
+        fontWeight: FontWeight.bold,
+        fontSize: 11,
+      ),
+      textAlign: TextAlign.center,
+    ),
+  );
+}
+
+Widget _buildTableViewCell(String text, {int maxLines = 1}) {
+  return Padding(
+    padding: EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+    child: Text(
+      text,
+      style: TextStyle(fontSize: 11),
+      overflow: TextOverflow.ellipsis,
+      maxLines: maxLines,
+      textAlign: TextAlign.center,
+    ),
+  );
+}
   
   // Widget para línea de firma
   Widget _buildFirmaField(String label) {
