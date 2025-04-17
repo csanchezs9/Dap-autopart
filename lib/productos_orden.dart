@@ -97,129 +97,148 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
   }
 }
 
-  void buscarProductoPorNumero() async {
-    String numero = numeroController.text.trim();
-    if (numero.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Por favor ingrese un número de producto')),
-      );
-      return;
+  // Ajuste en la clase _ProductosOrdenState para modificar la función buscarProductoPorNumero
+
+void buscarProductoPorNumero() async {
+  String numero = numeroController.text.trim();
+  if (numero.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Por favor ingrese un número de producto')),
+    );
+    return;
+  }
+  
+  // Mostrar indicador de carga
+  setState(() {
+    isLoading = true;
+  });
+  
+  try {
+    // Obtener cantidad
+    int cantidad = 1;
+    if (cantidadController.text.isNotEmpty) {
+      cantidad = int.tryParse(cantidadController.text.trim()) ?? 1;
     }
     
-    // Mostrar indicador de carga
-    setState(() {
-      isLoading = true;
-    });
+    // Buscar producto por número en el servidor
+    final productoEncontrado = await ProductoService.buscarProductoPorNumero(numero);
     
-    try {
-      // Obtener cantidad
-      int cantidad = 1;
-      if (cantidadController.text.isNotEmpty) {
-        cantidad = int.tryParse(cantidadController.text.trim()) ?? 1;
+    if (productoEncontrado != null) {
+      // Verificar si está agotado 
+      bool agotado = false;
+      if (productoEncontrado.containsKey('ESTADO')) {
+        agotado = productoEncontrado['ESTADO'].toString().toUpperCase().contains('AGOTADO');
       }
       
-      // Buscar producto por número en Google Sheets
-      final productoEncontrado = await ProductoService.buscarProductoPorNumero(numero);
-      
-      if (productoEncontrado != null) {
-        // Verificar si está agotado antes de procesarlo
-        bool agotado = false;
-        if (productoEncontrado.containsKey('AGOTADO')) {
-          agotado = productoEncontrado['AGOTADO'].toString().toUpperCase().contains('AGOTADO');
-        } else if (productoEncontrado.containsKey('ESTADO')) {
-          agotado = productoEncontrado['ESTADO'].toString().toUpperCase().contains('AGOTADO');
-        }
-        
-        if (agotado) {
-          // Mostrar alerta de producto agotado
-          showDialog(
-            context: context,
-            builder: (BuildContext context) {
-              return AlertDialog(
-                title: const Text('Producto Agotado'),
-                content: Text('El producto número $numero está agotado y no puede ser añadido a la orden.'),
-                actions: [
-                  TextButton(
-                    child: const Text('Aceptar'),
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                    },
-                  ),
-                ],
-              );
-            },
-          );
-        } else {
-          // Procesar el producto encontrado (que no está agotado)
-          String codigo = productoEncontrado['CODIGO']?.toString() ?? '';
-          
-          Map<String, dynamic> producto = {
-            'CODIGO': codigo,
-            'CANT': cantidad,
-            '#': numero
-          };
-          
-          // Mapeo específico para los campos de tu hoja
-          producto['UB'] = productoEncontrado['Bod'] ?? '';
-          producto['REF'] = productoEncontrado['Ref'] ?? '';
-          producto['ORIGEN'] = productoEncontrado['Origen'] ?? '';
-          producto['DESCRIPCION'] = productoEncontrado['Descripción'] ?? '';
-          producto['VEHICULO'] = productoEncontrado['Vehiculo'] ?? '';
-          producto['MARCA'] = productoEncontrado['Marca'] ?? '';
-          
-          // Procesar precio
-          double valorUnidad = 0;
-          if (productoEncontrado.containsKey('Precio Antes de Iva')) {
-            String precioStr = productoEncontrado['Precio Antes de Iva'].toString()
-                .replaceAll('\$', '')
-                .replaceAll('.', '')
-                .replaceAll(',', '')
-                .trim();
-            valorUnidad = double.tryParse(precioStr) ?? 0;
-          }
-          producto['VLR ANTES DE IVA'] = valorUnidad;
-          
-          // Procesar descuento
-          double descuento = 0;
-          if (productoEncontrado.containsKey('Dscto')) {
-            String dsctoStr = productoEncontrado['Dscto'].toString()
-                .replaceAll('%', '')
-                .trim();
-            descuento = double.tryParse(dsctoStr) ?? 0;
-          }
-          producto['DSCTO'] = descuento;
-          
-          // Calcular valor bruto
-          double valorBruto = valorUnidad * cantidad * (1 - descuento/100);
-          producto['V.BRUTO'] = valorBruto;
-          
-          setState(() {
-            productosAgregados.add(producto);
-            numeroController.clear();
-            cantidadController.clear();
-            calcularTotales();
-            
-            productoCodigoSeleccionado = codigo;
-            _checkImageExistence(codigo);
-          });
-        }
-      } else {
-        // Si no se encuentra, mostrar mensaje
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('No se encontró producto con número: $numero')),
+      if (agotado) {
+        // Mostrar alerta de producto agotado
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('Producto Agotado'),
+              content: Text('El producto número $numero está agotado y no puede ser añadido a la orden.'),
+              actions: [
+                TextButton(
+                  child: const Text('Aceptar'),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                ),
+              ],
+            );
+          },
         );
+      } else {
+        // Procesar el producto encontrado
+        String codigo = productoEncontrado['CODIGO']?.toString() ?? '';
+        
+        Map<String, dynamic> producto = {
+          'CODIGO': codigo,
+          'CANT': cantidad,
+          '#': numero
+        };
+        
+        // Mapeo de campos que vienen del servidor
+        producto['UB'] = productoEncontrado['UB'] ?? '';
+        producto['REF'] = productoEncontrado['REF'] ?? '';
+        producto['ORIGEN'] = productoEncontrado['ORIGEN'] ?? '';
+        producto['DESCRIPCION'] = productoEncontrado['DESCRIPCION'] ?? '';
+        producto['VEHICULO'] = productoEncontrado['VEHICULO'] ?? '';
+        producto['MARCA'] = productoEncontrado['MARCA'] ?? '';
+        
+        // Procesar precio
+        double valorUnidad = 0;
+        if (productoEncontrado.containsKey('VLR ANTES DE IVA')) {
+          valorUnidad = productoEncontrado['VLR ANTES DE IVA'];
+        }
+        producto['VLR ANTES DE IVA'] = valorUnidad;
+        
+        // Procesar descuento
+        double descuento = 0;
+        if (productoEncontrado.containsKey('DSCTO')) {
+          descuento = productoEncontrado['DSCTO'];
+        }
+        producto['DSCTO'] = descuento;
+        
+        // Calcular valor bruto
+        double valorBruto = valorUnidad * cantidad * (1 - descuento/100);
+        producto['V.BRUTO'] = valorBruto;
+        
+        setState(() {
+          productosAgregados.add(producto);
+          numeroController.clear();
+          cantidadController.clear();
+          calcularTotales();
+          
+          productoCodigoSeleccionado = codigo;
+          _checkImageExistence(codigo);
+        });
+
+        // Depuración: mostrar detalles del producto agregado
+        print("⭐ PRODUCTO AGREGADO A LA LISTA: $producto");
       }
-    } catch (e) {
-      print("Error al buscar producto: $e");
+    } else {
+      // Si no se encuentra, mostrar mensaje
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al procesar el producto: $e')),
+        SnackBar(content: Text('No se encontró producto con número: $numero')),
       );
-    } finally {
-      setState(() {
-        isLoading = false;
-      });
+    }
+  } catch (e) {
+    print("Error al buscar producto: $e");
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error al procesar el producto: $e')),
+    );
+  } finally {
+    setState(() {
+      isLoading = false;
+    });
+  }
+}
+
+String _formatMoneda(dynamic valor) {
+  if (valor == null) return '\$0';
+  
+  double numValor;
+  if (valor is num) {
+    numValor = valor.toDouble();
+  } else {
+    try {
+      numValor = double.parse(valor.toString());
+    } catch (e) {
+      return '\$0';
     }
   }
+  
+  // Multiplicar por 1000 para convertir a valores "originales" del CSV
+  // Por ejemplo, si el valor es 4.53, lo convertimos a 4530
+  numValor = numValor * 1000;
+  
+  // Usar NumberFormat para formato colombiano sin decimales
+  final formatter = NumberFormat("#,###", "es_CO");
+  return '\$${formatter.format(numValor)}';
+}
+
   pw.Widget _buildPDFInfoRow(String label, String value) {
   return pw.Padding(
     padding: pw.EdgeInsets.symmetric(vertical: 2),
@@ -1538,10 +1557,10 @@ DAP AutoPart's
                   _buildDataCell(producto['DESCRIPCION']?.toString() ?? '', maxLines: 2, producto: producto),
                   _buildDataCell(producto['VEHICULO']?.toString() ?? '', producto: producto),
                   _buildDataCell(producto['MARCA']?.toString() ?? '', producto: producto),
-                  _buildDataCell(formatCurrency(producto['VLR ANTES DE IVA']), producto: producto),
+                  _buildDataCell(_formatMoneda(producto['VLR ANTES DE IVA']), producto: producto),
                   _buildDataCell('${producto['DSCTO']}%', producto: producto),
                   _buildDataCell(producto['CANT']?.toString() ?? '', producto: producto),
-                  _buildDataCell(formatCurrency(producto['V.BRUTO']), producto: producto),
+                  _buildDataCell(_formatMoneda(producto['V.BRUTO']), producto: producto),
                 ],
               );
             }).toList(),
@@ -1848,7 +1867,6 @@ DAP AutoPart's
       // Limpia el valor de cualquier formato no numérico
       String cleanValue = value.toString()
           .replaceAll('\$', '')
-          .replaceAll('.', '')
           .replaceAll(',', '')
           .trim();
       numValue = double.tryParse(cleanValue) ?? 0;
@@ -1858,12 +1876,20 @@ DAP AutoPart's
   }
   
   try {
-    return '\$${NumberFormat('#,###').format(numValue)}';
+    // Formatear con miles de separación y dos decimales
+    final formatter = NumberFormat.currency(
+      symbol: '\$',
+      decimalDigits: 2, // Mostrar 2 decimales para valores monetarios
+      locale: 'es_CO',
+    );
+    return formatter.format(numValue);
   } catch (e) {
-    // En caso de error, devolver un valor por defecto formateado
-    return '\$0';
+    // Formato simple en caso de error
+    return '\$${numValue.toStringAsFixed(2)}';
   }
 }
+
+
 
   // Widgets auxiliares
   TableRow _buildInfoRow2(String label, String value, {bool isHeader = false}) {
@@ -1913,34 +1939,34 @@ DAP AutoPart's
   }
 
   TableRow _buildTotalRow2(String label, String value, {bool isTotal = false}) {
-    return TableRow(
-      decoration: BoxDecoration(
-        color: isTotal ? const Color(0xFF1A4379) : const Color(0xFFCFD5E1),
+  return TableRow(
+    decoration: BoxDecoration(
+      color: isTotal ? const Color(0xFF1A4379) : const Color(0xFFCFD5E1),
+    ),
+    children: [
+      Padding(
+        padding: const EdgeInsets.all(8),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: isTotal ? Colors.white : Colors.black,
+          ),
+        ),
       ),
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(8),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: isTotal ? Colors.white : Colors.black,
-            ),
+      Padding(
+        padding: const EdgeInsets.all(8),
+        child: Text(
+          value,
+          style: TextStyle(
+            fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+            color: isTotal ? Colors.white : Colors.black,
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.all(8),
-          child: Text(
-            value,
-            style: TextStyle(
-              fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
-              color: isTotal ? Colors.white : Colors.black,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+      ),
+    ],
+  );
+}
 
   // Widget para fila de información en vista previa
   Widget _buildInfoRow(String label, String value) {
@@ -2002,7 +2028,29 @@ Widget _buildHeaderCell(String text) {
   );
 }
 
-Widget _buildDataCell(String text, {int maxLines = 1, Map<String, dynamic>? producto}) {
+_buildDataCell(String text, {int maxLines = 1, Map<String, dynamic>? producto}) {
+  // Para valores de descuento, asegurarse de mostrar el símbolo %
+  if (text.endsWith('%')) {
+    return GestureDetector(
+      onTap: () {
+        if (producto != null) {
+          seleccionarProducto(producto);
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.all(4),
+        child: Text(
+          text,
+          style: const TextStyle(fontSize: 9),
+          overflow: TextOverflow.ellipsis,
+          maxLines: maxLines,
+          textAlign: TextAlign.center,
+        ),
+      ),
+    );
+  }
+  
+  // Para otros valores
   return GestureDetector(
     onTap: () {
       if (producto != null) {
@@ -2021,4 +2069,5 @@ Widget _buildDataCell(String text, {int maxLines = 1, Map<String, dynamic>? prod
     ),
   );
 }
+  
 }

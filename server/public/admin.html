@@ -102,6 +102,12 @@
             font-style: italic;
             color: #666;
         }
+        .info-box {
+            background-color: #e7f3fe;
+            border-left: 4px solid #2196F3;
+            padding: 12px;
+            margin-bottom: 15px;
+        }
     </style>
 </head>
 <body>
@@ -115,7 +121,7 @@
     <div class="container">
         <div class="card">
             <h2>Panel de Administración</h2>
-            <p>Desde aquí puede administrar los catálogos y listas de precios disponibles para los asesores.</p>
+            <p>Desde aquí puede administrar los catálogos, productos y listas de precios disponibles para los asesores.</p>
             
             <div id="alertSuccess" class="alert alert-success hidden">
                 Archivo actualizado correctamente.
@@ -143,7 +149,36 @@
             </form>
         </div>
 
-        <!-- Sección de Lista de Precios eliminada, nos enfocamos solo en Catálogo -->
+        <!-- NUEVA SECCIÓN: Productos -->
+        <div class="card">
+            <h2>Actualizar Lista de Productos</h2>
+            <p>Suba un archivo CSV con la información de productos.</p>
+            
+            <div class="info-box">
+                <strong>Importante:</strong> El archivo CSV debe contener al menos las siguientes columnas:
+                <ul>
+                    <li># (número secuencial)</li>
+                    <li>CODIGO (código de referencia)</li>
+                    <li>DESCRIPCION (descripción del producto)</li>
+                    <li>Precio Antes de Iva</li>
+                    <li>Dscto (descuento)</li>
+                </ul>
+                <p>Otras columnas útiles pero opcionales: Marca, Origen, Ref, Vehiculo, Bod, AGOTADO/ESTADO.</p>
+            </div>
+            
+            <form id="productosForm">
+                <div class="form-group">
+                    <label for="productos">Seleccionar archivo CSV:</label>
+                    <input type="file" id="productos" name="productos" accept=".csv" class="input-file" required>
+                </div>
+                
+                <div class="current-file" id="currentProductos">
+                    Archivo de productos actual: <span id="productosNombre">No hay archivo</span>
+                </div>
+                
+                <button type="submit" class="btn">Actualizar Lista de Productos</button>
+            </form>
+        </div>
     </div>
 
     <script>
@@ -157,7 +192,11 @@
                 uploadFile('catalogo', 'upload-catalogo');
             });
             
-            // Quitamos el código relacionado con la lista de precios
+            // Manejar formulario de productos
+            document.getElementById('productosForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                uploadFile('productos', 'upload-productos');
+            });
         });
         
         function checkExistingFiles() {
@@ -171,7 +210,15 @@
                 })
                 .catch(error => console.error('Error al verificar catálogo:', error));
             
-            // Eliminamos la verificación de la lista de precios
+            // Obtener información sobre el archivo de productos actual
+            fetch('/productos-info')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.filename) {
+                        document.getElementById('productosNombre').textContent = data.filename;
+                    }
+                })
+                .catch(error => console.error('Error al verificar productos:', error));
         }
         
         function uploadFile(fileInputId, endpoint) {
@@ -183,9 +230,14 @@
                 return;
             }
             
-            // Verificar que sea un PDF
-            if (file.type !== 'application/pdf') {
-                showAlert('alertError', 'El archivo debe ser un PDF.');
+            // Verificar tipo de archivo según el campo
+            if (fileInputId === 'catalogo' && file.type !== 'application/pdf') {
+                showAlert('alertError', 'El catálogo debe ser un archivo PDF.');
+                return;
+            }
+            
+            if (fileInputId === 'productos' && !file.name.endsWith('.csv')) {
+                showAlert('alertError', 'El archivo de productos debe ser un CSV.');
                 return;
             }
             
@@ -201,7 +253,7 @@
                 if (data.success) {
                     showAlert('alertSuccess', 'Archivo actualizado correctamente.');
                     // Actualizar la información del archivo actual
-                    document.getElementById('catalogoNombre').textContent = file.name;
+                    document.getElementById(fileInputId + 'Nombre').textContent = file.name;
                     // Resetear el formulario
                     document.getElementById(fileInputId).value = '';
                 } else {
