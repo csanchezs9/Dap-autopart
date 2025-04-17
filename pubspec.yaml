@@ -20,6 +20,8 @@ dependencies:
   path_provider: ^2.1.0
   flutter_email_sender: ^7.0.0
   screenshot: ^2.1.0
+  open_file: ^3.3.2  # Para abrir archivos PDF
+  permission_handler: ^11.0.0  # Para gestionar permisos
 
 dev_dependencies:
   flutter_test:

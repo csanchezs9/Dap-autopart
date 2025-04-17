@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'orden.dart';
 import 'main.dart';
+import 'catalogo_service.dart'; // Importamos nuestro nuevo servicio
 
 class OrdenDePedidoMain extends StatelessWidget {
   const OrdenDePedidoMain({super.key});
@@ -62,14 +63,14 @@ class OrdenDePedidoMain extends StatelessWidget {
                   ),
                 ),
 
-                // Logo DAP AutoPart's (aumentado 50%)
+                // Logo DAP AutoPart's
                 Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       'DAP',
                       style: TextStyle(
-                        fontSize: 54, // 36 + 50%
+                        fontSize: 54,
                         fontWeight: FontWeight.bold,
                         color: Colors.blue[900],
                       ),
@@ -77,7 +78,7 @@ class OrdenDePedidoMain extends StatelessWidget {
                     Text(
                       'AutoPart´s',
                       style: TextStyle(
-                        fontSize: 33, // 22 + 50%
+                        fontSize: 33,
                         color: Colors.red[700],
                         fontWeight: FontWeight.bold,
                       ),
@@ -98,7 +99,9 @@ class OrdenDePedidoMain extends StatelessWidget {
                   icon: Icon(Icons.menu_book),
                   label: Text("CATÁLOGO"),
                   onPressed: () {
-                    // Aquí iría la navegación al catálogo
+                    // Llamamos al método para mostrar el diálogo de confirmación
+                    // y luego descargar/abrir el catálogo si el usuario acepta
+                    CatalogoService.abrirCatalogo(context);
                   },
                   style: ElevatedButton.styleFrom(
                     foregroundColor: Colors.black,
@@ -116,6 +119,10 @@ class OrdenDePedidoMain extends StatelessWidget {
                   label: Text("LISTA DE\nPRECIOS", textAlign: TextAlign.center),
                   onPressed: () {
                     // Aquí iría la navegación a la lista de precios
+                    // Por ahora, mostrar un mensaje informativo
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Funcionalidad en desarrollo')),
+                    );
                   },
                   style: ElevatedButton.styleFrom(
                     foregroundColor: Colors.black,

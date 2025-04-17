@@ -1,0 +1,252 @@
+import 'package:http/http.dart' as http;
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:flutter/material.dart';
+import 'package:open_file/open_file.dart';
+import 'package:permission_handler/permission_handler.dart';
+
+class CatalogoService {
+  // URL base del servidor - Deberás ajustarla según la ubicación de tu servidor
+  static const String baseUrl = 'http://10.0.2.2:3000'; // Para emulador Android
+  // static const String baseUrl = 'http://localhost:3000'; // Para web
+  // static const String baseUrl = 'http://192.168.1.X:3000'; // Para dispositivo real (cambia la IP)
+
+  // Método principal para mostrar diálogo de confirmación
+  static Future<void> abrirCatalogo(BuildContext context) async {
+    // Primero verificamos la conectividad con el servidor
+    try {
+      await http.get(Uri.parse('$baseUrl/ping')).timeout(
+            Duration(seconds: 5),
+            onTimeout: () => throw Exception('Servidor no disponible'),
+          );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: No se pudo conectar al servidor')),
+      );
+      return;
+    }
+
+    // Mostrar diálogo de confirmación
+    bool? descargar = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Catálogo de Productos'),
+          content: Text('¿Desea descargar el catálogo de productos?'),
+          actions: [
+            TextButton(
+              child: Text('Cancelar'),
+              onPressed: () {
+                Navigator.of(context).pop(false);
+              },
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Color(0xFF1A4379),
+                foregroundColor: Colors.white,
+              ),
+              child: Text('Descargar'),
+              onPressed: () {
+                Navigator.of(context).pop(true);
+              },
+            ),
+          ],
+        );
+      },
+    );
+
+    if (descargar == true) {
+      await _descargarYAbrirCatalogo(context);
+    }
+  }
+
+  // Método para descargar y abrir el catálogo
+  static Future<void> _descargarYAbrirCatalogo(BuildContext context) async {
+    try {
+      // Mostrar diálogo de carga
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Descargando catálogo...')
+              ],
+            ),
+          );
+        },
+      );
+
+      try {
+        // Realizar la solicitud HTTP para descargar el PDF
+        final response = await http.get(Uri.parse('$baseUrl/catalogo'));
+        
+        // Cerrar el diálogo de carga
+        Navigator.of(context, rootNavigator: true).pop();
+        
+        if (response.statusCode == 200) {
+          // Guardar en el directorio de cache, que no requiere permisos especiales
+          final directory = await getTemporaryDirectory();
+          final filePath = '${directory.path}/catalogo_dap.pdf';
+          
+          print("Guardando archivo en: $filePath");
+          
+          // Escribir el archivo PDF descargado
+          final file = File(filePath);
+          await file.writeAsBytes(response.bodyBytes);
+          
+          print("Archivo guardado correctamente");
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Catálogo descargado correctamente')),
+          );
+          
+          // Mostrar diálogo con opciones para el usuario
+          showDialog(
+            context: context,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                title: Text('Catálogo Descargado'),
+                content: Text('El catálogo se ha descargado correctamente. ¿Qué desea hacer?'),
+                actions: [
+                  TextButton(
+                    child: Text('Cerrar'),
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                  ),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Color(0xFF1A4379),
+                      foregroundColor: Colors.white,
+                    ),
+                    child: Text('Abrir'),
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      _intentarAbrirPDF(context, filePath);
+                    },
+                  ),
+                ],
+              );
+            },
+          );
+        } else if (response.statusCode == 404) {
+          // Catálogo no encontrado
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('El catálogo no está disponible actualmente')),
+          );
+        } else {
+          // Otro error
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error al descargar el catálogo (${response.statusCode})')),
+          );
+        }
+      } catch (e) {
+        // Cerrar el diálogo de carga en caso de error
+        Navigator.of(context, rootNavigator: true).pop();
+        
+        print("Error en la descarga: $e");
+        // Mostrar mensaje de error
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al conectar con el servidor: $e')),
+        );
+      }
+    } catch (e) {
+      print("Error general: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error inesperado: $e')),
+      );
+    }
+  }
+  
+  // Método para intentar abrir el PDF con manejo de errores mejorado
+  static Future<void> _intentarAbrirPDF(BuildContext context, String filePath) async {
+    try {
+      print("Intentando abrir el PDF: $filePath");
+      final result = await OpenFile.open(filePath);
+      
+      if (result.type != ResultType.done) {
+        print("Error al abrir PDF: ${result.message}");
+        // Si falló al abrir, mostrar mensaje de error
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No se pudo abrir el catálogo. Por favor, instale un lector de PDF.')),
+        );
+        
+        // Ofrecemos descargar un lector de PDF
+        _mostrarDialogoInstaladorPDF(context);
+      }
+    } catch (e) {
+      print("Excepción al abrir PDF: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al abrir el archivo: $e')),
+      );
+      
+      // Como alternativa, informamos dónde está guardado el archivo
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text('No se pudo abrir el PDF'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('El catálogo se ha descargado pero no se puede abrir automáticamente.'),
+                SizedBox(height: 12),
+                Text('Ubicación del archivo:', style: TextStyle(fontWeight: FontWeight.bold)),
+                Text(filePath, style: TextStyle(fontStyle: FontStyle.italic)),
+              ],
+            ),
+            actions: [
+              TextButton(
+                child: Text('Entendido'),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+              ),
+            ],
+          );
+        },
+      );
+    }
+  }
+  
+  // Método para mostrar diálogo sugiriendo instalar un lector de PDF
+  static void _mostrarDialogoInstaladorPDF(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Lector de PDF necesario'),
+          content: Text(
+            'Para visualizar el catálogo necesita una aplicación que permita '
+            'abrir archivos PDF. ¿Desea instalar una desde la tienda de aplicaciones?'
+          ),
+          actions: [
+            TextButton(
+              child: Text('No, gracias'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Color(0xFF1A4379),
+                foregroundColor: Colors.white,
+              ),
+              child: Text('Instalar'),
+              onPressed: () {
+                Navigator.of(context).pop();
+                // Aquí podríamos abrir la URL de la Play Store para instalar Adobe Reader u otro visor
+                // Pero por ahora solo cerramos el diálogo
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
