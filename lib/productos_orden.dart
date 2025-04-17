@@ -2,16 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter/services.dart';
-import 'dart:ui' as ui;
 import 'package:flutter/rendering.dart';
 import 'dart:typed_data'; 
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
-import 'package:flutter_email_sender/flutter_email_sender.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'producto_service.dart';
-import 'dart:math'; // Añadir esta importación al inicio del archivo
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
@@ -86,16 +83,19 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
   }
 
   String obtenerFechaActual() {
-    final now = DateTime.now();
-    try {
-      final formatter = DateFormat('dd – MMMM – yyyy', 'es_ES');
-      String fecha = formatter.format(now).toUpperCase();
-      return fecha;
-    } catch (e) {
-      print("Error al formatear fecha: $e");
-      return "${now.day} - ${now.month} - ${now.year}";
-    }
+  final now = DateTime.now();
+  try {
+    // En lugar de usar caracteres especiales como guiones que pueden causar problemas,
+    // usemos un formato más simple y controlado
+    final formatter = DateFormat('dd/MM/yyyy', 'es_ES');
+    String fecha = formatter.format(now);
+    return fecha;
+  } catch (e) {
+    print("Error al formatear fecha: $e");
+    // Formato de respaldo simple en caso de error
+    return "${now.day}/${now.month}/${now.year}";
   }
+}
 
   void buscarProductoPorNumero() async {
     String numero = numeroController.text.trim();
@@ -221,22 +221,26 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
     }
   }
   pw.Widget _buildPDFInfoRow(String label, String value) {
-  return pw.Row(
-    crossAxisAlignment: pw.CrossAxisAlignment.start,
-    children: [
-      pw.SizedBox(
-        width: 120,
-        child: pw.Text(
-          label,
-          style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+  return pw.Padding(
+    padding: pw.EdgeInsets.symmetric(vertical: 2),
+    child: pw.Row(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.SizedBox(
+          width: 120,
+          child: pw.Text(
+            label,
+            style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9),
+          ),
         ),
-      ),
-      pw.Expanded(
-        child: pw.Text(value),
-      ),
-    ],
+        pw.Expanded(
+          child: pw.Text(value, style: pw.TextStyle(fontSize: 9)),
+        ),
+      ],
+    ),
   );
 }
+
 
 pw.Widget _buildPDFTotalRow(String label, String value) {
   return pw.Container(
@@ -253,296 +257,393 @@ pw.Widget _buildPDFTotalRow(String label, String value) {
     ),
   );
 }
-// Agregar justo después de _generarPDF() o reemplazar esa función si prefieres
+
 Future<Uint8List?> _generarPDFMejorado() async {
   try {
-    // Crear un documento PDF directamente
+    // Crear un documento PDF
     final pdf = pw.Document();
     
     pdf.addPage(
-      pw.Page(
-        build: (pw.Context context) {
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              // Encabezado con logo DAP
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  // Logo
-                  pw.Column(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: pw.EdgeInsets.all(30),
+        // Construir el PDF con flujo de contenido automático
+        header: (pw.Context context) {
+          // Solo mostrar encabezado completo en la primera página
+          if (context.pageNumber == 1) {
+            return pw.Column(
+              children: [
+                // Encabezado con logo DAP
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    // Logo
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text(
+                          'DAP',
+                          style: pw.TextStyle(
+                            fontSize: 30,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.blue900,
+                          ),
+                        ),
+                        pw.Text(
+                          'AutoPart\'s',
+                          style: pw.TextStyle(
+                            fontSize: 24,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.red700,
+                          ),
+                        ),
+                        pw.SizedBox(height: 5),
+                        pw.Text('Distribuciones Autoparts S.A.S'),
+                        pw.Text('Nit: 901.110.424-1'),
+                      ],
+                    ),
+                    
+                    // Información de la orden
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.end,
+                      children: [
+                        pw.Text('FECHA: ${obtenerFechaActual()}', 
+                              style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                        pw.Text('ORDEN DE PEDIDO #: ${widget.ordenNumero}', 
+                              style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                      ],
+                    ),
+                  ],
+                ),
+                
+                pw.SizedBox(height: 20),
+                
+                // Información del cliente
+                pw.Container(
+                  decoration: pw.BoxDecoration(
+                    border: pw.Border.all(),
+                  ),
+                  child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      pw.Text(
-                        'DAP',
-                        style: pw.TextStyle(
-                          fontSize: 30,
-                          fontWeight: pw.FontWeight.bold,
+                      pw.Container(
+                        color: PdfColors.blue900,
+                        padding: pw.EdgeInsets.all(8),
+                        width: double.infinity,
+                        child: pw.Text(
+                          'INFORMACIÓN DEL CLIENTE',
+                          style: pw.TextStyle(
+                            color: PdfColors.white,
+                            fontWeight: pw.FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      pw.Padding(
+                        padding: pw.EdgeInsets.all(8),
+                        child: pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.start,
+                          children: [
+                            _buildPDFInfoRow('NIT:', widget.clienteData['NIT CLIENTE'] ?? ''),
+                            _buildPDFInfoRow('NOMBRE:', widget.clienteData['NOMBRE'] ?? ''),
+                            _buildPDFInfoRow('ESTABLECIMIENTO:', widget.clienteData['ESTABLECIMIENTO'] ?? ''),
+                            _buildPDFInfoRow('DIRECCIÓN:', widget.clienteData['DIRECCION'] ?? ''),
+                            _buildPDFInfoRow('TELÉFONO:', widget.clienteData['TELEFONO'] ?? ''),
+                            _buildPDFInfoRow('DESCUENTO:', widget.clienteData['DESCTO'] ?? ''),
+                            _buildPDFInfoRow('CIUDAD:', widget.clienteData['CLI_CIUDAD'] ?? ''),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                pw.SizedBox(height: 20),
+                
+                // Información del asesor
+                pw.Container(
+                  decoration: pw.BoxDecoration(
+                    border: pw.Border.all(),
+                  ),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Container(
+                        color: PdfColors.blue900,
+                        padding: pw.EdgeInsets.all(8),
+                        width: double.infinity,
+                        child: pw.Text(
+                          'INFORMACIÓN DEL ASESOR',
+                          style: pw.TextStyle(
+                            color: PdfColors.white,
+                            fontWeight: pw.FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      pw.Padding(
+                        padding: pw.EdgeInsets.all(8),
+                        child: pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.start,
+                          children: [
+                            _buildPDFInfoRow('ID:', widget.asesorData['ID'] ?? ''),
+                            _buildPDFInfoRow('NOMBRE:', widget.asesorData['NOMBRE'] ?? ''),
+                            _buildPDFInfoRow('ZONA:', widget.asesorData['ZONA'] ?? ''),
+                            _buildPDFInfoRow('TELÉFONO:', widget.asesorData['CEL'] ?? ''),
+                            _buildPDFInfoRow('CORREO:', widget.asesorData['MAIL'] ?? ''),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                pw.SizedBox(height: 20),
+              ],
+            );
+          } else {
+            // Para las páginas siguientes, mostrar un encabezado simple
+            return pw.Column(
+              children: [
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text(
+                      'DAP AutoPart\'s',
+                      style: pw.TextStyle(
+                        fontSize: 14,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.blue900,
+                      ),
+                    ),
+                    pw.Text(
+                      'ORDEN DE PEDIDO #: ${widget.ordenNumero} - Página ${context.pageNumber}',
+                      style: pw.TextStyle(
+                        fontSize: 10,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                pw.SizedBox(height: 10),
+              ],
+            );
+          }
+        },
+        footer: (pw.Context context) {
+          return pw.Center(
+            child: pw.Text('Página ${context.pageNumber} de ${context.pagesCount}'),
+          );
+        },
+        build: (pw.Context context) {
+          return [
+            // Encabezado de Productos
+            pw.Container(
+              color: PdfColors.blue900,
+              padding: pw.EdgeInsets.all(8),
+              width: double.infinity,
+              child: pw.Text(
+                'PRODUCTOS',
+                style: pw.TextStyle(
+                  color: PdfColors.white,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+            ),
+            
+            // Tabla de productos completa
+            pw.Table(
+              border: pw.TableBorder.all(),
+              columnWidths: {
+                0: pw.FixedColumnWidth(25), // #
+                1: pw.FixedColumnWidth(50), // CÓDIGO
+                2: pw.FixedColumnWidth(30), // UB
+                3: pw.FixedColumnWidth(60), // REF
+                4: pw.FixedColumnWidth(50), // ORIGEN
+                5: pw.FixedColumnWidth(100), // DESCRIPCIÓN
+                6: pw.FixedColumnWidth(110), // VEHÍCULO
+                7: pw.FixedColumnWidth(50), // MARCA
+                8: pw.FixedColumnWidth(50), // ANTES IVA
+                9: pw.FixedColumnWidth(40), // DSCTO
+                10: pw.FixedColumnWidth(30), // CANT
+                11: pw.FixedColumnWidth(50), // V.BRUTO
+              },
+              children: [
+                // Encabezado
+                pw.TableRow(
+                  decoration: pw.BoxDecoration(color: PdfColors.blue900),
+                  children: [
+                    _buildPDFHeaderCell('#'),
+                    _buildPDFHeaderCell('CÓDIGO'),
+                    _buildPDFHeaderCell('UB'),
+                    _buildPDFHeaderCell('REF'),
+                    _buildPDFHeaderCell('ORIGEN'),
+                    _buildPDFHeaderCell('DESCRIPCIÓN'),
+                    _buildPDFHeaderCell('VEHÍCULO'),
+                    _buildPDFHeaderCell('MARCA'),
+                    _buildPDFHeaderCell('ANTES IVA'),
+                    _buildPDFHeaderCell('DSCTO'),
+                    _buildPDFHeaderCell('CANT'),
+                    _buildPDFHeaderCell('V.BRUTO'),
+                  ],
+                ),
+                
+                // Filas de productos
+                ...productosAgregados.map((producto) => pw.TableRow(
+                  children: [
+                    _buildPDFDataCell(producto['#']?.toString() ?? ''),
+                    _buildPDFDataCell(producto['CODIGO']?.toString() ?? ''),
+                    _buildPDFDataCell(producto['UB']?.toString() ?? ''),
+                    _buildPDFDataCell(producto['REF']?.toString() ?? ''),
+                    _buildPDFDataCell(producto['ORIGEN']?.toString() ?? ''),
+                    _buildPDFDataCell(producto['DESCRIPCION']?.toString() ?? ''),
+                    _buildPDFDataCell(producto['VEHICULO']?.toString() ?? ''),
+                    _buildPDFDataCell(producto['MARCA']?.toString() ?? ''),
+                    _buildPDFDataCell(formatCurrency(producto['VLR ANTES DE IVA'])),
+                    _buildPDFDataCell('${producto['DSCTO']}%'),
+                    _buildPDFDataCell(producto['CANT']?.toString() ?? ''),
+                    _buildPDFDataCell(formatCurrency(producto['V.BRUTO'])),
+                  ],
+                )).toList(),
+              ],
+            ),
+            
+            pw.SizedBox(height: 20),
+            
+            // Sección inferior: Observaciones y Totales
+            pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                // Observaciones
+                pw.Expanded(
+                  flex: 3,
+                  child: pw.Container(
+                    decoration: pw.BoxDecoration(
+                      border: pw.Border.all(),
+                    ),
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Container(
                           color: PdfColors.blue900,
-                        ),
-                      ),
-                      pw.Text(
-                        'AutoPart\'s',
-                        style: pw.TextStyle(
-                          fontSize: 24,
-                          fontWeight: pw.FontWeight.bold,
-                          color: PdfColors.red700,
-                        ),
-                      ),
-                      pw.SizedBox(height: 5),
-                      pw.Text('Distribuciones Autoparts S.A.S'),
-                      pw.Text('Nit: 901.110.424-1'),
-                    ],
-                  ),
-                  
-                  // Información de la orden
-                  pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.end,
-                    children: [
-                      pw.Text('FECHA: ${obtenerFechaActual()}', 
-                            style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                      pw.Text('ORDEN DE PEDIDO #: ${widget.ordenNumero}', 
-                            style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                    ],
-                  ),
-                ],
-              ),
-              
-              pw.SizedBox(height: 20),
-              
-              // Información del cliente
-              pw.Container(
-                decoration: pw.BoxDecoration(
-                  border: pw.Border.all(),
-                ),
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    pw.Container(
-                      color: PdfColors.blue900,
-                      padding: pw.EdgeInsets.all(8),
-                      width: double.infinity,
-                      child: pw.Text(
-                        'INFORMACIÓN DEL CLIENTE',
-                        style: pw.TextStyle(
-                          color: PdfColors.white,
-                          fontWeight: pw.FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    pw.Padding(
-                      padding: pw.EdgeInsets.all(8),
-                      child: pw.Column(
-                        crossAxisAlignment: pw.CrossAxisAlignment.start,
-                        children: [
-                          _buildPDFInfoRow('NIT:', widget.clienteData['NIT CLIENTE'] ?? ''),
-                          _buildPDFInfoRow('NOMBRE:', widget.clienteData['NOMBRE'] ?? ''),
-                          _buildPDFInfoRow('ESTABLECIMIENTO:', widget.clienteData['ESTABLECIMIENTO'] ?? ''),
-                          _buildPDFInfoRow('DIRECCIÓN:', widget.clienteData['DIRECCION'] ?? ''),
-                          _buildPDFInfoRow('TELÉFONO:', widget.clienteData['TELEFONO'] ?? ''),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              
-              pw.SizedBox(height: 20),
-              
-              // Información del asesor
-              pw.Container(
-                decoration: pw.BoxDecoration(
-                  border: pw.Border.all(),
-                ),
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    pw.Container(
-                      color: PdfColors.blue900,
-                      padding: pw.EdgeInsets.all(8),
-                      width: double.infinity,
-                      child: pw.Text(
-                        'INFORMACIÓN DEL ASESOR',
-                        style: pw.TextStyle(
-                          color: PdfColors.white,
-                          fontWeight: pw.FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    pw.Padding(
-                      padding: pw.EdgeInsets.all(8),
-                      child: pw.Column(
-                        crossAxisAlignment: pw.CrossAxisAlignment.start,
-                        children: [
-                          _buildPDFInfoRow('ID:', widget.asesorData['ID'] ?? ''),
-                          _buildPDFInfoRow('NOMBRE:', widget.asesorData['NOMBRE'] ?? ''),
-                          _buildPDFInfoRow('ZONA:', widget.asesorData['ZONA'] ?? ''),
-                          _buildPDFInfoRow('TELÉFONO:', widget.asesorData['CEL'] ?? ''),
-                          _buildPDFInfoRow('CORREO:', widget.asesorData['MAIL'] ?? ''),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              
-              pw.SizedBox(height: 20),
-              
-              // Productos
-              pw.Container(
-                color: PdfColors.blue900,
-                padding: pw.EdgeInsets.all(8),
-                width: double.infinity,
-                child: pw.Text(
-                  'PRODUCTOS',
-                  style: pw.TextStyle(
-                    color: PdfColors.white,
-                    fontWeight: pw.FontWeight.bold,
-                  ),
-                ),
-              ),
-              
-              // Tabla de productos
-              pw.Table(
-                border: pw.TableBorder.all(),
-                children: [
-                  // Encabezado
-                  pw.TableRow(
-                    decoration: pw.BoxDecoration(color: PdfColors.grey300),
-                    children: [
-                      pw.Padding(
-                        padding: pw.EdgeInsets.all(5),
-                        child: pw.Text('#', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                      ),
-                      pw.Padding(
-                        padding: pw.EdgeInsets.all(5),
-                        child: pw.Text('DESCRIPCIÓN', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                      ),
-                      pw.Padding(
-                        padding: pw.EdgeInsets.all(5),
-                        child: pw.Text('CANT', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                      ),
-                      pw.Padding(
-                        padding: pw.EdgeInsets.all(5),
-                        child: pw.Text('VLR', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                      ),
-                      pw.Padding(
-                        padding: pw.EdgeInsets.all(5),
-                        child: pw.Text('DSCTO', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                      ),
-                      pw.Padding(
-                        padding: pw.EdgeInsets.all(5),
-                        child: pw.Text('SUBTOTAL', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                      ),
-                    ],
-                  ),
-                  
-                  // Filas de productos
-                  ...productosAgregados.map((producto) => pw.TableRow(
-                    children: [
-                      pw.Padding(
-                        padding: pw.EdgeInsets.all(5),
-                        child: pw.Text(producto['#']?.toString() ?? ''),
-                      ),
-                      pw.Padding(
-                        padding: pw.EdgeInsets.all(5),
-                        child: pw.Text(producto['DESCRIPCION']?.toString() ?? ''),
-                      ),
-                      pw.Padding(
-                        padding: pw.EdgeInsets.all(5),
-                        child: pw.Text(producto['CANT']?.toString() ?? ''),
-                      ),
-                      pw.Padding(
-                        padding: pw.EdgeInsets.all(5),
-                        child: pw.Text(formatCurrency(producto['VLR ANTES DE IVA'])),
-                      ),
-                      pw.Padding(
-                        padding: pw.EdgeInsets.all(5),
-                        child: pw.Text('${producto['DSCTO']}%'),
-                      ),
-                      pw.Padding(
-                        padding: pw.EdgeInsets.all(5),
-                        child: pw.Text(formatCurrency(producto['V.BRUTO'])),
-                      ),
-                    ],
-                  )).toList(),
-                ],
-              ),
-              
-              pw.SizedBox(height: 20),
-              
-              // Observaciones y totales
-              pw.Row(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  // Observaciones
-                  pw.Expanded(
-                    flex: 3,
-                    child: pw.Container(
-                      decoration: pw.BoxDecoration(
-                        border: pw.Border.all(),
-                      ),
-                      child: pw.Column(
-                        crossAxisAlignment: pw.CrossAxisAlignment.start,
-                        children: [
-                          pw.Container(
-                            color: PdfColors.blue900,
-                            padding: pw.EdgeInsets.all(8),
-                            width: double.infinity,
-                            child: pw.Text(
-                              'OBSERVACIONES',
-                              style: pw.TextStyle(
-                                color: PdfColors.white,
-                                fontWeight: pw.FontWeight.bold,
-                              ),
+                          padding: pw.EdgeInsets.all(8),
+                          width: double.infinity,
+                          child: pw.Text(
+                            'OBSERVACIONES',
+                            style: pw.TextStyle(
+                              color: PdfColors.white,
+                              fontWeight: pw.FontWeight.bold,
                             ),
                           ),
-                          pw.Padding(
-                            padding: pw.EdgeInsets.all(8),
-                            child: pw.Text(observacionesController.text.isEmpty ? 
-                              'Sin observaciones' : observacionesController.text),
-                          ),
-                        ],
-                      ),
+                        ),
+                        pw.Padding(
+                          padding: pw.EdgeInsets.all(8),
+                          child: pw.Text(observacionesController.text.isEmpty ? 
+                            'Sin observaciones' : observacionesController.text),
+                        ),
+                      ],
                     ),
                   ),
-                  
-                  pw.SizedBox(width: 20),
-                  
-                  // Totales
-                  pw.Expanded(
-                    flex: 2,
-                    child: pw.Container(
-                      decoration: pw.BoxDecoration(
-                        border: pw.Border.all(),
-                      ),
-                      child: pw.Column(
-                        children: [
-                          _buildPDFTotalRow('V.BRUTO', formatCurrency(valorBrutoTotal)),
-                          _buildPDFTotalRow('DSCTO', formatCurrency(descuentoTotal)),
-                          _buildPDFTotalRow('SUBTOTAL', formatCurrency(subtotal)),
-                          _buildPDFTotalRow('IVA', formatCurrency(iva)),
-                          pw.Container(
-                            color: PdfColors.blue900,
+                ),
+                
+                pw.SizedBox(width: 20),
+                
+                // Totales
+                pw.Expanded(
+                  flex: 2,
+                  child: pw.Container(
+                    child: pw.Column(
+                      children: [
+                        pw.Container(
+                          decoration: pw.BoxDecoration(
+                            border: pw.Border.all(),
+                          ),
+                          child: pw.Padding(
                             padding: pw.EdgeInsets.all(8),
                             child: pw.Row(
                               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                               children: [
-                                pw.Text('TOTAL', 
-                                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white)),
-                                pw.Text(formatCurrency(total), 
-                                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white)),
+                                pw.Text('V.BRUTO'),
+                                pw.Text(formatCurrency(valorBrutoTotal)),
                               ],
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                        pw.Container(
+                          decoration: pw.BoxDecoration(
+                            border: pw.Border(
+                              left: pw.BorderSide(),
+                              right: pw.BorderSide(),
+                              bottom: pw.BorderSide(),
+                            ),
+                          ),
+                          child: pw.Padding(
+                            padding: pw.EdgeInsets.all(8),
+                            child: pw.Row(
+                              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                              children: [
+                                pw.Text('DSCTO'),
+                                pw.Text(formatCurrency(descuentoTotal)),
+                              ],
+                            ),
+                          ),
+                        ),
+                        pw.Container(
+                          decoration: pw.BoxDecoration(
+                            border: pw.Border(
+                              left: pw.BorderSide(),
+                              right: pw.BorderSide(),
+                              bottom: pw.BorderSide(),
+                            ),
+                          ),
+                          child: pw.Padding(
+                            padding: pw.EdgeInsets.all(8),
+                            child: pw.Row(
+                              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                              children: [
+                                pw.Text('SUBTOTAL'),
+                                pw.Text(formatCurrency(subtotal)),
+                              ],
+                            ),
+                          ),
+                        ),
+                        pw.Container(
+                          decoration: pw.BoxDecoration(
+                            border: pw.Border(
+                              left: pw.BorderSide(),
+                              right: pw.BorderSide(),
+                              bottom: pw.BorderSide(),
+                            ),
+                          ),
+                          child: pw.Padding(
+                            padding: pw.EdgeInsets.all(8),
+                            child: pw.Row(
+                              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                              children: [
+                                pw.Text('IVA'),
+                                pw.Text(formatCurrency(iva)),
+                              ],
+                            ),
+                          ),
+                        ),
+                        pw.Container(
+                          color: PdfColors.blue900,
+                          padding: pw.EdgeInsets.all(8),
+                          child: pw.Row(
+                            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                            children: [
+                              pw.Text('TOTAL', 
+                                style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white)),
+                              pw.Text(formatCurrency(total), 
+                                style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white)),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
-            ],
-          );
+                ),
+              ],
+            ),
+          ];
         },
       ),
     );
@@ -552,6 +653,34 @@ Future<Uint8List?> _generarPDFMejorado() async {
     print("Error al generar PDF mejorado: $e");
     return null;
   }
+}
+
+
+  pw.Widget _buildPDFHeaderCell(String text, {pw.TextStyle? style}) {
+  return pw.Padding(
+    padding: pw.EdgeInsets.all(3),
+    child: pw.Text(
+      text,
+      style: style ?? pw.TextStyle(
+        fontWeight: pw.FontWeight.bold,
+        color: PdfColors.white,
+        fontSize: 8,
+      ),
+      textAlign: pw.TextAlign.center,
+    ),
+  );
+}
+  pw.Widget _buildPDFDataCell(String text, {pw.TextStyle? style}) {
+  return pw.Padding(
+    padding: pw.EdgeInsets.all(3),
+    child: pw.Text(
+      text,
+      style: style ?? pw.TextStyle(fontSize: 8),
+      textAlign: pw.TextAlign.center,
+      maxLines: 2,
+      overflow: pw.TextOverflow.clip,
+    ),
+  );
 }
 
   void calcularTotales() {
@@ -973,75 +1102,6 @@ Widget _buildTableViewCell(String text, {int maxLines = 1}) {
   );
 }
   
-  // Widget para línea de firma
-  Widget _buildFirmaField(String label) {
-    return Column(
-      children: [
-        Container(
-          width: 200,
-          height: 1,
-          color: Colors.black,
-        ),
-        SizedBox(height: 5),
-        Text(label, style: TextStyle(fontSize: 12)),
-      ],
-    );
-  }
-  
-  // Método para capturar la vista previa como imagen
-  Future<ui.Image?> _capturarVistaPrevia() async {
-    try {
-      RenderRepaintBoundary boundary = _vistaPreviewKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
-      ui.Image image = await boundary.toImage(pixelRatio: 3.0);
-      return image;
-    } catch (e) {
-      print("Error al capturar vista previa: $e");
-      return null;
-    }
-  }
-
-  Future<Uint8List?> _generarPDF() async {
-    try {
-      // Primero capturamos la vista previa como imagen
-      final image = await _capturarVistaPrevia();
-      
-      if (image == null) {
-        return null;
-      }
-      
-      // Convertir la imagen UI a bytes
-      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-      
-      if (byteData == null) {
-        return null;
-      }
-      
-      final imageBytes = byteData.buffer.asUint8List();
-      
-      // Crear un documento PDF
-      final pdf = pw.Document();
-      
-      // Añadir la imagen al PDF
-      final pdfImage = pw.MemoryImage(imageBytes);
-      
-      pdf.addPage(
-        pw.Page(
-          build: (pw.Context context) {
-            return pw.Center(
-              child: pw.Image(pdfImage),
-            );
-          },
-        ),
-      );
-      
-      // Guardar el PDF a bytes
-      return pdf.save();
-      
-    } catch (e) {
-      print("Error al generar PDF: $e");
-      return null;
-    }
-  }
 
  Future<void> _enviarCorreoPorServidor() async {
   setState(() {
@@ -1882,20 +1942,6 @@ DAP AutoPart's
     );
   }
 
-  Widget _headerText(String text) {
-    return Text(
-      text,
-      style: const TextStyle(
-        fontWeight: FontWeight.bold,
-        color: Colors.white,
-        fontSize: 12,
-      ),
-      softWrap: true,
-      overflow: TextOverflow.ellipsis,
-      maxLines: 2, // Permitir hasta 2 líneas para evitar texto vertical
-    );
-  }
-  
   // Widget para fila de información en vista previa
   Widget _buildInfoRow(String label, String value) {
     return Padding(
@@ -1937,45 +1983,8 @@ DAP AutoPart's
       ),
     );
   }
-  Widget _buildTableHeader(String text, {required int flex}) {
-  return Expanded(
-    flex: flex,
-    child: Container(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-      child: Text(
-        text,
-        style: const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.bold,
-          fontSize: 10, // Letra más pequeña
-        ),
-        textAlign: TextAlign.center,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-      ),
-    ),
-  );
-}
-  // Método auxiliar para crear celdas de tabla
-  Widget _buildTableCell(String text, {required int flex, int maxLines = 1}) {
-  return Expanded(
-    flex: flex,
-    child: Container(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: Colors.grey.shade300),
-        ),
-      ),
-      child: Text(
-        text,
-        style: const TextStyle(fontSize: 10), // Letra más pequeña
-        overflow: TextOverflow.ellipsis,
-        maxLines: maxLines,
-      ),
-    ),
-  );
-}
+ 
+  
 Widget _buildHeaderCell(String text) {
   return Container(
     padding: const EdgeInsets.all(4),
