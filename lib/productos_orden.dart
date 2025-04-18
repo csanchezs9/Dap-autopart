@@ -11,6 +11,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'producto_service.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ProductosOrden extends StatefulWidget {
   final Map<String, String> clienteData;
@@ -29,7 +30,7 @@ class ProductosOrden extends StatefulWidget {
   State<ProductosOrden> createState() => _ProductosOrdenState();
 }
 
-enum TipoPedido { normal, condicionado }
+enum TipoPedido { normal, condicionado, contado }
 
 class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStateMixin {
   List<Map<String, dynamic>> productosAgregados = [];
@@ -102,147 +103,155 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
 
   // Ajuste en la clase _ProductosOrdenState para modificar la función buscarProductoPorNumero
 
-void buscarProductoPorNumero() async {
-  String numero = numeroController.text.trim();
-  if (numero.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Por favor ingrese un número de producto')),
-    );
-    return;
-  }
-  
-  // Mostrar indicador de carga
-  setState(() {
-    isLoading = true;
-  });
-  
-  try {
-    // Obtener cantidad
-    int cantidad = 1;
-    if (cantidadController.text.isNotEmpty) {
-      cantidad = int.tryParse(cantidadController.text.trim()) ?? 1;
+ void buscarProductoPorNumero() async {
+    String numero = numeroController.text.trim();
+    if (numero.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Por favor ingrese un número de producto')),
+      );
+      return;
     }
     
-    // Buscar producto por número en el servidor
-    final productoEncontrado = await ProductoService.buscarProductoPorNumero(numero);
+    // Mostrar indicador de carga
+    setState(() {
+      isLoading = true;
+    });
     
-    if (productoEncontrado != null) {
-      // Verificar si está agotado 
-      bool agotado = false;
-      if (productoEncontrado.containsKey('ESTADO')) {
-        agotado = productoEncontrado['ESTADO'].toString().toUpperCase().contains('AGOTADO');
+    try {
+      // Obtener cantidad
+      int cantidad = 1;
+      if (cantidadController.text.isNotEmpty) {
+        cantidad = int.tryParse(cantidadController.text.trim()) ?? 1;
       }
       
-      if (agotado) {
-        // Mostrar alerta de producto agotado
-        showDialog(
-          context: context,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              title: const Text('Producto Agotado'),
-              content: Text('El producto número $numero está agotado y no puede ser añadido a la orden.'),
-              actions: [
-                TextButton(
-                  child: const Text('Aceptar'),
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                  },
-                ),
-              ],
-            );
-          },
-        );
-      } else {
-        // Procesar el producto encontrado
-        String codigo = productoEncontrado['CODIGO']?.toString() ?? '';
-        
-        Map<String, dynamic> producto = {
-          'CODIGO': codigo,
-          'CANT': cantidad,
-          '#': numero
-        };
-        
-        // Mapeo de campos que vienen del servidor
-        producto['UB'] = productoEncontrado['UB'] ?? '';
-        producto['REF'] = productoEncontrado['REF'] ?? '';
-        producto['ORIGEN'] = productoEncontrado['ORIGEN'] ?? '';
-        producto['DESCRIPCION'] = productoEncontrado['DESCRIPCION'] ?? '';
-        producto['VEHICULO'] = productoEncontrado['VEHICULO'] ?? '';
-        producto['MARCA'] = productoEncontrado['MARCA'] ?? '';
-        
-        // Procesar precio - Asegurar que es un número
-        double valorUnidad = 0;
-        if (productoEncontrado.containsKey('VLR ANTES DE IVA')) {
-          if (productoEncontrado['VLR ANTES DE IVA'] is num) {
-            valorUnidad = (productoEncontrado['VLR ANTES DE IVA'] as num).toDouble();
-          } else {
-            valorUnidad = double.tryParse(productoEncontrado['VLR ANTES DE IVA'].toString()) ?? 0;
-          }
+      // Buscar producto por número en el servidor
+      final productoEncontrado = await ProductoService.buscarProductoPorNumero(numero);
+      
+      if (productoEncontrado != null) {
+        // Verificar si está agotado 
+        bool agotado = false;
+        if (productoEncontrado.containsKey('ESTADO')) {
+          agotado = productoEncontrado['ESTADO'].toString().toUpperCase().contains('AGOTADO');
         }
-
-        // Imprimir para depuración
-        print("Valor antes de IVA para ${codigo}: $valorUnidad");
-
-        producto['VLR ANTES DE IVA'] = valorUnidad;
-
-        // Procesar descuento - Asegurar que es un número
-        double descuentoOriginal = 0;
-if (productoEncontrado.containsKey('DSCTO')) {
-  if (productoEncontrado['DSCTO'] is num) {
-    descuentoOriginal = (productoEncontrado['DSCTO'] as num).toDouble();
-  } else {
-    descuentoOriginal = double.tryParse(productoEncontrado['DSCTO'].toString().replaceAll('%', '')) ?? 0;
-  }
-}
-
-// Guardar descuento original
-producto['DSCTO_ORIGINAL'] = descuentoOriginal;
-
-// Aplicar descuento según modo actual
-if (isCondicionado) {
-  producto['DSCTO'] = 0.0;
-} else {
-  producto['DSCTO'] = descuentoOriginal;
-}
-
-        // Establecer V.BRUTO igual a VLR ANTES DE IVA (sin aplicar descuento)
-        double valorBruto = valorUnidad;
-
-        // Imprimir para depuración
-        print("Valor bruto establecido igual al valor antes de IVA: $valorBruto");
-
-        producto['V.BRUTO'] = valorBruto;
         
-        setState(() {
-          productosAgregados.add(producto);
-          numeroController.clear();
-          cantidadController.clear();
-          calcularTotales();
+        if (agotado) {
+          // Mostrar alerta de producto agotado
+          showDialog(
+            context: context,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                title: const Text('Producto Agotado'),
+                content: Text('El producto número $numero está agotado y no puede ser añadido a la orden.'),
+                actions: [
+                  TextButton(
+                    child: const Text('Aceptar'),
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                  ),
+                ],
+              );
+            },
+          );
+        } else {
+          // Procesar el producto encontrado
+          String codigo = productoEncontrado['CODIGO']?.toString() ?? '';
           
-          productoCodigoSeleccionado = codigo;
-          _checkImageExistence(codigo);
-        });
+          Map<String, dynamic> producto = {
+            'CODIGO': codigo,
+            'CANT': cantidad,
+            '#': numero
+          };
+          
+          // Mapeo de campos que vienen del servidor
+          producto['UB'] = productoEncontrado['UB'] ?? '';
+          producto['REF'] = productoEncontrado['REF'] ?? '';
+          producto['ORIGEN'] = productoEncontrado['ORIGEN'] ?? '';
+          producto['DESCRIPCION'] = productoEncontrado['DESCRIPCION'] ?? '';
+          producto['VEHICULO'] = productoEncontrado['VEHICULO'] ?? '';
+          producto['MARCA'] = productoEncontrado['MARCA'] ?? '';
+          
+          // Procesar precio - Asegurar que es un número
+          double valorUnidad = 0;
+          if (productoEncontrado.containsKey('VLR ANTES DE IVA')) {
+            if (productoEncontrado['VLR ANTES DE IVA'] is num) {
+              valorUnidad = (productoEncontrado['VLR ANTES DE IVA'] as num).toDouble();
+            } else {
+              valorUnidad = double.tryParse(productoEncontrado['VLR ANTES DE IVA'].toString()) ?? 0;
+            }
+          }
 
-        // Depuración: mostrar detalles del producto agregado
-        print("⭐ PRODUCTO AGREGADO A LA LISTA: $producto");
+          // Imprimir para depuración
+          print("Valor antes de IVA para ${codigo}: $valorUnidad");
+
+          producto['VLR ANTES DE IVA'] = valorUnidad;
+
+          // Procesar descuento - Asegurar que es un número
+          double descuentoOriginal = 0;
+          if (productoEncontrado.containsKey('DSCTO')) {
+            if (productoEncontrado['DSCTO'] is num) {
+              descuentoOriginal = (productoEncontrado['DSCTO'] as num).toDouble();
+            } else {
+              descuentoOriginal = double.tryParse(productoEncontrado['DSCTO'].toString().replaceAll('%', '')) ?? 0;
+            }
+          }
+
+          // Guardar descuento original
+          producto['DSCTO_ORIGINAL'] = descuentoOriginal;
+
+          // Aplicar descuento según modo actual
+          if (isCondicionado) {
+            producto['DSCTO'] = 0.0;
+          } else if (isContado) {
+            // Solo aumentar 2% si el descuento original es exactamente 15% o 20%
+            if (descuentoOriginal == 15.0 || descuentoOriginal == 20.0) {
+              producto['DSCTO'] = descuentoOriginal + 2.0; // Aumentar 2% en modo CONTADO
+            } else {
+              producto['DSCTO'] = descuentoOriginal; // Mantener el descuento original para otros valores
+            }
+          } else {
+            producto['DSCTO'] = descuentoOriginal;
+          }
+
+          // Establecer V.BRUTO igual a VLR ANTES DE IVA (sin aplicar descuento)
+          double valorBruto = valorUnidad;
+
+          // Imprimir para depuración
+          print("Valor bruto establecido igual al valor antes de IVA: $valorBruto");
+
+          producto['V.BRUTO'] = valorBruto;
+          
+          setState(() {
+            productosAgregados.add(producto);
+            numeroController.clear();
+            cantidadController.clear();
+            calcularTotales();
+            
+            productoCodigoSeleccionado = codigo;
+            _checkImageExistence(codigo);
+          });
+
+          // Depuración: mostrar detalles del producto agregado
+          print("⭐ PRODUCTO AGREGADO A LA LISTA: $producto");
+        }
+      } else {
+        // Si no se encuentra, mostrar mensaje
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No se encontró producto con número: $numero')),
+        );
       }
-    } else {
-      // Si no se encuentra, mostrar mensaje
+    } catch (e) {
+      print("Error al buscar producto: $e");
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No se encontró producto con número: $numero')),
+        SnackBar(content: Text('Error al procesar el producto: $e')),
       );
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
     }
-  } catch (e) {
-    print("Error al buscar producto: $e");
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error al procesar el producto: $e')),
-    );
-  } finally {
-    setState(() {
-      isLoading = false;
-    });
   }
-}
+
 
 
 String _formatMoneda(dynamic valor) {
@@ -1368,6 +1377,34 @@ DAP AutoPart's
       final jsonResponse = json.decode(response.body);
       
       if (jsonResponse['success']) {
+        // NUEVO: Incrementar el número de orden automáticamente
+        try {
+          // Extraer el número actual de la orden
+          String ordenActual = widget.ordenNumero;
+          int numeroActual = 1;
+          
+          // Extraer el número de la cadena (formato esperado: OP-00001)
+          if (ordenActual.contains('-')) {
+            String numStr = ordenActual.split('-').last.replaceAll(RegExp(r'[^0-9]'), '');
+            numeroActual = int.tryParse(numStr) ?? 1;
+          } else {
+            // Si no tiene formato con guion, intentar parsear directamente
+            numeroActual = int.tryParse(ordenActual.replaceAll(RegExp(r'[^0-9]'), '')) ?? 1;
+          }
+          
+          // Incrementar para la próxima orden
+          int nuevoNumero = numeroActual + 1;
+          
+          // Guardar en SharedPreferences para su posterior uso
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setInt('ultimoNumeroOrden', nuevoNumero);
+          
+          print("Número de orden incrementado: $numeroActual -> $nuevoNumero");
+        } catch (e) {
+          print("Error al incrementar el número de orden: $e");
+          // Continuar mostrando éxito aunque falle el incremento
+        }
+        
         // Mostrar diálogo de éxito
         showDialog(
           context: context,
@@ -1501,8 +1538,8 @@ DAP AutoPart's
 
                             // Checkboxes Solo los checkboxes solicitados
                             Row(
-                              children: [
-                                // Radio button NORMAL
+        children: [
+          // Radio button NORMAL
                                 Row(
                                   children: [
                                     Radio<TipoPedido>(
@@ -1514,6 +1551,7 @@ DAP AutoPart's
                                           // Actualizar las variables booleanas para compatibilidad
                                           isNormal = true;
                                           isCondicionado = false;
+                                          isContado = false;
                                           // Aplicar descuentos
                                           actualizarDescuentosSegunModo();
                                         });
@@ -1522,7 +1560,7 @@ DAP AutoPart's
                                     Text('NORMAL', style: TextStyle(fontSize: 12)),
                                   ],
                                 ),
-                                SizedBox(width: 10),
+                                SizedBox(width: 5),
                                 // Radio button CONDICIONADO
                                 Row(
                                   children: [
@@ -1535,12 +1573,35 @@ DAP AutoPart's
                                           // Actualizar las variables booleanas para compatibilidad
                                           isNormal = false;
                                           isCondicionado = true;
+                                          isContado = false;
                                           // Aplicar descuentos
                                           actualizarDescuentosSegunModo();
                                         });
                                       },
                                     ),
                                     Text('CONDICIONADO', style: TextStyle(fontSize: 12)),
+                                  ],
+                                ),
+                                SizedBox(width: 5),
+                                // NUEVO Radio button CONTADO
+                                Row(
+                                  children: [
+                                    Radio<TipoPedido>(
+                                      value: TipoPedido.contado,
+                                      groupValue: tipoPedidoSeleccionado,
+                                      onChanged: (TipoPedido? value) {
+                                        setState(() {
+                                          tipoPedidoSeleccionado = value!;
+                                          // Actualizar las variables booleanas para compatibilidad
+                                          isNormal = false;
+                                          isCondicionado = false;
+                                          isContado = true;
+                                          // Aplicar descuentos
+                                          actualizarDescuentosSegunModo();
+                                        });
+                                      },
+                                    ),
+                                    Text('CONTADO', style: TextStyle(fontSize: 12)),
                                   ],
                                 ),
                               ],
@@ -1896,29 +1957,43 @@ DAP AutoPart's
   }
 
   //funcion para aplicar descuentos según el modo seleccionado
-void actualizarDescuentosSegunModo() {
-  if (productosAgregados.isEmpty) return;
-  
-  setState(() {
-    for (var producto in productosAgregados) {
-      if (isCondicionado) {
-        // Guardamos el descuento original si no está guardado
+ void actualizarDescuentosSegunModo() {
+    if (productosAgregados.isEmpty) return;
+    
+    setState(() {
+      for (var producto in productosAgregados) {
+        // Aseguramos que cada producto tenga un descuento original guardado
         if (!producto.containsKey('DSCTO_ORIGINAL')) {
           producto['DSCTO_ORIGINAL'] = producto['DSCTO'];
         }
-        // En modo CONDICIONADO, todos los descuentos se establecen en 0%
-        producto['DSCTO'] = 0.0;
-      } else if (isNormal) {
-        // En modo NORMAL, recuperamos el descuento original
-        if (producto.containsKey('DSCTO_ORIGINAL')) {
+        
+        if (isCondicionado) {
+          // En modo CONDICIONADO, todos los descuentos se establecen en 0%
+          producto['DSCTO'] = 0.0;
+        } else if (isContado) {
+          // En modo CONTADO, aumentamos el descuento en 2% solo si es 15% o 20%
+          double descuentoOriginal = 0.0;
+          if (producto['DSCTO_ORIGINAL'] is num) {
+            descuentoOriginal = producto['DSCTO_ORIGINAL'];
+          } else {
+            descuentoOriginal = double.tryParse(producto['DSCTO_ORIGINAL'].toString()) ?? 0.0;
+          }
+          
+          // Solo aumentar 2% si el descuento original es exactamente 15% o 20%
+          if (descuentoOriginal == 15.0 || descuentoOriginal == 20.0) {
+            producto['DSCTO'] = descuentoOriginal + 2.0;
+          } else {
+            producto['DSCTO'] = descuentoOriginal;
+          }
+        } else {
+          // En modo NORMAL, recuperamos el descuento original
           producto['DSCTO'] = producto['DSCTO_ORIGINAL'];
         }
       }
-    }
-    // Recalcular totales después de cambiar los descuentos
-    calcularTotales();
-  });
-}
+      // Recalcular totales después de cambiar los descuentos
+      calcularTotales();
+    });
+  }
 
   // Método para mostrar la imagen en tamaño grande
   void _mostrarImagenGrande(String codigo) {

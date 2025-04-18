@@ -4,6 +4,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'cliente_service.dart';
 import 'asesor_service.dart';
 import 'productos_orden.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 
 class OrdenDePedido extends StatefulWidget {
@@ -17,6 +18,7 @@ class _OrdenDePedidoState extends State<OrdenDePedido> {
   final TextEditingController nitController = TextEditingController();
   final TextEditingController idAsesorController = TextEditingController();
 
+  int numeroOrdenActual = 1;
   Map<String, String> clienteData = {};
   Map<String, String> asesorData = {};
   
@@ -29,7 +31,9 @@ class _OrdenDePedidoState extends State<OrdenDePedido> {
     super.initState();
     // Inicializar la localización antes de usarla
     initializeDateFormatting('es_ES', null);
-  }
+    // Cargar último número de orden
+    _cargarNumeroOrden();
+}
 
   String obtenerFechaActual() {
     final now = DateTime.now();
@@ -37,33 +41,14 @@ class _OrdenDePedidoState extends State<OrdenDePedido> {
     String fecha = formatter.format(now).toUpperCase();
     return fecha;
   }
-  
-  // Esta función ya no es necesaria porque usamos los servicios directamente
-  // Eliminamos la carga de CSV locales y pasamos a usar los servicios web
-  /*
-  Future<void> cargarCSVs() async {
-    try {
-      setState(() {
-        isLoading = true;
-        errorMessage = '';
-      });
-      
-      // Ahora los datos se cargan bajo demanda usando los servicios
-      // No necesitamos precargar todos los datos
-      
-      setState(() {
-        isLoading = false;
-      });
-      
-    } catch (e) {
-      setState(() {
-        isLoading = false;
-        errorMessage = 'Error al cargar los datos: $e';
-      });
-      print("Error al cargar los datos: $e");
-    }
-  }
-  */
+
+  Future<void> _cargarNumeroOrden() async {
+  final prefs = await SharedPreferences.getInstance();
+  setState(() {
+    numeroOrdenActual = prefs.getInt('ultimoNumeroOrden') ?? 1;
+    ordenNumeroController.text = 'OP-${numeroOrdenActual.toString().padLeft(5, '0')}';
+  });
+}
 
   // Método para buscar cliente por NIT usando el servicio
   void buscarClientePorNIT(String nit) async {
@@ -258,18 +243,33 @@ class _OrdenDePedidoState extends State<OrdenDePedido> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          // Imagen de productos
-                          Container(
-                            padding: EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              border: Border.all(color: Colors.grey),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Column(
-                              children: [
-                                Icon(Icons.inventory_2_outlined, size: 48),
-                                Text('PRODUCTOS A SOLICITAR', style: TextStyle(fontSize: 12)),
-                              ],
+                          // Botón de Productos a Solicitar (reemplazando el recuadro)
+                          GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => ProductosOrden(
+                                    clienteData: clienteData,
+                                    asesorData: asesorData,
+                                    ordenNumero: ordenNumeroController.text,
+                                  ),
+                                ),
+                              );
+                            },
+                            child: Container(
+                              padding: EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.grey),
+                                borderRadius: BorderRadius.circular(10),
+                                color: Colors.white,
+                              ),
+                              child: Column(
+                                children: [
+                                  Icon(Icons.inventory_2_outlined, size: 48),
+                                  Text('PRODUCTOS A SOLICITAR', style: TextStyle(fontSize: 12)),
+                                ],
+                              ),
                             ),
                           ),
                           SizedBox(height: 20),
@@ -280,12 +280,14 @@ class _OrdenDePedidoState extends State<OrdenDePedido> {
                             width: 200,
                             child: TextField(
                               controller: ordenNumeroController,
+                              readOnly: true, // Hacerlo de solo lectura
                               decoration: InputDecoration(
                                 labelText: 'Orden de Pedido #',
                                 border: OutlineInputBorder(),
-                                hintText: 'Ej: OP-00023',
                                 isDense: true,
                                 contentPadding: EdgeInsets.all(8),
+                                filled: true,
+                                fillColor: Colors.grey[200], // Color de fondo para indicar que es de solo lectura
                               ),
                             ),
                           ),
@@ -366,32 +368,7 @@ class _OrdenDePedidoState extends State<OrdenDePedido> {
                     ],
                   ),
                   
-                  SizedBox(height: 30),
-                  
-                  // Botón de Inicio centrado
-                  Center(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => ProductosOrden(
-                              clienteData: clienteData,
-                              asesorData: asesorData,
-                              ordenNumero: ordenNumeroController.text,
-                            ),
-                          ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: Colors.black,
-                        side: BorderSide(color: Colors.grey),
-                        padding: EdgeInsets.symmetric(horizontal: 40, vertical: 15),
-                      ),
-                      child: Text('INICIO'),
-                    ),
-                  ),
+                  // Nota: Se ha eliminado el botón INICIO que estaba aquí anteriormente
                 ],
               ),
             ),
