@@ -4,6 +4,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:open_file/open_file.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'dart:convert';
 
 class CatalogoService {
   // URL base del servidor - Deberás ajustarla según la ubicación de tu servidor
@@ -15,13 +16,40 @@ class CatalogoService {
   static Future<void> abrirCatalogo(BuildContext context) async {
     // Primero verificamos la conectividad con el servidor
     try {
-      await http.get(Uri.parse('$baseUrl/ping')).timeout(
+      final response = await http.get(Uri.parse('$baseUrl/ping')).timeout(
             Duration(seconds: 5),
             onTimeout: () => throw Exception('Servidor no disponible'),
           );
+      
+      print("Respuesta de ping: ${response.statusCode} - ${response.body}");
+      
+      if (response.statusCode != 200) {
+        throw Exception('Servidor respondió con error: ${response.statusCode}');
+      }
+      
+      // Verificar si el catálogo existe
+      final catalogoInfo = await http.get(Uri.parse('$baseUrl/catalogo-info'));
+      print("Respuesta de info catálogo: ${catalogoInfo.statusCode} - ${catalogoInfo.body}");
+      
+      if (catalogoInfo.statusCode != 200) {
+        throw Exception('Error al verificar el catálogo: ${catalogoInfo.statusCode}');
+      }
+      
+      // Decodificamos la respuesta para ver si existe el catálogo
+      final catalogoData = catalogoInfo.body.isNotEmpty ? 
+          await jsonDecode(catalogoInfo.body) : {'success': false};
+      
+      if (!catalogoData['success']) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('El catálogo no está disponible. Por favor contacte a soporte.')),
+        );
+        return;
+      }
+      
     } catch (e) {
+      print("Error al verificar conectividad: $e");
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: No se pudo conectar al servidor')),
+        SnackBar(content: Text('Error: No se pudo conectar al servidor. $e')),
       );
       return;
     }
@@ -82,8 +110,12 @@ class CatalogoService {
       );
 
       try {
+        // Verificar si tenemos el endpoint correcto para el catalogo
+        print("Intentando descargar el PDF desde: $baseUrl/catalogo");
+        
         // Realizar la solicitud HTTP para descargar el PDF
         final response = await http.get(Uri.parse('$baseUrl/catalogo'));
+        print("Respuesta de descarga: ${response.statusCode} (Tamaño: ${response.bodyBytes.length} bytes)");
         
         // Cerrar el diálogo de carga
         Navigator.of(context, rootNavigator: true).pop();
@@ -99,7 +131,7 @@ class CatalogoService {
           final file = File(filePath);
           await file.writeAsBytes(response.bodyBytes);
           
-          print("Archivo guardado correctamente");
+          print("Archivo guardado correctamente (${response.bodyBytes.length} bytes)");
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Catálogo descargado correctamente')),
           );

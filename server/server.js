@@ -410,6 +410,29 @@ app.get('/catalogo-info', (req, res) => {
   }
 });
 
+app.get('/catalogo', (req, res) => {
+  try {
+    const catalogoPath = path.join(catDirPath, 'catalogo.pdf');
+    
+    if (!fs.existsSync(catalogoPath)) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'El catálogo no está disponible' 
+      });
+    }
+    
+    // Leer el archivo PDF y enviarlo como respuesta
+    const fileStream = fs.createReadStream(catalogoPath);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline; filename=catalogo.pdf');
+    
+    fileStream.pipe(res);
+  } catch (error) {
+    console.error('Error al servir el catálogo:', error);
+    res.status(500).json({ success: false, message: error.toString() });
+  }
+});
+
 // Endpoint para obtener información sobre el CSV de productos
 app.get('/productos-info', (req, res) => {
   try {
