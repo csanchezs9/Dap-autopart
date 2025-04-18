@@ -167,22 +167,42 @@ void buscarProductoPorNumero() async {
         producto['VEHICULO'] = productoEncontrado['VEHICULO'] ?? '';
         producto['MARCA'] = productoEncontrado['MARCA'] ?? '';
         
-        // Procesar precio
+        // Procesar precio - Asegurar que es un número
         double valorUnidad = 0;
         if (productoEncontrado.containsKey('VLR ANTES DE IVA')) {
-          valorUnidad = productoEncontrado['VLR ANTES DE IVA'];
+          if (productoEncontrado['VLR ANTES DE IVA'] is num) {
+            valorUnidad = (productoEncontrado['VLR ANTES DE IVA'] as num).toDouble();
+          } else {
+            valorUnidad = double.tryParse(productoEncontrado['VLR ANTES DE IVA'].toString()) ?? 0;
+          }
         }
+
+        // Imprimir para depuración
+        print("Valor antes de IVA para ${codigo}: $valorUnidad");
+
         producto['VLR ANTES DE IVA'] = valorUnidad;
-        
-        // Procesar descuento
+
+        // Procesar descuento - Asegurar que es un número
         double descuento = 0;
         if (productoEncontrado.containsKey('DSCTO')) {
-          descuento = productoEncontrado['DSCTO'];
+          if (productoEncontrado['DSCTO'] is num) {
+            descuento = (productoEncontrado['DSCTO'] as num).toDouble();
+          } else {
+            descuento = double.tryParse(productoEncontrado['DSCTO'].toString().replaceAll('%', '')) ?? 0;
+          }
         }
+
+        // Imprimir para depuración
+        print("Descuento para ${codigo}: $descuento%");
+
         producto['DSCTO'] = descuento;
-        
-        // Calcular valor bruto
-        double valorBruto = valorUnidad * cantidad * (1 - descuento/100);
+
+        // Establecer V.BRUTO igual a VLR ANTES DE IVA (sin aplicar descuento)
+        double valorBruto = valorUnidad;
+
+        // Imprimir para depuración
+        print("Valor bruto establecido igual al valor antes de IVA: $valorBruto");
+
         producto['V.BRUTO'] = valorBruto;
         
         setState(() {
@@ -216,6 +236,7 @@ void buscarProductoPorNumero() async {
   }
 }
 
+
 String _formatMoneda(dynamic valor) {
   if (valor == null) return '\$0';
   
@@ -230,9 +251,10 @@ String _formatMoneda(dynamic valor) {
     }
   }
   
-  // Multiplicar por 1000 para convertir a valores "originales" del CSV
-  // Por ejemplo, si el valor es 4.53, lo convertimos a 4530
-  numValor = numValor * 1000;
+  // Imprimir para depuración
+  print("Formateando valor monetario: $numValor");
+  
+  // ¡NO multiplicar por 1000! El valor ya viene correcto desde el servidor
   
   // Usar NumberFormat para formato colombiano sin decimales
   final formatter = NumberFormat("#,###", "es_CO");
@@ -703,47 +725,51 @@ Future<Uint8List?> _generarPDFMejorado() async {
 }
 
   void calcularTotales() {
-    double vBruto = 0;
-    double dscto = 0;
-    
-    for (var producto in productosAgregados) {
-      // Asegurarse que los valores sean numéricos
-      double precio = 0;
-      if (producto['VLR ANTES DE IVA'] is num) {
-        precio = producto['VLR ANTES DE IVA'];
-      } else {
-        precio = double.tryParse(producto['VLR ANTES DE IVA'].toString()) ?? 0;
-      }
-      
-      double porcentajeDescuento = 0;
-      if (producto['DSCTO'] is num) {
-        porcentajeDescuento = producto['DSCTO'];
-      } else {
-        porcentajeDescuento = double.tryParse(producto['DSCTO'].toString()) ?? 0;
-      }
-      
-      int cantidad = 0;
-      if (producto['CANT'] is int) {
-        cantidad = producto['CANT'];
-      } else {
-        cantidad = int.tryParse(producto['CANT'].toString()) ?? 0;
-      }
-      
-      double precioTotal = precio * cantidad;
-      double descuentoMonto = precioTotal * (porcentajeDescuento / 100);
-      
-      vBruto += precioTotal;
-      dscto += descuentoMonto;
+  double vBruto = 0;
+  double dscto = 0;
+  
+  for (var producto in productosAgregados) {
+    // Asegurarse que los valores sean numéricos
+    double precio = 0;
+    if (producto['VLR ANTES DE IVA'] is num) {
+      precio = producto['VLR ANTES DE IVA'];
+    } else {
+      precio = double.tryParse(producto['VLR ANTES DE IVA'].toString()) ?? 0;
     }
     
-    setState(() {
-      valorBrutoTotal = vBruto;
-      descuentoTotal = dscto;
-      subtotal = vBruto - dscto;
-      iva = subtotal * 0.19; // 19% IVA
-      total = subtotal + iva;
-    });
+    double porcentajeDescuento = 0;
+    if (producto['DSCTO'] is num) {
+      porcentajeDescuento = producto['DSCTO'];
+    } else {
+      porcentajeDescuento = double.tryParse(producto['DSCTO'].toString()) ?? 0;
+    }
+    
+    int cantidad = 0;
+    if (producto['CANT'] is int) {
+      cantidad = producto['CANT'];
+    } else {
+      cantidad = int.tryParse(producto['CANT'].toString()) ?? 0;
+    }
+    
+    // Precio total: precio unitario * cantidad
+    double precioTotal = precio * cantidad;
+    
+    // En lugar de calcular el valor bruto con descuento, usamos directamente el precio total
+    vBruto += precioTotal;
+    
+    // Calculamos el descuento por separado para los totales
+    double descuentoMonto = precioTotal * (porcentajeDescuento / 100);
+    dscto += descuentoMonto;
   }
+  
+  setState(() {
+    valorBrutoTotal = vBruto;
+    descuentoTotal = dscto;
+    subtotal = vBruto - dscto;
+    iva = subtotal * 0.19; // 19% IVA
+    total = subtotal + iva;
+  });
+}
   
   // Método para seleccionar un producto de la tabla
   void seleccionarProducto(Map<String, dynamic> producto) {
@@ -1856,7 +1882,8 @@ DAP AutoPart's
   }
 
   // Formato para moneda
-  String formatCurrency(dynamic value) {
+  // Reemplaza la función formatCurrency en la clase _ProductosOrdenState
+String formatCurrency(dynamic value) {
   if (value == null) return '\$0';
   
   double numValue;
@@ -1875,17 +1902,22 @@ DAP AutoPart's
     }
   }
   
+  // Imprimir para depuración
+  print("Formateando para PDF: $numValue");
+  
+  // ¡NO multiplicar por 1000! El valor ya viene correcto desde el servidor
+  
   try {
-    // Formatear con miles de separación y dos decimales
+    // Formatear con miles de separación y sin decimales para pesos colombianos
     final formatter = NumberFormat.currency(
       symbol: '\$',
-      decimalDigits: 2, // Mostrar 2 decimales para valores monetarios
+      decimalDigits: 0, // Sin decimales para pesos colombianos
       locale: 'es_CO',
     );
     return formatter.format(numValue);
   } catch (e) {
     // Formato simple en caso de error
-    return '\$${numValue.toStringAsFixed(2)}';
+    return '\$${numValue.toStringAsFixed(0)}';
   }
 }
 

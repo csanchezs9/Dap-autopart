@@ -127,159 +127,183 @@ class ProductoService {
   }
   
   // Método para normalizar un producto del formato del servidor al formato de la app
-  static Map<String, dynamic>? normalizarProducto(Map<String, dynamic> productoOriginal, int indice) {
-    if (productoOriginal.isEmpty) return null;
-    
-    // Verificar si está agotado
-    bool agotado = false;
-    if (productoOriginal.containsKey('ESTADO') && 
-        productoOriginal['ESTADO'].toString().toUpperCase().contains('AGOTADO')) {
-      agotado = true;
-    }
-    
-    // Producto normalizado
-    final producto = <String, dynamic>{};
-    
-    // Número secuencial
-    if (productoOriginal.containsKey('#') && productoOriginal['#'] != null && 
-        productoOriginal['#'].toString().trim().isNotEmpty) {
-      producto['#'] = productoOriginal['#'].toString().trim();
-    } else {
-      producto['#'] = (indice + 1).toString();
-    }
-    
-    // Código
-    if (productoOriginal.containsKey('CODIGO') && productoOriginal['CODIGO'].toString().trim().isNotEmpty) {
-      producto['CODIGO'] = productoOriginal['CODIGO'].toString().trim();
-    } else {
-      return null; // Sin código válido no procesamos
-    }
-    
-    // Descripción - Procesamiento mejorado
-    if (productoOriginal.containsKey('DESCRIPCION') && productoOriginal['DESCRIPCION'] != null) {
-      String descripcion = productoOriginal['DESCRIPCION'].toString().trim();
-      if (descripcion.isNotEmpty) {
-        producto['DESCRIPCION'] = descripcion;
-      } else {
-        // Intentar inferir descripción del código si está disponible
-        String codigo = producto['CODIGO'].toString();
-        if (codigo.isNotEmpty) {
-          // Mapeo de algunos códigos comunes para mostrar descripción si está vacía
-          switch (codigo) {
-            case 'H1245': producto['DESCRIPCION'] = 'ABRAZADERA BUJE PUÑO'; break;
-            case 'H4211': producto['DESCRIPCION'] = 'BOMBA AGUA'; break;
-            case 'R0197': producto['DESCRIPCION'] = 'ABRAZADERA CAJA DIR'; break;
-            case 'K0182': producto['DESCRIPCION'] = 'BIELETA SUSPENSION DEL RH'; break;
-            default: producto['DESCRIPCION'] = 'Producto ${codigo}';
-          }
-        } else {
-          producto['DESCRIPCION'] = 'Producto #${producto['#']}';
-        }
-      }
-    } else {
-      // Si no hay campo de descripción, usar el código como descripción
-      producto['DESCRIPCION'] = 'Producto ${producto['CODIGO']}';
-    }
-    
-    // Ubicación / Bodega
-    if (productoOriginal.containsKey('UB') && productoOriginal['UB'].toString().trim().isNotEmpty) {
-      producto['UB'] = productoOriginal['UB'].toString().trim();
-    } else if (productoOriginal.containsKey('BOD') && productoOriginal['BOD'].toString().trim().isNotEmpty) {
-      producto['UB'] = productoOriginal['BOD'].toString().trim();
-    } else {
-      producto['UB'] = '';
-    }
-    
-    // Referencia
-    if (productoOriginal.containsKey('REF') && productoOriginal['REF'].toString().trim().isNotEmpty) {
-      producto['REF'] = productoOriginal['REF'].toString().trim();
-    } else {
-      producto['REF'] = '';
-    }
-    
-    // Origen
-    if (productoOriginal.containsKey('ORIGEN') && productoOriginal['ORIGEN'].toString().trim().isNotEmpty) {
-      producto['ORIGEN'] = productoOriginal['ORIGEN'].toString().trim();
-    } else {
-      producto['ORIGEN'] = '';
-    }
-    
-    // Vehículo
-    if (productoOriginal.containsKey('VEHICULO') && productoOriginal['VEHICULO'].toString().trim().isNotEmpty) {
-      producto['VEHICULO'] = productoOriginal['VEHICULO'].toString().trim();
-    } else {
-      producto['VEHICULO'] = '';
-    }
-    
-    // Marca
-    if (productoOriginal.containsKey('MARCA') && productoOriginal['MARCA'].toString().trim().isNotEmpty) {
-      producto['MARCA'] = productoOriginal['MARCA'].toString().trim();
-    } else {
-      producto['MARCA'] = '';
-    }
-    
-    // Precio antes de IVA
-    double precio = 0;
-    if (productoOriginal.containsKey('PRECIO') && productoOriginal['PRECIO'] != null) {
-      precio = extractNumericValue(productoOriginal['PRECIO']);
-    }
-    producto['VLR ANTES DE IVA'] = precio;
-    
-    // Descuento
-    double descuento = 0;
-    if (productoOriginal.containsKey('DSCTO') && productoOriginal['DSCTO'] != null) {
-      descuento = extractNumericValue(productoOriginal['DSCTO']);
-    }
-    producto['DSCTO'] = descuento;
-    
-    // Estado de agotado
-    producto['ESTADO'] = agotado ? 'AGOTADO' : '';
-    
-    // Si está agotado y decidimos no incluir productos agotados, retornar null
-    // O podemos incluirlos todos y manejar el filtrado en la UI
-    return producto;
+    static Map<String, dynamic>? normalizarProducto(Map<String, dynamic> productoOriginal, int indice) {
+  if (productoOriginal.isEmpty) return null;
+  
+  // Producto normalizado
+  final producto = <String, dynamic>{};
+  
+  // Verificar si está agotado
+  bool agotado = false;
+  if (productoOriginal.containsKey('ESTADO') && 
+      productoOriginal['ESTADO'].toString().toUpperCase().contains('AGOTADO')) {
+    agotado = true;
   }
   
+  // Número secuencial
+  if (productoOriginal.containsKey('#') && productoOriginal['#'] != null && 
+      productoOriginal['#'].toString().trim().isNotEmpty) {
+    producto['#'] = productoOriginal['#'].toString().trim();
+  } else {
+    producto['#'] = (indice + 1).toString();
+  }
+  
+  // Código - Requerido
+  if (productoOriginal.containsKey('CODIGO') && productoOriginal['CODIGO'].toString().trim().isNotEmpty) {
+    producto['CODIGO'] = productoOriginal['CODIGO'].toString().trim();
+  } else {
+    return null; // Sin código válido no procesamos
+  }
+  
+  // Descripción - Usar la del servidor si existe
+  if (productoOriginal.containsKey('DESCRIPCION') && 
+      productoOriginal['DESCRIPCION'] != null && 
+      productoOriginal['DESCRIPCION'].toString().trim().isNotEmpty) {
+    producto['DESCRIPCION'] = productoOriginal['DESCRIPCION'].toString().trim();
+  } else {
+    producto['DESCRIPCION'] = 'Producto ${producto['CODIGO']}';
+  }
+  
+  // Ubicación / Bodega
+  if (productoOriginal.containsKey('UB') && productoOriginal['UB'].toString().trim().isNotEmpty) {
+    producto['UB'] = productoOriginal['UB'].toString().trim();
+  } else if (productoOriginal.containsKey('BOD') && productoOriginal['BOD'].toString().trim().isNotEmpty) {
+    producto['UB'] = productoOriginal['BOD'].toString().trim();
+  } else {
+    producto['UB'] = '';
+  }
+  
+  // Referencia
+  if (productoOriginal.containsKey('REF') && productoOriginal['REF'].toString().trim().isNotEmpty) {
+    producto['REF'] = productoOriginal['REF'].toString().trim();
+  } else {
+    producto['REF'] = '';
+  }
+  
+  // Origen
+  if (productoOriginal.containsKey('ORIGEN') && productoOriginal['ORIGEN'].toString().trim().isNotEmpty) {
+    producto['ORIGEN'] = productoOriginal['ORIGEN'].toString().trim();
+  } else {
+    producto['ORIGEN'] = '';
+  }
+  
+  // Vehículo
+  if (productoOriginal.containsKey('VEHICULO') && productoOriginal['VEHICULO'].toString().trim().isNotEmpty) {
+    producto['VEHICULO'] = productoOriginal['VEHICULO'].toString().trim();
+  } else {
+    producto['VEHICULO'] = '';
+  }
+  
+  // Marca
+  if (productoOriginal.containsKey('MARCA') && productoOriginal['MARCA'].toString().trim().isNotEmpty) {
+    producto['MARCA'] = productoOriginal['MARCA'].toString().trim();
+  } else {
+    producto['MARCA'] = '';
+  }
+  
+  // Precio antes de IVA
+  double precio = 0;
+if (productoOriginal.containsKey('PRECIO')) {
+  if (productoOriginal['PRECIO'] is num) {
+    precio = (productoOriginal['PRECIO'] as num).toDouble();
+  } else {
+    precio = extractNumericValue(productoOriginal['PRECIO']);
+  }
+  
+  // Log para depuración
+  print("Precio original para ${producto['CODIGO']}: ${productoOriginal['PRECIO']} -> $precio");
+}
+
+// Guardar el precio real, sin dividir entre 1000
+// La aplicación ya sabe que el formato debe ser en miles (ej. $4,530 representa 4530 pesos)
+producto['VLR ANTES DE IVA'] = precio;
+print("VLR ANTES DE IVA guardado como: ${producto['VLR ANTES DE IVA']}");
+  
+  // Descuento
+  double descuento = 0;
+  if (productoOriginal.containsKey('DSCTO')) {
+    if (productoOriginal['DSCTO'] is num) {
+      descuento = (productoOriginal['DSCTO'] as num).toDouble();
+    } else {
+      descuento = extractNumericValue(productoOriginal['DSCTO']);
+    }
+    
+    // Asegurar que el descuento está en porcentaje (0-100)
+    if (descuento > 100) descuento = 100;
+    if (descuento < 0) descuento = 0;
+    
+    // Log para depuración
+    print("Descuento original para ${producto['CODIGO']}: ${productoOriginal['DSCTO']}");
+    print("Descuento procesado para ${producto['CODIGO']}: $descuento");
+  }
+  producto['DSCTO'] = descuento;
+  
+  // Estado de agotado
+  producto['ESTADO'] = agotado ? 'AGOTADO' : '';
+  
+  return producto;
+}
+
+  
+  
   // Método utilitario para extraer valor numérico, manejando diferentes formatos
-  static double extractNumericValue(dynamic value) {
-    if (value == null) return 0;
-    
-    if (value is num) return value.toDouble();
-    
-    String valueStr = value.toString().trim();
-    
+    static double extractNumericValue(dynamic value) {
+  if (value == null) return 0;
+  
+  if (value is num) return value.toDouble();
+  
+  String valueStr = value.toString().trim();
+  
+  // Log para depuración
+  print("Extrayendo valor numérico de: '$valueStr'");
+  
+  try {
+    // Intentar conversión directa primero
+    return double.parse(valueStr);
+  } catch (_) {
+    // Si falla, intentar limpiar el valor
     try {
-      // Intentar conversión directa primero
-      return double.parse(valueStr);
-    } catch (_) {
-      // Si falla, intentar limpiar el valor
-      try {
-        valueStr = valueStr.replaceAll(RegExp(r'[^0-9\.,]'), ''); // Eliminar todo excepto números, puntos y comas
-        
-        if (valueStr.isEmpty) return 0;
-        
-        // Manejar diferentes formatos de números
-        if (valueStr.contains(',') && valueStr.contains('.')) {
-          // Si contiene ambos, determinar cuál es el separador decimal
-          if (valueStr.lastIndexOf(',') > valueStr.lastIndexOf('.')) {
-            // La coma es el separador decimal (formato europeo)
-            valueStr = valueStr.replaceAll('.', '').replaceAll(',', '.');
-          } else {
-            // El punto es el separador decimal (formato americano)
-            valueStr = valueStr.replaceAll(',', '');
-          }
-        } else if (valueStr.contains(',')) {
-          // Solo contiene comas, asumir como separador decimal
-          valueStr = valueStr.replaceAll(',', '.');
+      valueStr = valueStr.replaceAll(RegExp(r'[^0-9\.,]'), ''); // Eliminar todo excepto números, puntos y comas
+      
+      if (valueStr.isEmpty) return 0;
+      
+      // Log después de limpiar
+      print("Valor limpio: '$valueStr'");
+      
+      // Contar comas para determinar si son separadores de miles o decimales
+      final commaCount = ','.allMatches(valueStr).length;
+      
+      if (commaCount > 1) {
+        // Múltiples comas indican separadores de miles (4,530,000)
+        valueStr = valueStr.replaceAll(',', '');
+      } else if (valueStr.contains(',') && valueStr.contains('.')) {
+        // Si contiene ambos, determinar cuál es el separador decimal
+        if (valueStr.lastIndexOf(',') > valueStr.lastIndexOf('.')) {
+          // La coma es el separador decimal (formato europeo)
+          valueStr = valueStr.replaceAll('.', '').replaceAll(',', '.');
+        } else {
+          // El punto es el separador decimal (formato americano)
+          valueStr = valueStr.replaceAll(',', '');
         }
-        
-        return double.parse(valueStr);
-      } catch (e) {
-        print("Error procesando valor numérico: '$value' -> '$valueStr' - $e");
-        return 0;
+      } else if (valueStr.contains(',')) {
+        // Solo una coma, asumir como separador de miles en formato colombiano
+        valueStr = valueStr.replaceAll(',', '');
       }
+      
+      // Log después de procesar separadores
+      print("Valor procesado: '$valueStr'");
+      
+      double result = double.parse(valueStr);
+      
+      // No dividir entre 1000 aquí, mantener el valor real
+      return result;
+    } catch (e) {
+      print("Error procesando valor numérico: '$value' -> '$valueStr' - $e");
+      return 0;
     }
   }
+}
+
 }
 
 // Función min para compatibilidad

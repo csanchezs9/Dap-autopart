@@ -93,72 +93,67 @@ app.post('/send-email', upload.single('pdf'), async (req, res) => {
 
 
 // Reemplaza la función procesarCsvProductos con esta versión mejorada
+// Reemplaza la función procesarCsvProductos en server.js con esta versión mejorada
 function procesarCsvProductos(filePath) {
   try {
     // Leer el archivo completo
     const fileContent = fs.readFileSync(filePath, 'utf8');
     
- 
-    
-    
     // Dividir por líneas
     const lines = fileContent.split('\n');
     
-    // Encontrar la línea de encabezados (asumimos fila 7)
-    const HEADER_ROW_INDEX = 6; // Fila 7 (índice base 0)
-    if (lines.length <= HEADER_ROW_INDEX) {
-      console.error('El archivo CSV no tiene suficientes filas para contener encabezados');
-      return [];
+    // Buscar la línea de encabezados en las primeras 10 filas
+    let headerRowIndex = -1;
+    for (let i = 0; i < Math.min(10, lines.length); i++) {
+      const line = lines[i].toUpperCase();
+      // Buscar una línea que contenga "CODIGO" y "DESCRIPCION" que probablemente sea la fila de encabezados
+      if (line.includes('CODIGO') && 
+         (line.includes('DESCRIPCION') || line.includes('DESC'))) {
+        headerRowIndex = i;;
+        break;
+      }
     }
     
-    // Extraer encabezados manualmente dividiéndolos por comas
-    // pero considerando posibles comillas que pueden contener comas
-    const headerLine = lines[HEADER_ROW_INDEX];
+    // Si no se encuentra, usar la fila 7 (índice 6) como predeterminada
+    if (headerRowIndex === -1) {
+      headerRowIndex = 6;
+    }
     
-    
-    // Dividir encabezados considerando comillas (parsing básico)
+    // Extraer encabezados
+    const headerLine = lines[headerRowIndex];
+
+    // Dividir encabezados considerando comillas
     const headers = dividirCSV(headerLine);
-   
-    
-    // Buscar posiciones de las columnas clave
-    const ESTADO_INDEX = encontrarIndice(headers, ['ESTADO', 'STATUS']);
-    const NUMERO_INDEX = encontrarIndice(headers, ['#', 'NUM', 'NUMERO']);
-    const CODIGO_INDEX = encontrarIndice(headers, ['CODIGO', 'CODE']);
-    const BODEGA_INDEX = encontrarIndice(headers, ['UB', 'BOD', 'BODEGA']);
-    const REF_INDEX = encontrarIndice(headers, ['REF', 'REFERENCIA']);
-    const ORIGEN_INDEX = encontrarIndice(headers, ['ORIGEN', 'NAL']);
-    const DESC_INDEX = encontrarIndice(headers, ['DESCRIPCION', 'DESC', 'DESCRIPTOR']);
-    const VEHICULO_INDEX = encontrarIndice(headers, ['VEHICULO', 'VEH']);
-    const MARCA_INDEX = encontrarIndice(headers, ['MARCA', 'OEM']);
-    const PRECIO_INDEX = encontrarIndice(headers, ['PRECIO', 'PRICE', 'VLR']);
-    const DSCTO_INDEX = encontrarIndice(headers, ['DSCTO', 'DESCUENTO', '%']);
     
     
+    // Buscar posiciones de las columnas clave - más flexibilidad en la búsqueda
+    const ESTADO_INDEX = encontrarIndice(headers, ['ESTADO', 'STATUS', 'DISPONIBLE']);
+    const NUMERO_INDEX = encontrarIndice(headers, ['#', 'NUM', 'NUMERO', 'ID']);
+    const CODIGO_INDEX = encontrarIndice(headers, ['CODIGO', 'CODE', 'COD']);
+    const BODEGA_INDEX = encontrarIndice(headers, ['UB', 'BOD', 'BODEGA', 'UBIC']);
+    const REF_INDEX = encontrarIndice(headers, ['REF', 'REFERENCIA', 'REFER']);
+    const ORIGEN_INDEX = encontrarIndice(headers, ['ORIGEN', 'NAL', 'PAIS']);
+    const DESC_INDEX = encontrarIndice(headers, ['DESCRIPCION', 'DESC', 'DESCRIPTOR', 'NOMBRE']);
+    const VEHICULO_INDEX = encontrarIndice(headers, ['VEHICULO', 'VEH', 'AUTO']);
+    const MARCA_INDEX = encontrarIndice(headers, ['MARCA', 'OEM', 'BRAND']);
+    const PRECIO_INDEX = encontrarIndice(headers, ['PRECIO', 'PRICE', 'VLR', 'VALOR', 'ANTES IVA']);
+    const DSCTO_INDEX = encontrarIndice(headers, ['DSCTO', 'DESCUENTO', '%', 'PORCENTAJE']);
     
     // Procesar las líneas de datos 
     const productos = [];
     
-    // Usar un mapeo directo para las descripciones basadas en #/código
-    // para casos específicos que sabemos que están fallando
-    const descripcionesFijas = {
-      'H1245': 'ABRAZADERA BUJE PUÑO',
-      'H4211': 'BOMBA AGUA',
-      'R0197': 'ABRAZADERA CAJA DIR',
-      'K0182': 'BIELETA SUSPENSION DEL RH',
-      '2': 'ABRAZADERA BUJE PUÑO',
-      '3': 'ABRAZADERA CAJA DIR', 
-      '54': 'BIELETA SUSPENSION DEL RH',
-      '99': 'BOMBA AGUA'
-    };
-    
-    for (let i = HEADER_ROW_INDEX + 1; i < lines.length; i++) {
+    for (let i = headerRowIndex + 1; i < lines.length; i++) {
       const line = lines[i].trim();
       if (!line) continue; // Saltar líneas vacías
-      
       
       try {
         // Dividir la línea considerando comillas
         const campos = dividirCSV(line);
+        
+        // Saltar la línea si no hay suficientes columnas
+        if (campos.length < 3) {
+          continue;
+        }
         
         // Crear objeto producto con los campos básicos
         const producto = {};
@@ -174,39 +169,27 @@ function procesarCsvProductos(filePath) {
         if (NUMERO_INDEX >= 0 && NUMERO_INDEX < campos.length) {
           producto['#'] = campos[NUMERO_INDEX].trim();
         } else {
-          producto['#'] = (i - HEADER_ROW_INDEX).toString();
+          producto['#'] = (i - headerRowIndex).toString();
         }
         
-        // CÓDIGO
+        // CÓDIGO - requerido
         if (CODIGO_INDEX >= 0 && CODIGO_INDEX < campos.length) {
           producto.CODIGO = campos[CODIGO_INDEX].trim();
+          // Si está vacío, saltar esta línea
+          if (!producto.CODIGO) {;
+            continue;
+          }
         } else {
-          
-          continue;
+          continue; // Sin código válido no procesamos
         }
         
-        // DESCRIPCIÓN - con verificación cuidadosa y diagnóstico
-        let descripcion = '';
-        
-        // Primero intentar obtener del CSV
+        // DESCRIPCIÓN - con mejor manejo
         if (DESC_INDEX >= 0 && DESC_INDEX < campos.length) {
-          descripcion = campos[DESC_INDEX].trim();
-         
+          producto.DESCRIPCION = campos[DESC_INDEX].trim();
+        } else {
+          // Si no hay descripción, usar el código
+          producto.DESCRIPCION = `Producto ${producto.CODIGO}`;
         }
-        
-        // Si no tiene descripción, buscar en el mapeo directo por código
-        if (!descripcion && producto.CODIGO && descripcionesFijas[producto.CODIGO]) {
-          descripcion = descripcionesFijas[producto.CODIGO];
-         
-        }
-        
-        // Si aún no tiene, buscar en el mapeo por número
-        if (!descripcion && producto['#'] && descripcionesFijas[producto['#']]) {
-          descripcion = descripcionesFijas[producto['#']];
-          
-        }
-        
-        producto.DESCRIPCION = descripcion;
         
         // Restantes campos
         if (BODEGA_INDEX >= 0 && BODEGA_INDEX < campos.length) {
@@ -238,34 +221,63 @@ function procesarCsvProductos(filePath) {
         } else {
           producto.MARCA = '';
         }
-        
-        // PRECIO
-        if (PRECIO_INDEX >= 0 && PRECIO_INDEX < campos.length) {
-          let precio = campos[PRECIO_INDEX].trim();
-          // Eliminar caracteres no numéricos excepto puntos y comas
-          precio = precio.replace(/[^\d.,]/g, '');
-          producto.PRECIO = precio;
-        } else {
-          producto.PRECIO = '0';
-        }
-        
-        // DESCUENTO
+
         if (DSCTO_INDEX >= 0 && DSCTO_INDEX < campos.length) {
-          let descuento = campos[DSCTO_INDEX].trim();
-          // Eliminar caracteres no numéricos excepto puntos y comas
-          descuento = descuento.replace(/[^\d.,]/g, '');
-          producto.DSCTO = descuento;
+          let descuentoStr = campos[DSCTO_INDEX].trim();
+          producto.DSCTO = procesarDescuento(descuentoStr);
         } else {
-          producto.DSCTO = '0';
+          // Si no hay columna de descuento en el CSV, asignar un valor predeterminado
+          producto.DSCTO = 20;
         }
         
+        if (PRECIO_INDEX >= 0 && PRECIO_INDEX < campos.length) {
+          let precioStr = campos[PRECIO_INDEX].trim();
+          
+          // Log para depuración
+          
+          // Limpiar formato de moneda (quitar $, espacios, etc.)
+          precioStr = precioStr.replace(/[^\d.,]/g, '');
+          
+          // Manejar comas como separadores decimales y de miles
+          if (precioStr.includes(',')) {
+            // Si hay varias comas, están siendo usadas como separadores de miles
+            const commaCount = (precioStr.match(/,/g) || []).length;
+            
+            if (commaCount > 1) {
+              // Formato tipo $4,530,000 -> quitar las comas
+              precioStr = precioStr.replace(/,/g, '');
+            } else if (precioStr.includes('.')) {
+              // Tiene coma y punto, formato internacional tipo 1.234,56
+              precioStr = precioStr.replace(/\./g, '').replace(',', '.');
+            } else {
+              // Solo una coma como en $4,530 -> interpretar como miles, no como decimal
+              precioStr = precioStr.replace(',', '');
+            }
+          }
+          
+          // Convertir a número
+          let precio = parseFloat(precioStr) || 0;
+          
+          // Verificar si el precio parece demasiado bajo para un producto 
+          // Para valores como "4,530" que representan realmente 4530 (no 4.53)
+          if (precio > 0 && precio < 100) {
+            precio = precio * 1000;
+          }
+          
+          producto.PRECIO = precio;
+          
+          // Log para depuración
+        } else {
+          producto.PRECIO = 0;
+        }
+        
+        // Añadir el producto a la lista
         productos.push(producto);
         
       } catch (parseError) {
-        console.error(`Error al procesar línea ${i}:`, parseError);
+        console.error(`Error al procesar línea ${i+1}:`, parseError);
       }
     }
-    
 
     return productos;
   } catch (error) {
@@ -273,6 +285,51 @@ function procesarCsvProductos(filePath) {
     return [];
   }
 }
+
+function procesarDescuento(descuentoStr) {
+  
+  // Si es null o undefined, usar valor predeterminado
+  if (descuentoStr === null || descuentoStr === undefined) {
+    console.log("Descuento nulo/undefined, usando predeterminado: 20%");
+    return 20;
+  }
+  
+  // Convertir a string y limpiar
+  descuentoStr = String(descuentoStr).trim();
+  
+  // Si es cadena vacía, usar valor predeterminado
+  if (descuentoStr === '') {
+    return 20;
+  }
+  
+  // Eliminar % y cualquier carácter no numérico
+  let limpio = descuentoStr.replace(/[^\d.,]/g, '');;
+  
+  // Si después de limpiar queda vacío, usar predeterminado
+  if (limpio === '') {
+    return 20;
+  }
+  
+  // Manejar comas como puntos decimales
+  if (limpio.includes(',')) {
+    limpio = limpio.replace(',', '.');
+  }
+  
+  // Convertir a número
+  const valor = parseFloat(limpio);
+  
+  // Si no es un número válido, usar predeterminado
+  if (isNaN(valor)) {
+    return 20;
+  }
+  
+  // Limitar al rango 0-100
+  const resultado = Math.min(100, Math.max(0, valor));
+  
+  return resultado;
+}
+
+
 function dividirCSV(linea) {
   const resultado = [];
   let campoActual = '';
@@ -282,8 +339,14 @@ function dividirCSV(linea) {
     const caracter = linea[i];
     
     if (caracter === '"') {
-      // Cambiar estado de comillas
-      enComillas = !enComillas;
+      // Si es una comilla escapada (doble comilla)
+      if (i + 1 < linea.length && linea[i + 1] === '"') {
+        campoActual += '"';
+        i++; // Saltar la siguiente comilla
+      } else {
+        // Cambiar estado de comillas
+        enComillas = !enComillas;
+      }
     } else if (caracter === ',' && !enComillas) {
       // Si encontramos una coma fuera de comillas, es un separador
       resultado.push(campoActual);
@@ -299,34 +362,26 @@ function dividirCSV(linea) {
   
   return resultado;
 }
+
+// Función mejorada para encontrar índices con más opciones de búsqueda
 function encontrarIndice(encabezados, posiblesNombres) {
   for (const nombre of posiblesNombres) {
-    const indice = encabezados.findIndex(h => 
+    // Primero buscar coincidencia exacta
+    let indice = encabezados.findIndex(h => 
       h.toUpperCase().trim() === nombre.toUpperCase().trim()
     );
+    
+    // Si no hay coincidencia exacta, buscar coincidencia parcial
+    if (indice === -1) {
+      indice = encabezados.findIndex(h => 
+        h.toUpperCase().trim().includes(nombre.toUpperCase().trim())
+      );
+    }
+    
     if (indice !== -1) return indice;
   }
   return -1;
 }
-
-// Asegúrate de exportar esta función para usarla en los endpoints
-module.exports = { procesarCsvProductos };
-
-// Endpoint para obtener el catálogo actual
-app.get('/catalogo', (req, res) => {
-  try {
-    const catalogoPath = path.join(catDirPath, 'catalogo.pdf');
-    
-    if (!fs.existsSync(catalogoPath)) {
-      return res.status(404).json({ success: false, message: 'El catálogo no está disponible' });
-    }
-    
-    res.sendFile(catalogoPath);
-  } catch (error) {
-    console.error('Error al enviar catálogo:', error);
-    res.status(500).json({ success: false, message: error.toString() });
-  }
-});
 
 // Endpoint para obtener información sobre el catálogo actual
 app.get('/catalogo-info', (req, res) => {
