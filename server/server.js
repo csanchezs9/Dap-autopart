@@ -20,8 +20,12 @@ const uploadDir = path.join(__dirname, 'uploads');
 const catDirPath = path.join(__dirname, 'catalogos');
 const tempDir = path.join(__dirname, 'temp');
 const productosDirPath = path.join(__dirname, 'productos');
+const asesoresDirPath = path.join(__dirname, 'asesores');
+const clientesDirPath = path.join(__dirname, 'clientes');
+const correosDirPath = path.join(__dirname, 'correos');
 
-[uploadDir, catDirPath, tempDir, productosDirPath].forEach(dir => {
+
+[uploadDir, catDirPath, tempDir, productosDirPath, asesoresDirPath, clientesDirPath, correosDirPath].forEach(dir => {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
@@ -37,11 +41,18 @@ const storage = multer.diskStorage({
       cb(null, 'catalogo.pdf');
     } else if (file.fieldname === 'productos') {
       cb(null, 'productos.csv');
+    } else if (file.fieldname === 'asesores') {
+      cb(null, 'asesores.csv');
+    } else if (file.fieldname === 'clientes') {
+      cb(null, 'clientes.csv');
+    } else if (file.fieldname === 'correos') {
+      cb(null, 'correos.csv');
     } else {
       cb(null, file.originalname);
     }
   }
 });
+
 
 const upload = multer({ storage: storage });
 
@@ -56,6 +67,178 @@ const transporter = nodemailer.createTransport({
   }
 });
 
+function procesarCsvCorreos(filePath) {
+  try {
+    // Leer el archivo completo
+    const fileContent = fs.readFileSync(filePath, 'utf8');
+    
+    // Dividir por líneas
+    const lines = fileContent.split('\n');
+    
+    // Buscar la línea de encabezados en las primeras 10 filas
+    let headerRowIndex = -1;
+    for (let i = 0; i < Math.min(10, lines.length); i++) {
+      const line = lines[i].toUpperCase();
+      // Buscar una línea que contenga "AREA" y "MAIL" que probablemente sea la fila de encabezados
+      if (line.includes('AREA') && line.includes('MAIL')) {
+        headerRowIndex = i;
+        break;
+      }
+    }
+    
+    // Si no se encuentra, usar la primera fila como predeterminada
+    if (headerRowIndex === -1) {
+      headerRowIndex = 0;
+    }
+    
+    // Extraer encabezados
+    const headerLine = lines[headerRowIndex];
+    
+    // Dividir encabezados considerando comillas
+    const headers = dividirCSV(headerLine);
+    
+    // Buscar posiciones de las columnas clave
+    const AREA_INDEX = encontrarIndice(headers, ['AREA', 'DEPARTAMENTO', 'SECCION']);
+    const MAIL_INDEX = encontrarIndice(headers, ['MAIL', 'EMAIL', 'CORREO']);
+    
+    // Procesar las líneas de datos 
+    const correos = [];
+    
+    for (let i = headerRowIndex + 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue; // Saltar líneas vacías
+      
+      try {
+        // Dividir la línea considerando comillas
+        const campos = dividirCSV(line);
+        
+        // Saltar la línea si no hay suficientes columnas
+        if (campos.length < 2) {
+          continue;
+        }
+        
+        // Validar que tengamos área y mail
+        if (AREA_INDEX >= 0 && AREA_INDEX < campos.length && MAIL_INDEX >= 0 && MAIL_INDEX < campos.length) {
+          const area = campos[AREA_INDEX].trim();
+          const mail = campos[MAIL_INDEX].trim();
+          
+          // Si ambos campos están completos y no es área de asesores
+          if (area && mail && area.toUpperCase() !== 'ASESORES') {
+            correos.push({
+              AREA: area,
+              MAIL: mail
+            });
+          }
+        }
+      } catch (parseError) {
+        console.error(`Error al procesar línea ${i+1}:`, parseError);
+      }
+    }
+
+    return correos;
+  } catch (error) {
+    console.error('Error al procesar CSV de correos:', error);
+    return [];
+  }
+}
+
+// Endpoint para obtener información sobre el CSV de correos
+app.get('/correos-info', (req, res) => {
+  try {
+    const correosPath = path.join(correosDirPath, 'correos.csv');
+    
+    if (fs.existsSync(correosPath)) {
+      const stats = fs.statSync(correosPath);
+      const fileDate = new Date(stats.mtime);
+      
+      res.json({
+        success: true,
+        filename: 'correos.csv',
+        size: stats.size,
+        lastModified: fileDate.toLocaleString()
+      });
+    } else {
+      res.json({
+        success: false,
+        message: 'No hay archivo de correos disponible'
+      });
+    }
+  } catch (error) {
+    console.error('Error al obtener info de correos:', error);
+    res.status(500).json({ success: false, message: error.toString() });
+  }
+});
+
+// Endpoint para obtener todos los correos
+app.get('/correos', (req, res) => {
+  try {
+    const correosPath = path.join(correosDirPath, 'correos.csv');
+    
+    if (!fs.existsSync(correosPath)) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'El archivo de correos no está disponible' 
+      });
+    }
+    
+    const correos = procesarCsvCorreos(correosPath);
+    res.json({ 
+      success: true, 
+      correos: correos,
+      total: correos.length
+    });
+  } catch (error) {
+    console.error('Error al obtener correos:', error);
+    res.status(500).json({ success: false, message: error.toString() });
+  }
+});
+
+// Subir un nuevo archivo de correos
+app.post('/upload-correos', upload.single('correos'), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No se ha subido ningún archivo' });
+    }
+
+    const sourcePath = req.file.path;
+    const destPath = path.join(correosDirPath, 'correos.csv');
+
+    // Validar el formato CSV antes de guardarlo
+    try {
+      // Verificar que podemos procesar el archivo
+      const correos = procesarCsvCorreos(sourcePath);
+      
+      if (correos.length === 0) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'El archivo CSV no contiene correos válidos o tiene un formato incorrecto' 
+        });
+      }
+      
+      console.log(`CSV de correos validado correctamente con ${correos.length} correos`);
+    } catch (error) {
+      return res.status(400).json({ 
+        success: false, 
+        message: `Error al validar CSV de correos: ${error.message}` 
+      });
+    }
+
+    // Si el archivo es válido, guardarlo
+    if (fs.existsSync(destPath)) {
+      fs.unlinkSync(destPath);
+    }
+
+    fs.copyFileSync(sourcePath, destPath);
+    fs.unlinkSync(sourcePath);
+
+    res.json({ success: true, message: 'Archivo de correos actualizado correctamente' });
+  } catch (error) {
+    console.error('Error al subir archivo de correos:', error);
+    res.status(500).json({ success: false, message: error.toString() });
+  }
+});
+
+
 // Endpoint para enviar correo
 app.post('/send-email', upload.single('pdf'), async (req, res) => {
   try {
@@ -66,10 +249,40 @@ app.post('/send-email', upload.single('pdf'), async (req, res) => {
       return res.status(400).json({ success: false, message: 'Falta el correo del cliente' });
     }
 
+    // Obtener la lista de correos por área
+    const correosPath = path.join(correosDirPath, 'correos.csv');
+    let correosAdicionales = [];
+    
+    if (fs.existsSync(correosPath)) {
+      try {
+        const correosPorArea = procesarCsvCorreos(correosPath);
+        correosAdicionales = correosPorArea.map(c => c.MAIL);
+        console.log("Correos adicionales para copia:", correosAdicionales);
+      } catch (e) {
+        console.error("Error al procesar correos adicionales:", e);
+      }
+    }
+
+    // Combinar todos los destinatarios de copia
+    let ccList = [];
+    if (asesorEmail && asesorEmail.trim()) {
+      ccList.push(asesorEmail.trim());
+    }
+    
+    // Agregar correos adicionales a la lista de CC
+    if (correosAdicionales.length > 0) {
+      ccList = ccList.concat(correosAdicionales);
+    }
+    
+    // Filtrar duplicados y valores vacíos
+    ccList = [...new Set(ccList.filter(email => email && email.trim()))];
+    
+    console.log("Lista final de CC:", ccList);
+
     const mailOptions = {
       from: '"DAP AutoPart\'s" <camilosanchezwwe@gmail.com>',
       to: clienteEmail,
-      cc: asesorEmail || '',
+      cc: ccList.join(', '), // Unir todos los correos separados por coma
       subject: asunto || 'Orden de Pedido - DAP AutoPart\'s',
       text: cuerpo || 'Adjunto encontrará su orden de pedido.',
       attachments: [
@@ -91,9 +304,549 @@ app.post('/send-email', upload.single('pdf'), async (req, res) => {
   }
 });
 
+function procesarCsvClientes(filePath) {
+  try {
+    // Leer el archivo completo
+    const fileContent = fs.readFileSync(filePath, 'utf8');
+    
+    // Dividir por líneas
+    const lines = fileContent.split('\n');
+    
+    // Buscar la línea de encabezados en las primeras 10 filas
+    let headerRowIndex = -1;
+    for (let i = 0; i < Math.min(10, lines.length); i++) {
+      const line = lines[i].toUpperCase();
+      // Buscar una línea que contenga "NIT" que probablemente sea la fila de encabezados
+      if (line.includes('NIT')) {
+        headerRowIndex = i;
+        break;
+      }
+    }
+    
+    // Si no se encuentra, usar la primera fila como predeterminada
+    if (headerRowIndex === -1) {
+      headerRowIndex = 0;
+    }
+    
+    // Extraer encabezados
+    const headerLine = lines[headerRowIndex];
+    
+    // Dividir encabezados considerando comillas
+    const headers = dividirCSV(headerLine);
+    
+    // Buscar posiciones de las columnas clave
+    const NIT_INDEX = encontrarIndice(headers, ['NIT', 'NIT CLIENTE', 'NITCLIENTE', 'ID']);
+    const NOMBRE_INDEX = encontrarIndice(headers, ['NOMBRE', 'RAZON SOCIAL', 'RAZONSOCIAL', 'CLIENTE']);
+    const ESTABLECIMIENTO_INDEX = encontrarIndice(headers, ['ESTABLECIMIENTO', 'NEGOCIO', 'LOCAL']);
+    const DIRECCION_INDEX = encontrarIndice(headers, ['DIRECCION', 'DIRECCIÓN', 'DIRECCIÒN', 'DIR']);
+    const TELEFONO_INDEX = encontrarIndice(headers, ['TELEFONO', 'TELÉFONO', 'TEL', 'CELULAR']);
+    const DESCTO_INDEX = encontrarIndice(headers, ['DESCTO', 'DESCUENTO', 'DCTO', 'DESC']);
+    const CIUDAD_INDEX = encontrarIndice(headers, ['CIUDAD', 'CLI_CIUDAD', 'CITY']);
+    const EMAIL_INDEX = encontrarIndice(headers, ['EMAIL', 'CORREO', 'CLI_EMAIL', 'MAIL']);
+    const ID_ASESOR_INDEX = encontrarIndice(headers, ['ID ASESOR', 'IDASESOR', 'ASESOR ID', 'ASESOR']);
+    
+    // Procesar las líneas de datos 
+    const clientes = [];
+    
+    for (let i = headerRowIndex + 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue; // Saltar líneas vacías
+      
+      try {
+        // Dividir la línea considerando comillas
+        const campos = dividirCSV(line);
+        
+        // Saltar la línea si no hay suficientes columnas
+        if (campos.length < 2) {
+          continue;
+        }
+        
+        // Crear objeto cliente con los campos básicos
+        const cliente = {};
+        
+        // NIT - requerido
+        if (NIT_INDEX >= 0 && NIT_INDEX < campos.length) {
+          cliente['NIT CLIENTE'] = campos[NIT_INDEX].trim();
+          // Si está vacío, saltar esta línea
+          if (!cliente['NIT CLIENTE']) {
+            continue;
+          }
+        } else {
+          continue; // Sin NIT válido no procesamos
+        }
+        
+        // NOMBRE - requerido
+        if (NOMBRE_INDEX >= 0 && NOMBRE_INDEX < campos.length) {
+          cliente['NOMBRE'] = campos[NOMBRE_INDEX].trim();
+        } else {
+          cliente['NOMBRE'] = `Cliente ${cliente['NIT CLIENTE']}`;
+        }
+        
+        // Restantes campos
+        if (ESTABLECIMIENTO_INDEX >= 0 && ESTABLECIMIENTO_INDEX < campos.length) {
+          cliente['ESTABLECIMIENTO'] = campos[ESTABLECIMIENTO_INDEX].trim();
+        } else {
+          cliente['ESTABLECIMIENTO'] = '';
+        }
+        
+        if (DIRECCION_INDEX >= 0 && DIRECCION_INDEX < campos.length) {
+          cliente['DIRECCION'] = campos[DIRECCION_INDEX].trim();
+        } else {
+          cliente['DIRECCION'] = '';
+        }
+        
+        if (TELEFONO_INDEX >= 0 && TELEFONO_INDEX < campos.length) {
+          cliente['TELEFONO'] = campos[TELEFONO_INDEX].trim();
+        } else {
+          cliente['TELEFONO'] = '';
+        }
+        
+        if (DESCTO_INDEX >= 0 && DESCTO_INDEX < campos.length) {
+          cliente['DESCTO'] = campos[DESCTO_INDEX].trim();
+        } else {
+          cliente['DESCTO'] = '';
+        }
+        
+        if (CIUDAD_INDEX >= 0 && CIUDAD_INDEX < campos.length) {
+          cliente['CLI_CIUDAD'] = campos[CIUDAD_INDEX].trim();
+        } else {
+          cliente['CLI_CIUDAD'] = '';
+        }
+        
+        if (EMAIL_INDEX >= 0 && EMAIL_INDEX < campos.length) {
+          cliente['CLI_EMAIL'] = campos[EMAIL_INDEX].trim();
+        } else {
+          cliente['CLI_EMAIL'] = '';
+        }
+        
+        if (ID_ASESOR_INDEX >= 0 && ID_ASESOR_INDEX < campos.length) {
+          cliente['ID ASESOR'] = campos[ID_ASESOR_INDEX].trim();
+        } else {
+          cliente['ID ASESOR'] = '';
+        }
+        
+        // Añadir el cliente a la lista
+        clientes.push(cliente);
+        
+      } catch (parseError) {
+        console.error(`Error al procesar línea ${i+1}:`, parseError);
+      }
+    }
 
-// Reemplaza la función procesarCsvProductos con esta versión mejorada
-// Reemplaza la función procesarCsvProductos en server.js con esta versión mejorada
+    return clientes;
+  } catch (error) {
+    console.error('Error al procesar CSV de clientes:', error);
+    return [];
+  }
+}
+
+// Endpoint para obtener información sobre el CSV de clientes
+app.get('/clientes-info', (req, res) => {
+  try {
+    const clientesPath = path.join(clientesDirPath, 'clientes.csv');
+    
+    if (fs.existsSync(clientesPath)) {
+      const stats = fs.statSync(clientesPath);
+      const fileDate = new Date(stats.mtime);
+      
+      res.json({
+        success: true,
+        filename: 'clientes.csv',
+        size: stats.size,
+        lastModified: fileDate.toLocaleString()
+      });
+    } else {
+      res.json({
+        success: false,
+        message: 'No hay archivo de clientes disponible'
+      });
+    }
+  } catch (error) {
+    console.error('Error al obtener info de clientes:', error);
+    res.status(500).json({ success: false, message: error.toString() });
+  }
+});
+
+// Endpoint para obtener todos los clientes
+app.get('/clientes', (req, res) => {
+  try {
+    const clientesPath = path.join(clientesDirPath, 'clientes.csv');
+    
+    if (!fs.existsSync(clientesPath)) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'El archivo de clientes no está disponible' 
+      });
+    }
+    
+    const clientes = procesarCsvClientes(clientesPath);
+    res.json({ 
+      success: true, 
+      clientes: clientes,
+      total: clientes.length
+    });
+  } catch (error) {
+    console.error('Error al obtener clientes:', error);
+    res.status(500).json({ success: false, message: error.toString() });
+  }
+});
+
+// Endpoint para buscar un cliente por NIT
+app.get('/clientes/:nit', (req, res) => {
+  try {
+    const { nit } = req.params;
+    const clientesPath = path.join(clientesDirPath, 'clientes.csv');
+    
+    if (!fs.existsSync(clientesPath)) {
+      return res.status(404).json({ success: false, message: 'El archivo de clientes no está disponible' });
+    }
+    
+    const clientes = procesarCsvClientes(clientesPath);
+    
+    // Buscar cliente por NIT
+    const cliente = clientes.find(c => String(c['NIT CLIENTE']).trim() === String(nit).trim());
+    
+    if (!cliente) {
+      return res.status(404).json({ 
+        success: false, 
+        message: `No se encontró cliente con NIT: ${nit}` 
+      });
+    }
+    
+    res.json({ 
+      success: true, 
+      cliente: cliente 
+    });
+  } catch (error) {
+    console.error('Error al buscar cliente:', error);
+    res.status(500).json({ success: false, message: error.toString() });
+  }
+});
+
+// Subir un nuevo archivo de clientes
+app.post('/upload-clientes', upload.single('clientes'), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No se ha subido ningún archivo' });
+    }
+
+    const sourcePath = req.file.path;
+    const destPath = path.join(clientesDirPath, 'clientes.csv');
+
+    // Validar el formato CSV antes de guardarlo
+    try {
+      // Verificar que podemos procesar el archivo
+      const clientes = procesarCsvClientes(sourcePath);
+      
+      if (clientes.length === 0) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'El archivo CSV no contiene clientes válidos o tiene un formato incorrecto' 
+        });
+      }
+      
+      console.log(`CSV de clientes validado correctamente con ${clientes.length} clientes`);
+    } catch (error) {
+      return res.status(400).json({ 
+        success: false, 
+        message: `Error al validar CSV de clientes: ${error.message}` 
+      });
+    }
+
+    // Si el archivo es válido, guardarlo
+    if (fs.existsSync(destPath)) {
+      fs.unlinkSync(destPath);
+    }
+
+    fs.copyFileSync(sourcePath, destPath);
+    fs.unlinkSync(sourcePath);
+
+    res.json({ success: true, message: 'Archivo de clientes actualizado correctamente' });
+  } catch (error) {
+    console.error('Error al subir archivo de clientes:', error);
+    res.status(500).json({ success: false, message: error.toString() });
+  }
+});
+
+function procesarCsvAsesores(filePath) {
+  try {
+    // Leer el archivo completo
+    const fileContent = fs.readFileSync(filePath, 'utf8');
+    
+    // Dividir por líneas
+    const lines = fileContent.split('\n');
+    
+    // Buscar la línea de encabezados en las primeras 10 filas
+    let headerRowIndex = -1;
+    for (let i = 0; i < Math.min(10, lines.length); i++) {
+      const line = lines[i].toUpperCase();
+      // Buscar una línea que contenga "ID" y "NOMBRE" que probablemente sea la fila de encabezados
+      if (line.includes('ID') && line.includes('NOMBRE')) {
+        headerRowIndex = i;
+        break;
+      }
+    }
+    
+    // Si no se encuentra, usar la primera fila como predeterminada
+    if (headerRowIndex === -1) {
+      headerRowIndex = 0;
+    }
+    
+    // Extraer encabezados
+    const headerLine = lines[headerRowIndex];
+    
+    // Dividir encabezados considerando comillas
+    const headers = dividirCSV(headerLine);
+    
+    // Buscar posiciones de las columnas clave - más flexibilidad en la búsqueda
+    const ID_INDEX = encontrarIndice(headers, ['ID', 'IDENTIFICACION', 'CEDULA']);
+    const NOMBRE_INDEX = encontrarIndice(headers, ['NOMBRE', 'NAME', 'ASESOR']);
+    const ZONA_INDEX = encontrarIndice(headers, ['ZONA', 'ZONE', 'AREA', 'TERRITORIO']);
+    const MAIL_INDEX = encontrarIndice(headers, ['MAIL', 'EMAIL', 'CORREO']);
+    const CEL_INDEX = encontrarIndice(headers, ['CEL', 'CELULAR', 'TELEFONO', 'PHONE']);
+    
+    // Procesar las líneas de datos 
+    const asesores = [];
+    
+    for (let i = headerRowIndex + 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue; // Saltar líneas vacías
+      
+      try {
+        // Dividir la línea considerando comillas
+        const campos = dividirCSV(line);
+        
+        // Saltar la línea si no hay suficientes columnas
+        if (campos.length < 2) {
+          continue;
+        }
+        
+        // Crear objeto asesor con los campos básicos
+        const asesor = {};
+        
+        // ID - requerido
+        if (ID_INDEX >= 0 && ID_INDEX < campos.length) {
+          asesor.ID = campos[ID_INDEX].trim();
+          // Si está vacío, saltar esta línea
+          if (!asesor.ID) {
+            continue;
+          }
+        } else {
+          continue; // Sin ID válido no procesamos
+        }
+        
+        // NOMBRE - requerido
+        if (NOMBRE_INDEX >= 0 && NOMBRE_INDEX < campos.length) {
+          asesor.NOMBRE = campos[NOMBRE_INDEX].trim();
+          // Si está vacío, usar un nombre genérico
+          if (!asesor.NOMBRE) {
+            asesor.NOMBRE = `Asesor ${asesor.ID}`;
+          }
+        } else {
+          asesor.NOMBRE = `Asesor ${asesor.ID}`;
+        }
+        
+        // Restantes campos
+        if (ZONA_INDEX >= 0 && ZONA_INDEX < campos.length) {
+          asesor.ZONA = campos[ZONA_INDEX].trim();
+        } else {
+          asesor.ZONA = '';
+        }
+        
+        if (MAIL_INDEX >= 0 && MAIL_INDEX < campos.length) {
+          asesor.MAIL = campos[MAIL_INDEX].trim();
+        } else {
+          asesor.MAIL = '';
+        }
+        
+        if (CEL_INDEX >= 0 && CEL_INDEX < campos.length) {
+          asesor.CEL = campos[CEL_INDEX].trim();
+        } else {
+          asesor.CEL = '';
+        }
+        
+        // Añadir el asesor a la lista
+        asesores.push(asesor);
+        
+      } catch (parseError) {
+        console.error(`Error al procesar línea ${i+1}:`, parseError);
+      }
+    }
+
+    return asesores;
+  } catch (error) {
+    console.error('Error al procesar CSV de asesores:', error);
+    return [];
+  }
+}
+
+app.get('/asesores-info', (req, res) => {
+  try {
+    const asesoresPath = path.join(asesoresDirPath, 'asesores.csv');
+    
+    if (fs.existsSync(asesoresPath)) {
+      const stats = fs.statSync(asesoresPath);
+      const fileDate = new Date(stats.mtime);
+      
+      res.json({
+        success: true,
+        filename: 'asesores.csv',
+        size: stats.size,
+        lastModified: fileDate.toLocaleString()
+      });
+    } else {
+      res.json({
+        success: false,
+        message: 'No hay archivo de asesores disponible'
+      });
+    }
+  } catch (error) {
+    console.error('Error al obtener info de asesores:', error);
+    res.status(500).json({ success: false, message: error.toString() });
+  }
+});
+
+// Endpoint para obtener todos los asesores
+app.get('/asesores', (req, res) => {
+  try {
+    const asesoresPath = path.join(asesoresDirPath, 'asesores.csv');
+    
+    if (!fs.existsSync(asesoresPath)) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'El archivo de asesores no está disponible' 
+      });
+    }
+    
+    const asesores = procesarCsvAsesores(asesoresPath);
+    res.json({ 
+      success: true, 
+      asesores: asesores,
+      total: asesores.length
+    });
+  } catch (error) {
+    console.error('Error al obtener asesores:', error);
+    res.status(500).json({ success: false, message: error.toString() });
+  }
+});
+
+// Endpoint para buscar un asesor por ID
+app.get('/asesores/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const asesoresPath = path.join(asesoresDirPath, 'asesores.csv');
+    
+    if (!fs.existsSync(asesoresPath)) {
+      return res.status(404).json({ success: false, message: 'El archivo de asesores no está disponible' });
+    }
+    
+    const asesores = procesarCsvAsesores(asesoresPath);
+    
+    // Buscar asesor por ID
+    const asesor = asesores.find(a => String(a.ID).trim() === String(id).trim());
+    
+    if (!asesor) {
+      return res.status(404).json({ 
+        success: false, 
+        message: `No se encontró asesor con ID: ${id}` 
+      });
+    }
+    
+    res.json({ 
+      success: true, 
+      asesor: asesor 
+    });
+  } catch (error) {
+    console.error('Error al buscar asesor:', error);
+    res.status(500).json({ success: false, message: error.toString() });
+  }
+});
+
+// Endpoint para buscar un asesor por correo
+app.get('/asesores/correo/:email', (req, res) => {
+  try {
+    const { email } = req.params;
+    const asesoresPath = path.join(asesoresDirPath, 'asesores.csv');
+    
+    if (!fs.existsSync(asesoresPath)) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'El archivo de asesores no está disponible' 
+      });
+    }
+    
+    const asesores = procesarCsvAsesores(asesoresPath);
+    
+    // Buscar asesor por correo (normalizado)
+    const emailNormalizado = email.trim().toLowerCase();
+    const asesor = asesores.find(a => {
+      const asesorEmail = (a.MAIL || '').toString().trim().toLowerCase();
+      return asesorEmail === emailNormalizado;
+    });
+    
+    if (!asesor) {
+      return res.status(404).json({ 
+        success: false, 
+        message: `No se encontró asesor con correo: ${email}` 
+      });
+    }
+    
+    res.json({ 
+      success: true, 
+      asesor: asesor 
+    });
+  } catch (error) {
+    console.error('Error al buscar asesor por correo:', error);
+    res.status(500).json({ success: false, message: error.toString() });
+  }
+});
+
+// Subir un nuevo archivo de asesores
+app.post('/upload-asesores', upload.single('asesores'), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No se ha subido ningún archivo' });
+    }
+
+    const sourcePath = req.file.path;
+    const destPath = path.join(asesoresDirPath, 'asesores.csv');
+
+    // Validar el formato CSV antes de guardarlo
+    try {
+      // Verificar que podemos procesar el archivo
+      const asesores = procesarCsvAsesores(sourcePath);
+      
+      if (asesores.length === 0) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'El archivo CSV no contiene asesores válidos o tiene un formato incorrecto' 
+        });
+      }
+      
+      console.log(`CSV de asesores validado correctamente con ${asesores.length} asesores`);
+    } catch (error) {
+      return res.status(400).json({ 
+        success: false, 
+        message: `Error al validar CSV de asesores: ${error.message}` 
+      });
+    }
+
+    // Si el archivo es válido, guardarlo
+    if (fs.existsSync(destPath)) {
+      fs.unlinkSync(destPath);
+    }
+
+    fs.copyFileSync(sourcePath, destPath);
+    fs.unlinkSync(sourcePath);
+
+    res.json({ success: true, message: 'Archivo de asesores actualizado correctamente' });
+  } catch (error) {
+    console.error('Error al subir archivo de asesores:', error);
+    res.status(500).json({ success: false, message: error.toString() });
+  }
+});
+
+
 function procesarCsvProductos(filePath) {
   try {
     // Leer el archivo completo

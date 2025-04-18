@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'orden_de_pedido_main.dart';
-import 'asesor_service.dart';
 import 'package:flutter/services.dart';
+import 'asesor_service_local.dart';
 
 
 void main() {
@@ -68,52 +68,52 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _login() async {
-    final emailIngresado = _emailController.text.trim().toLowerCase();
-    final password = _passwordController.text.trim();
+  final emailIngresado = _emailController.text.trim().toLowerCase();
+  final password = _passwordController.text.trim();
 
-    if (emailIngresado.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Por favor ingrese su correo electrónico')),
-      );
-      return;
-    }
-
-    setState(() {
-      isLoading = true;
-    });
-
-    try {
-      // Buscamos al asesor por su correo electrónico
-      final asesorEncontrado = await AsesorService.buscarAsesorPorCorreo(emailIngresado);
-      
-      if (asesorEncontrado != null && password == "1234") {
-        await _guardarDatos();
-        
-        // Guardamos información del asesor en sesión
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('asesor_id', asesorEncontrado['ID']?.toString() ?? '');
-        await prefs.setString('asesor_nombre', asesorEncontrado['NOMBRE']?.toString() ?? '');
-        await prefs.setString('asesor_zona', asesorEncontrado['ZONA']?.toString() ?? '');
-        
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => OrdenDePedidoMain()),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Correo o contraseña incorrectos')),
-        );
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al iniciar sesión: $e')),
-      );
-    } finally {
-      setState(() {
-        isLoading = false;
-      });
-    }
+  if (emailIngresado.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Por favor ingrese su correo electrónico')),
+    );
+    return;
   }
+
+  setState(() {
+    isLoading = true;
+  });
+
+  try {
+    // Cambio aquí - usar el nuevo servicio local
+    final asesorEncontrado = await AsesorServiceLocal.buscarAsesorPorCorreo(emailIngresado);
+    
+    if (asesorEncontrado != null && password == "1234") {
+      await _guardarDatos();
+      
+      // Guardamos información del asesor en sesión
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('asesor_id', asesorEncontrado['ID']?.toString() ?? '');
+      await prefs.setString('asesor_nombre', asesorEncontrado['NOMBRE']?.toString() ?? '');
+      await prefs.setString('asesor_zona', asesorEncontrado['ZONA']?.toString() ?? '');
+      
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => OrdenDePedidoMain()),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Correo o contraseña incorrectos')),
+      );
+    }
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error al iniciar sesión: $e')),
+    );
+  } finally {
+    setState(() {
+      isLoading = false;
+    });
+  }
+}
 
   @override
   Widget build(BuildContext context) {

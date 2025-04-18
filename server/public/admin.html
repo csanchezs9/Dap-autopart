@@ -108,6 +108,11 @@
             padding: 12px;
             margin-bottom: 15px;
         }
+        .alert-info {
+        background-color: #d1ecf1;
+        color: #0c5460;
+        border: 1px solid #bee5eb;
+    }
     </style>
 </head>
 <body>
@@ -128,6 +133,9 @@
             </div>
             <div id="alertError" class="alert alert-danger hidden">
                 Error al actualizar el archivo.
+            </div>
+            <div id="alertInfo" class="alert alert-info hidden">
+                Procesando, por favor espere...
             </div>
         </div>
 
@@ -179,31 +187,147 @@
                 <button type="submit" class="btn">Actualizar Lista de Productos</button>
             </form>
         </div>
+
+        <div class="card">
+            <h2>Actualizar Lista de Clientes</h2>
+            <p>Suba un archivo CSV con la información de clientes.</p>
+            
+            <div class="info-box">
+                <strong>Importante:</strong> El archivo CSV debe contener al menos las siguientes columnas:
+                <ul>
+                    <li>NIT CLIENTE (número de identificación tributaria)</li>
+                    <li>NOMBRE (nombre o razón social)</li>
+                    <li>ESTABLECIMIENTO (nombre del establecimiento)</li>
+                    <li>DIRECCION (dirección física)</li>
+                    <li>TELEFONO (número de contacto)</li>
+                    <li>DESCTO (porcentaje de descuento)</li>
+                    <li>CLI_CIUDAD (ciudad)</li>
+                    <li>CLI_EMAIL (correo electrónico)</li>
+                    <li>ID ASESOR (identificación del asesor asignado)</li>
+                </ul>
+            </div>
+            
+            <form id="clientesForm">
+                <div class="form-group">
+                    <label for="clientes">Seleccionar archivo CSV:</label>
+                    <input type="file" id="clientes" name="clientes" accept=".csv" class="input-file" required>
+                </div>
+                
+                <div class="current-file" id="currentClientes">
+                    Archivo de clientes actual: <span id="clientesNombre">No hay archivo</span>
+                </div>
+                
+                <button type="submit" class="btn">Actualizar Lista de Clientes</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h2>Actualizar Lista de Asesores</h2>
+            <p>Suba un archivo CSV con la información de asesores.</p>
+            
+            <div class="info-box">
+                <strong>Importante:</strong> El archivo CSV debe contener al menos las siguientes columnas:
+                <ul>
+                    <li>ID (número de identificación o cédula)</li>
+                    <li>NOMBRE (nombre completo del asesor)</li>
+                    <li>ZONA (zona o territorio asignado)</li>
+                    <li>MAIL (correo electrónico)</li>
+                    <li>CEL (número de teléfono celular)</li>
+                </ul>
+            </div>
+
+            
+            <form id="asesoresForm">
+                <div class="form-group">
+                    <label for="asesores">Seleccionar archivo CSV:</label>
+                    <input type="file" id="asesores" name="asesores" accept=".csv" class="input-file" required>
+                </div>
+                
+                <div class="current-file" id="currentAsesores">
+                    Archivo de asesores actual: <span id="asesoresNombre">No hay archivo</span>
+                </div>
+                
+                <button type="submit" class="btn">Actualizar Lista de Asesores</button>
+            </form>
+
+            <div class="card">
+                <h2>Actualizar Lista de Correos por Área</h2>
+                <p>Suba un archivo CSV con la información de los correos que recibirán copia de los pedidos.</p>
+                
+                <div class="info-box">
+                    <strong>Importante:</strong> El archivo CSV debe contener las siguientes columnas:
+                    <ul>
+                        <li>AREA (departamento o sección)</li>
+                        <li>MAIL (correo electrónico)</li>
+                    </ul>
+                    <p>Nota: Los pedidos se enviarán siempre al cliente y al asesor que realizó el pedido, además de los correos configurados aquí.</p>
+                </div>
+                
+                <form id="correosForm">
+                    <div class="form-group">
+                        <label for="correos">Seleccionar archivo CSV:</label>
+                        <input type="file" id="correos" name="correos" accept=".csv" class="input-file" required>
+                    </div>
+                    
+                    <div class="current-file" id="currentCorreos">
+                        Archivo de correos actual: <span id="correosNombre">No hay archivo</span>
+                    </div>
+                    
+                    <button type="submit" class="btn">Actualizar Lista de Correos</button>
+                </form>
+            </div>
+        </div>
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            console.log("Página cargada - Inicializando controladores de eventos");
+            
             // Verificar archivos existentes
             checkExistingFiles();
             
             // Manejar formulario de catálogo
             document.getElementById('catalogoForm').addEventListener('submit', function(e) {
+                console.log("Evento submit de catalogoForm capturado");
                 e.preventDefault();
                 uploadFile('catalogo', 'upload-catalogo');
             });
             
             // Manejar formulario de productos
             document.getElementById('productosForm').addEventListener('submit', function(e) {
+                console.log("Evento submit de productosForm capturado");
                 e.preventDefault();
                 uploadFile('productos', 'upload-productos');
             });
+            
+            // Manejar formulario de asesores
+            document.getElementById('asesoresForm').addEventListener('submit', function(e) {
+                console.log("Evento submit de asesoresForm capturado");
+                e.preventDefault();
+                uploadFile('asesores', 'upload-asesores');
+            });
+
+            document.getElementById('clientesForm').addEventListener('submit', function(e) {
+                console.log("Evento submit de clientesForm capturado");
+                e.preventDefault();
+                uploadFile('clientes', 'upload-clientes');
+            });
+
+            document.getElementById('correosForm').addEventListener('submit', function(e) {
+                console.log("Evento submit de correosForm capturado");
+                e.preventDefault();
+                uploadFile('correos', 'upload-correos');
+            });
         });
-        
+
         function checkExistingFiles() {
+            console.log("Verificando archivos existentes...");
+            
             // Obtener información sobre el catálogo actual
             fetch('/catalogo-info')
                 .then(response => response.json())
                 .then(data => {
+                    console.log("Respuesta de catálogo-info:", data);
                     if (data.success && data.filename) {
                         document.getElementById('catalogoNombre').textContent = data.filename;
                     }
@@ -214,70 +338,151 @@
             fetch('/productos-info')
                 .then(response => response.json())
                 .then(data => {
+                    console.log("Respuesta de productos-info:", data);
                     if (data.success && data.filename) {
                         document.getElementById('productosNombre').textContent = data.filename;
                     }
                 })
                 .catch(error => console.error('Error al verificar productos:', error));
+            
+            // Obtener información sobre el archivo de asesores actual
+            fetch('/asesores-info')
+                .then(response => response.json())
+                .then(data => {
+                    console.log("Respuesta de asesores-info:", data);
+                    if (data.success && data.filename) {
+                        document.getElementById('asesoresNombre').textContent = data.filename;
+                    }
+                })
+                .catch(error => console.error('Error al verificar asesores:', error));
+
+                fetch('/clientes-info')
+                .then(response => response.json())
+                .then(data => {
+                    console.log("Respuesta de clientes-info:", data);
+                    if (data.success && data.filename) {
+                        document.getElementById('clientesNombre').textContent = data.filename;
+                    }
+                })
+                .catch(error => console.error('Error al verificar clientes:', error));
+
+                fetch('/correos-info')
+                .then(response => response.json())
+                .then(data => {
+                    console.log("Respuesta de correos-info:", data);
+                    if (data.success && data.filename) {
+                        document.getElementById('correosNombre').textContent = data.filename;
+                    }
+                })
+                .catch(error => console.error('Error al verificar correos:', error));
         }
-        
+
         function uploadFile(fileInputId, endpoint) {
-            const fileInput = document.getElementById(fileInputId);
-            const file = fileInput.files[0];
-            
-            if (!file) {
-                showAlert('alertError', 'Por favor seleccione un archivo.');
-                return;
-            }
-            
-            // Verificar tipo de archivo según el campo
-            if (fileInputId === 'catalogo' && file.type !== 'application/pdf') {
-                showAlert('alertError', 'El catálogo debe ser un archivo PDF.');
-                return;
-            }
-            
-            if (fileInputId === 'productos' && !file.name.endsWith('.csv')) {
-                showAlert('alertError', 'El archivo de productos debe ser un CSV.');
-                return;
-            }
-            
-            const formData = new FormData();
-            formData.append(fileInputId, file);
-            
-            fetch('/' + endpoint, {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    showAlert('alertSuccess', 'Archivo actualizado correctamente.');
-                    // Actualizar la información del archivo actual
-                    document.getElementById(fileInputId + 'Nombre').textContent = file.name;
-                    // Resetear el formulario
-                    document.getElementById(fileInputId).value = '';
-                } else {
-                    showAlert('alertError', data.message || 'Error al actualizar el archivo.');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showAlert('alertError', 'Error al comunicarse con el servidor.');
-            });
+    console.log(`Iniciando subida de archivo para ${fileInputId} al endpoint ${endpoint}`);
+    
+    // Mostrar alerta de "Subiendo..." mientras se procesa
+    showAlert('alertInfo', 'Subiendo archivo, por favor espere...', 'info');
+    
+    const fileInput = document.getElementById(fileInputId);
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        console.log("No se seleccionó ningún archivo");
+        showAlert('alertError', 'Por favor seleccione un archivo.');
+        return;
+    }
+    
+    console.log(`Archivo seleccionado: ${file.name}, tipo: ${file.type}`);
+    
+    // Verificar tipo de archivo según el campo
+    if (fileInputId === 'catalogo' && file.type !== 'application/pdf') {
+        console.log("Error: El catálogo debe ser PDF");
+        showAlert('alertError', 'El catálogo debe ser un archivo PDF.');
+        return;
+    }
+    
+    if ((fileInputId === 'productos' || fileInputId === 'asesores') && !file.name.endsWith('.csv')) {
+        console.log(`Error: El archivo de ${fileInputId} debe ser CSV`);
+        showAlert('alertError', 'El archivo debe ser un CSV.');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append(fileInputId, file);
+    
+    console.log(`Enviando solicitud a /${endpoint}...`);
+    
+    fetch('/' + endpoint, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        console.log(`Respuesta recibida de ${endpoint}:`, response);
+        return response.json();
+    })
+    .then(data => {
+        console.log(`Datos de respuesta para ${endpoint}:`, data);
+        if (data.success) {
+            showAlert('alertSuccess', `¡El archivo ${getFileTypeLabel(fileInputId)} ha sido actualizado correctamente!`);
+            // Actualizar la información del archivo actual
+            document.getElementById(fileInputId + 'Nombre').textContent = file.name;
+            // Resetear el formulario
+            document.getElementById(fileInputId).value = '';
+        } else {
+            showAlert('alertError', data.message || `Error al actualizar el archivo ${getFileTypeLabel(fileInputId)}.`);
         }
+    })
+    .catch(error => {
+        console.error(`Error en solicitud a ${endpoint}:`, error);
+        showAlert('alertError', `Error de conexión: No se pudo comunicar con el servidor. Detalles: ${error.message}`);
+    });
+}
+function getFileTypeLabel(fileInputId) {
+    switch(fileInputId) {
+        case 'catalogo':
+            return 'de catálogo';
+        case 'productos':
+            return 'de productos';
+        case 'asesores':
+            return 'de asesores';
+        default:
+            return '';
+    }
+}
+
+function showAlert(alertId, message, type) {
+    console.log(`Mostrando alerta: ${alertId} - ${message}`);
+    
+    // Ocultar todas las alertas primero
+    document.getElementById('alertSuccess').classList.add('hidden');
+    document.getElementById('alertError').classList.add('hidden');
+    
+    // Crear alerta de información si no existe
+    if (type === 'info' && !document.getElementById('alertInfo')) {
+        const infoAlert = document.createElement('div');
+        infoAlert.id = 'alertInfo';
+        infoAlert.className = 'alert alert-info';
+        infoAlert.textContent = 'Procesando...';
+        document.querySelector('.card:first-child').appendChild(infoAlert);
+    }
+    
+    // Mostrar la alerta solicitada
+    const alert = document.getElementById(alertId);
+    if (alert) {
+        if (message) {
+            alert.textContent = message;
+        }
+        alert.classList.remove('hidden');
         
-        function showAlert(alertId, message) {
-            const alert = document.getElementById(alertId);
-            if (message) {
-                alert.textContent = message;
-            }
-            alert.classList.remove('hidden');
-            
-            // Ocultar la alerta después de 5 segundos
-            setTimeout(() => {
-                alert.classList.add('hidden');
-            }, 5000);
-        }
+        // Hacer scroll a la alerta para que sea visible
+        alert.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        
+        // Ocultar la alerta después de un tiempo
+        setTimeout(() => {
+            alert.classList.add('hidden');
+        }, 5000);
+    }
+}
     </script>
 </body>
 </html>

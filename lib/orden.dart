@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'cliente_service.dart';
-import 'asesor_service.dart';
+import 'cliente_service_local.dart';
+import 'asesor_service_local.dart'; // Cambio aquí - importar el nuevo servicio
 import 'productos_orden.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -65,7 +65,7 @@ class _OrdenDePedidoState extends State<OrdenDePedido> {
     });
     
     try {
-      final clienteEncontrado = await ClienteService.buscarClientePorNIT(nit);
+      final clienteEncontrado = await ClienteServiceLocal.buscarClientePorNIT(nit);
       
       if (clienteEncontrado != null) {
         // Convertir el Map<String, dynamic> a Map<String, String>
@@ -111,49 +111,49 @@ class _OrdenDePedidoState extends State<OrdenDePedido> {
 
   // Método para buscar asesor por ID usando el servicio
   void buscarAsesorPorID(String id) async {
-    if (id.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Por favor ingrese un ID de asesor')),
-      );
-      return;
-    }
-    
-    setState(() {
-      isLoading = true;
-      asesorData = {};
-    });
-    
-    try {
-      final asesorEncontrado = await AsesorService.buscarAsesorPorID(id);
-      
-      if (asesorEncontrado != null) {
-        // Convertir el Map<String, dynamic> a Map<String, String>
-        Map<String, String> newData = {};
-        asesorEncontrado.forEach((key, value) {
-          newData[key] = value.toString();
-        });
-        
-        setState(() {
-          asesorData = newData;
-        });
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('No se encontró asesor con ID: $id')),
-        );
-      }
-    } catch (e) {
-      setState(() {
-        errorMessage = 'Error al buscar asesor: $e';
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al buscar asesor: $e')),
-      );
-    } finally {
-      setState(() {
-        isLoading = false;
-      });
-    }
+  if (id.trim().isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Por favor ingrese un ID de asesor')),
+    );
+    return;
   }
+  
+  setState(() {
+    isLoading = true;
+    asesorData = {};
+  });
+  
+  try {
+    final asesorEncontrado = await AsesorServiceLocal.buscarAsesorPorID(id);
+    
+    if (asesorEncontrado != null) {
+      // Convertir el Map<String, dynamic> a Map<String, String>
+      Map<String, String> newData = {};
+      asesorEncontrado.forEach((key, value) {
+        newData[key] = value.toString();
+      });
+      
+      setState(() {
+        asesorData = newData;
+      });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se encontró asesor con ID: $id')),
+      );
+    }
+  } catch (e) {
+    setState(() {
+      errorMessage = 'Error al buscar asesor: $e';
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error al buscar asesor: $e')),
+    );
+  } finally {
+    setState(() {
+      isLoading = false;
+    });
+  }
+}
 
   // Método para crear las filas de la tabla
   TableRow _buildTableRow(String label, String value, {bool isHeader = false, Color? color}) {
