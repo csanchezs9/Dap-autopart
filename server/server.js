@@ -15,10 +15,9 @@ const app = express();
 app.use(bodyParser.json()); // Ya deberías tener esto
 app.use(bodyParser.urlencoded({ extended: true }));
 
-const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME || '  ';
 // Contraseña: dap2024
-const ADMIN_PASSWORD_HASH = process.env.ADMIN_PASSWORD_HASH || '1e5c2776cf544e213c3d279c40719643';
-
+const ADMIN_PASSWORD_HASH = process.env.ADMIN_PASSWORD_HASH || '7912b4a2ba21500fbc17f5f3f80d18a7';
 
 
 // Crear carpeta de archivos si no existe
