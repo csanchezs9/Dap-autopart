@@ -72,9 +72,8 @@ function guardarContador() {
 
 
 function verificarPassword(password) {
-  const hash = crypto.createHash('md5').update(password).digest('hex');
-  console.log("Hash calculado:", hash);
-  return hash === ADMIN_PASSWORD;
+  // Comparación directa con la contraseña en texto plano
+  return password === process.env.ADMIN_PASSWORD;
 }
 
 
