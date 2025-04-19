@@ -627,69 +627,72 @@ Future<Uint8List?> _generarPDFMejorado() async {
             pw.Row(
   crossAxisAlignment: pw.CrossAxisAlignment.start,
   children: [
-    // Observaciones
-                pw.Expanded(
-                  flex: 3,
-                  child: pw.Container(
-                    height: 100, // Reducido (antes no había altura fija)
-                    decoration: pw.BoxDecoration(
-                      border: pw.Border.all(),
-                    ),
-                    child: pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.start,
-                      children: [
-                        pw.Container(
-                          color: PdfColors.blue900,
-                          padding: pw.EdgeInsets.all(5), // Reducido de 8
-                          width: double.infinity,
-                          child: pw.Text(
-                            'OBSERVACIONES',
-                            style: pw.TextStyle(
-                              color: PdfColors.white,
-                              fontWeight: pw.FontWeight.bold,
-                              fontSize: 8, // Reducido de 10-12
-                            ),
-                          ),
-                        ),
-                        pw.Expanded(
-                          child: pw.Padding(
-                            padding: pw.EdgeInsets.all(5), // Reducido de 8
-                            child: pw.Text(
-                              observacionesController.text.isEmpty ? 
-                              'Sin observaciones' : observacionesController.text,
-                              style: pw.TextStyle(fontSize: 8), // Reducido
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+    // Observaciones - Con altura ajustable según el contenido
+    pw.Expanded(
+      flex: 3,
+      child: pw.Container(
+        // Altura ajustable según el contenido (eliminar height fija)
+        decoration: pw.BoxDecoration(
+          border: pw.Border.all(),
+        ),
+        child: pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          mainAxisSize: pw.MainAxisSize.min, // Hace que se ajuste al contenido
+          children: [
+            pw.Container(
+              color: PdfColors.blue900,
+              padding: pw.EdgeInsets.all(5),
+              width: double.infinity,
+              child: pw.Text(
+                'OBSERVACIONES',
+                style: pw.TextStyle(
+                  color: PdfColors.white,
+                  fontWeight: pw.FontWeight.bold,
+                  fontSize: 8,
                 ),
-                
-                pw.SizedBox(width: 15), // Reducido de 20
-                
-                // Totales
-                pw.Container(
-                  width: 140, // Reducido
-                  height: 100, // Altura fija para que coincida con observaciones
-                  child: pw.Column(
-                    mainAxisSize: pw.MainAxisSize.min,
-                    children: [
-                      pw.Container(
-                        decoration: pw.BoxDecoration(
-                          border: pw.Border.all(),
-                        ),
-                        child: pw.Padding(
-                          padding: pw.EdgeInsets.all(4), // Reducido de 8
-                          child: pw.Row(
-                            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                            children: [
-                              pw.Text('V.BRUTO', style: pw.TextStyle(fontSize: 8)),
-                              pw.Text(formatCurrency(valorBrutoTotal), style: pw.TextStyle(fontSize: 8)),
-                            ],
-                          ),
-                        ),
-                      ),
+              ),
+            ),
+            pw.Container(
+              padding: pw.EdgeInsets.all(5),
+              // Contenido ajustable a un mínimo y máximo
+              constraints: pw.BoxConstraints(
+                minHeight: 20, // Altura mínima para cuando hay poco texto
+                maxHeight: 80, // Altura máxima para cuando hay mucho texto
+              ),
+              child: pw.Text(
+                observacionesController.text.isEmpty ? 
+                'Sin observaciones' : observacionesController.text,
+                style: pw.TextStyle(fontSize: 8),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+    
+    pw.SizedBox(width: 15),
+    
+    // Totales - Mantener la estructura actual
+    pw.Container(
+      width: 140,
+      child: pw.Column(
+        mainAxisSize: pw.MainAxisSize.min,
+        children: [
+          pw.Container(
+            decoration: pw.BoxDecoration(
+              border: pw.Border.all(),
+            ),
+            child: pw.Padding(
+              padding: pw.EdgeInsets.all(4),
+              child: pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text('V.BRUTO', style: pw.TextStyle(fontSize: 8)),
+                  pw.Text(formatCurrency(valorBrutoTotal), style: pw.TextStyle(fontSize: 8)),
+                ],
+              ),
+            ),
+          ),
                       pw.Container(
                         decoration: pw.BoxDecoration(
                           border: pw.Border(
@@ -1179,33 +1182,44 @@ Future<Uint8List?> _generarPDFMejorado() async {
                             children: [
                               // Observaciones
                               Expanded(
-                                flex: 3,
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    border: Border.all(color: Colors.grey),
-                                    borderRadius: BorderRadius.circular(5),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Container(
-                                        padding: EdgeInsets.all(8),
-                                        color: Color(0xFF1A4379),
-                                        width: double.infinity,
-                                        child: Text(
-                                          'OBSERVACIONES',
-                                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                                        ),
-                                      ),
-                                      Padding(
-                                        padding: EdgeInsets.all(8),
-                                        child: Text(observacionesController.text.isEmpty ? 
-                                                 'Sin observaciones' : observacionesController.text),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
+  flex: 3,
+  child: Container(
+    decoration: BoxDecoration(
+      border: Border.all(color: Colors.grey),
+      borderRadius: BorderRadius.circular(5),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: EdgeInsets.all(8),
+          color: Color(0xFF1A4379),
+          width: double.infinity,
+          child: Text(
+            'OBSERVACIONES',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
+        ),
+        Padding(
+          padding: EdgeInsets.all(8),
+          // Contenedor con restricciones para ajustarse al contenido
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: 20, // Altura mínima para consistencia visual
+              maxHeight: 150, // Altura máxima razonable
+            ),
+            child: SingleChildScrollView( // Para permitir desplazamiento si hay mucho texto
+              child: Text(
+                observacionesController.text.isEmpty ? 
+                'Sin observaciones' : observacionesController.text
+              ),
+            ),
+          ),
+        ),
+      ],
+    ),
+  ),
+),
                               
                               SizedBox(width: 20),
                               
@@ -1539,125 +1553,126 @@ DAP AutoPart's
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Encabezado: información cliente y opciones
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Información cliente
-                      Expanded(
-                        flex: 2,
-                        child: Table(
-                          border: TableBorder.all(color: Colors.white),
-                          columnWidths: const {
-                            0: FlexColumnWidth(1.5),
-                            1: FlexColumnWidth(3),
-                          },
-                          children: [
-                            _buildInfoRow2('NIT CLIENTE', widget.clienteData['NIT CLIENTE'] ?? '', isHeader: true),
-                            _buildInfoRow2('NOMBRE', widget.clienteData['NOMBRE'] ?? ''),
-                            _buildInfoRow2('ESTABLECIMIENTO', widget.clienteData['ESTABLECIMIENTO'] ?? ''),
-                          ],
-                        ),
-                      ),
-                      
-                      const SizedBox(width: 16),
-                      
-                      // Información orden y opciones
-                      Expanded(
-                        flex: 1,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('FECHA: ${obtenerFechaActual()}', 
-                                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                            Text('ORDEN DE PEDIDO #: ${widget.ordenNumero}', 
-                                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                            const SizedBox(height: 10),
+                  // Encabezado: información cliente y opciones - Versión reducida
+Row(
+  crossAxisAlignment: CrossAxisAlignment.start,
+  children: [
+    // Información cliente (reducida en un 20% en lugar de 38%)
+    Expanded(
+      flex: 2,
+      child: Container(
+        // Reducir altura con un transform scale de manera más moderada
+        transform: Matrix4.diagonal3Values(1.0, 0.8, 1.0), // Reducción del 20% en altura
+        transformAlignment: Alignment.topLeft, // Alinear desde la esquina superior izquierda
+        child: Table(
+          border: TableBorder.all(color: Colors.white),
+          columnWidths: const {
+            0: FlexColumnWidth(1.5),
+            1: FlexColumnWidth(3),
+          },
+          children: [
+            _buildInfoRow2Balanced('NIT CLIENTE', widget.clienteData['NIT CLIENTE'] ?? '', isHeader: true),
+            _buildInfoRow2Balanced('NOMBRE', widget.clienteData['NOMBRE'] ?? ''),
+            _buildInfoRow2Balanced('ESTABLECIMIENTO', widget.clienteData['ESTABLECIMIENTO'] ?? ''),
+          ],
+        ),
+      ),
+    ),
+    
+    const SizedBox(width: 16),
+    
+    // Información orden y opciones
+    Expanded(
+      flex: 1,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('FECHA: ${obtenerFechaActual()}', 
+               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+          Text('ORDEN DE PEDIDO #: ${widget.ordenNumero}', 
+               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+          const SizedBox(height: 10),
 
-                            // Checkboxes Solo los checkboxes solicitados
-                            Row(
-        children: [
-          // Radio button NORMAL
-                                SingleChildScrollView(
-  scrollDirection: Axis.horizontal,
-  child: Row(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      // Radio button NORMAL
-      Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Radio<TipoPedido>(
-            value: TipoPedido.normal,
-            groupValue: tipoPedidoSeleccionado,
-            onChanged: (TipoPedido? value) {
-              setState(() {
-                tipoPedidoSeleccionado = value!;
-                isNormal = true;
-                isCondicionado = false;
-                isContado = false;
-                actualizarDescuentosSegunModo();
-              });
-            },
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            visualDensity: VisualDensity.compact,
+          // Radio buttons con tamaño moderado
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Radio button NORMAL
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Radio<TipoPedido>(
+                      value: TipoPedido.normal,
+                      groupValue: tipoPedidoSeleccionado,
+                      onChanged: (TipoPedido? value) {
+                        setState(() {
+                          tipoPedidoSeleccionado = value!;
+                          isNormal = true;
+                          isCondicionado = false;
+                          isContado = false;
+                          actualizarDescuentosSegunModo();
+                        });
+                      },
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    Text('NORMAL', style: TextStyle(fontSize: 10)),
+                  ],
+                ),
+                // Radio button CONDICIONADO
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Radio<TipoPedido>(
+                      value: TipoPedido.condicionado,
+                      groupValue: tipoPedidoSeleccionado,
+                      onChanged: (TipoPedido? value) {
+                        setState(() {
+                          tipoPedidoSeleccionado = value!;
+                          isNormal = false;
+                          isCondicionado = true;
+                          isContado = false;
+                          actualizarDescuentosSegunModo();
+                        });
+                      },
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    Text('COND.', style: TextStyle(fontSize: 10)),
+                  ],
+                ),
+                // NUEVO Radio button CONTADO
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Radio<TipoPedido>(
+                      value: TipoPedido.contado,
+                      groupValue: tipoPedidoSeleccionado,
+                      onChanged: (TipoPedido? value) {
+                        setState(() {
+                          tipoPedidoSeleccionado = value!;
+                          isNormal = false;
+                          isCondicionado = false;
+                          isContado = true;
+                          actualizarDescuentosSegunModo();
+                        });
+                      },
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    Text('CONT.', style: TextStyle(fontSize: 10)),
+                  ],
+                ),
+              ],
+            ),
           ),
-          Text('NORMAL', style: TextStyle(fontSize: 10)),
         ],
       ),
-      // Radio button CONDICIONADO
-      Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Radio<TipoPedido>(
-            value: TipoPedido.condicionado,
-            groupValue: tipoPedidoSeleccionado,
-            onChanged: (TipoPedido? value) {
-              setState(() {
-                tipoPedidoSeleccionado = value!;
-                isNormal = false;
-                isCondicionado = true;
-                isContado = false;
-                actualizarDescuentosSegunModo();
-              });
-            },
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            visualDensity: VisualDensity.compact,
-          ),
-          Text('COND.', style: TextStyle(fontSize: 10)),
-        ],
-      ),
-      // NUEVO Radio button CONTADO
-      Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Radio<TipoPedido>(
-            value: TipoPedido.contado,
-            groupValue: tipoPedidoSeleccionado,
-            onChanged: (TipoPedido? value) {
-              setState(() {
-                tipoPedidoSeleccionado = value!;
-                isNormal = false;
-                isCondicionado = false;
-                isContado = true;
-                actualizarDescuentosSegunModo();
-              });
-            },
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            visualDensity: VisualDensity.compact,
-          ),
-          Text('CONT.', style: TextStyle(fontSize: 10)),
-        ],
-      ),
-    ],
-  ),
-)
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+    ),
+  ],
+),
                   
                   const SizedBox(height: 20),
                   
@@ -1804,53 +1819,54 @@ DAP AutoPart's
                         ),
                       ),
                   
-                  const SizedBox(height: 10),
-                  
-                  // Sección inferior
                   Row(
   crossAxisAlignment: CrossAxisAlignment.start,
   children: [
-    // Imagen del producto (ligeramente más pequeña)
+    // Imagen del producto (30% más grande)
     Container(
-      width: 100, // Reducido de 110 a 100
-      height: 85,
+      width: 110, // Aumentado de 85 a 110 (aproximadamente 30% más)
+      height: 90, // Aumentado de 70 a 90 (aproximadamente 30% más)
       decoration: BoxDecoration(
         border: Border.all(color: Colors.grey),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(6),
       ),
       child: _buildImagenProducto(),
     ),
     
-    const SizedBox(width: 10), // Reducido de 12 a 10
+    const SizedBox(width: 8),
     
     // Observaciones (expansible)
     Expanded(
-      flex: 3, // Aumentado de 2 a 3 para darle más espacio
+      flex: 3,
       child: Container(
-        padding: const EdgeInsets.all(6),
-        height: 85,
+        padding: const EdgeInsets.all(4),
+        height: 90, // Aumentado de 70 a 90 para mantener proporción con la imagen
         decoration: BoxDecoration(
           color: const Color(0xFFCFD5E1),
-          borderRadius: BorderRadius.circular(5),
+          borderRadius: BorderRadius.circular(4),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text('OBSERVACIONES:', 
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-            const SizedBox(height: 3),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10)),
+            const SizedBox(height: 2), 
             Expanded(
               child: TextField(
                 controller: observacionesController,
                 maxLines: null,
                 expands: true,
-                style: TextStyle(fontSize: 11),
+                style: TextStyle(fontSize: 10), // Ligeramente más grande de 9 a 10
                 textAlignVertical: TextAlignVertical.top,
                 decoration: const InputDecoration(
                   filled: true,
                   fillColor: Colors.white,
-                  contentPadding: EdgeInsets.all(6),
-                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.all(4),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(4)),
+                    borderSide: BorderSide(width: 0.5),
+                  ),
+                  isDense: true,
                   alignLabelWithHint: true,
                 ),
               ),
@@ -1860,29 +1876,30 @@ DAP AutoPart's
       ),
     ),
     
-    const SizedBox(width: 10),
+    const SizedBox(width: 8),
     
-    // Totales (reducido)
-   Container(
-      width: 140, // Reducido de 150 a 140
+    // Totales (20% más grande)
+    Container(
+      width: 150, // Aumentado de 125 a 150 (20% más)
       child: Table(
-        border: TableBorder.all(),
+        border: TableBorder.all(width: 0.5),
         columnWidths: const {
           0: FlexColumnWidth(1),
           1: FlexColumnWidth(1),
         },
         defaultVerticalAlignment: TableCellVerticalAlignment.middle,
         children: [
-          _buildTotalRow2('V.BRUTO', formatCurrency(valorBrutoTotal), heightReduced: true),
-          _buildTotalRow2('DSCTO', formatCurrency(descuentoTotal), heightReduced: true),
-          _buildTotalRow2('SUBTOTAL', formatCurrency(subtotal), heightReduced: true),
-          _buildTotalRow2('IVA', formatCurrency(iva), heightReduced: true),
-          _buildTotalRow2('TOTAL', formatCurrency(total), isTotal: true, heightReduced: true),
+          _buildTotalRowLarge('V.BRUTO', formatCurrency(valorBrutoTotal)),
+          _buildTotalRowLarge('DSCTO', formatCurrency(descuentoTotal)),
+          _buildTotalRowLarge('SUBTOTAL', formatCurrency(subtotal)),
+          _buildTotalRowLarge('IVA', formatCurrency(iva)),
+          _buildTotalRowLarge('TOTAL', formatCurrency(total), isTotal: true),
         ],
       ),
     ),
   ],
 ),
+
                   
                   const SizedBox(height: 10),
                   
@@ -1943,73 +1960,79 @@ DAP AutoPart's
   
   // Widget para mostrar la imagen del producto
   Widget _buildImagenProducto() {
-    if (productoCodigoSeleccionado == null) {
-      // No hay producto seleccionado
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: const [
-            Icon(Icons.image, size: 48, color: Colors.grey),
-            SizedBox(height: 8),
-            Text('Seleccione un producto', style: TextStyle(color: Colors.grey)),
-          ],
-        ),
-      );
-    }
-    
-    final codigo = productoCodigoSeleccionado!;
-    final bool imagenDisponible = _imagenesDisponibles[codigo] ?? false;
-    
-    if (!imagenDisponible) {
-      // La imagen no existe o no se ha verificado aún
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.hide_image, size: 48, color: Colors.grey),
-            const SizedBox(height: 8),
-            Text(
-              'No hay imagen para\n$codigo',
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.grey),
-            ),
-          ],
-        ),
-      );
-    }
-    
-    // Mostrar la imagen con el prefijo "m" y hacerla presionable
-    return GestureDetector(
-      onTap: () {
-        _mostrarImagenGrande(codigo);
-      },
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: Image.asset(
-          'assets/imagenesProductos/m$codigo.jpg',
-          fit: BoxFit.contain,
-          errorBuilder: (context, error, stackTrace) {
-            // Si hay un error al cargar la imagen
-            _imagenesDisponibles[codigo] = false;
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.broken_image, size: 48, color: Colors.red),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Error al cargar imagen\n$codigo',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.red),
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
+  if (productoCodigoSeleccionado == null) {
+    // No hay producto seleccionado - interfaz ajustada al nuevo tamaño
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: const [
+          Icon(Icons.image, size: 40, color: Colors.grey), // Aumentado de 30 a 40
+          SizedBox(height: 4), // Aumentado de 2 a 4
+          Text(
+            'Seleccione producto',
+            style: TextStyle(color: Colors.grey, fontSize: 10), // Aumentado de 8 a 10
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
   }
+  
+  final codigo = productoCodigoSeleccionado!;
+  final bool imagenDisponible = _imagenesDisponibles[codigo] ?? false;
+  
+  if (!imagenDisponible) {
+    // La imagen no existe - versión ajustada al nuevo tamaño
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.hide_image, size: 40, color: Colors.grey), // Aumentado de 30 a 40
+          const SizedBox(height: 4), // Aumentado de 2 a 4
+          Text(
+            'No hay imagen\npara $codigo',
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Colors.grey, fontSize: 10), // Aumentado de 8 a 10
+          ),
+        ],
+      ),
+    );
+  }
+  
+  // Mostrar la imagen con el prefijo "m" y hacerla presionable
+  return GestureDetector(
+    onTap: () {
+      _mostrarImagenGrande(codigo);
+    },
+    child: ClipRRect(
+      borderRadius: BorderRadius.circular(6),
+      child: Image.asset(
+        'assets/imagenesProductos/m$codigo.jpg',
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) {
+          _imagenesDisponibles[codigo] = false;
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.broken_image, size: 40, color: Colors.red), // Aumentado de 30 a 40
+                const SizedBox(height: 4), // Aumentado de 2 a 4
+                Text(
+                  'Error al cargar imagen\n$codigo',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.red, fontSize: 10), // Aumentado de 8 a 10
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    ),
+  );
+}
 
   //funcion para aplicar descuentos según el modo seleccionado
  void actualizarDescuentosSegunModo() {
@@ -2173,37 +2196,39 @@ String formatCurrency(dynamic value) {
 
 
   // Widgets auxiliares
-  TableRow _buildInfoRow2(String label, String value, {bool isHeader = false}) {
-    return TableRow(
-      decoration: BoxDecoration(
-        color: isHeader ? const Color(0xFF1A4379) : const Color(0xFFCFD5E1),
+  TableRow _buildInfoRow2Balanced(String label, String value, {bool isHeader = false}) {
+  return TableRow(
+    decoration: BoxDecoration(
+      color: isHeader ? const Color(0xFF1A4379) : const Color(0xFFCFD5E1),
+    ),
+    children: [
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 6), // Reducido moderadamente
+        child: Text(
+          label,
+          style: TextStyle(
+            fontWeight: isHeader ? FontWeight.bold : FontWeight.normal,
+            color: isHeader ? Colors.white : Colors.black,
+            fontSize: 11, // Reducido de 13 a 11
+          ),
+        ),
       ),
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 8),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontWeight: isHeader ? FontWeight.bold : FontWeight.normal,
-              color: isHeader ? Colors.white : Colors.black,
-              fontSize: 13,
-            ),
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
+        child: Text(
+          value,
+          style: TextStyle(
+            fontWeight: isHeader ? FontWeight.bold : FontWeight.normal,
+            color: isHeader ? Colors.white : Colors.black,
+            fontSize: 11, // Reducido de 13 a 11
           ),
+          overflow: TextOverflow.ellipsis,
+          maxLines: 1,
         ),
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 8),
-          child: Text(
-            value,
-            style: TextStyle(
-              fontWeight: isHeader ? FontWeight.bold : FontWeight.normal,
-              color: isHeader ? Colors.white : Colors.black,
-              fontSize: 13,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+      ),
+    ],
+  );
+}
 
   Widget _buildCheckbox(String label, bool value, Function(bool?) onChanged) {
     return Row(
@@ -2219,37 +2244,39 @@ String formatCurrency(dynamic value) {
     );
   }
 
-  TableRow _buildTotalRow2(String label, String value, {bool isTotal = false, bool heightReduced = false}) {
+  TableRow _buildTotalRowLarge(String label, String value, {bool isTotal = false}) {
   return TableRow(
     decoration: BoxDecoration(
       color: isTotal ? const Color(0xFF1A4379) : const Color(0xFFCFD5E1),
     ),
     children: [
       Padding(
-        padding: EdgeInsets.all(heightReduced ? 3 : 8), // Reducido aún más: de 4 a 3
+        padding: EdgeInsets.symmetric(vertical: 3, horizontal: 4),
         child: Text(
           label,
           style: TextStyle(
             fontWeight: FontWeight.bold,
             color: isTotal ? Colors.white : Colors.black,
-            fontSize: heightReduced ? 10 : 12, // Reducido aún más: de 11 a 10
+            fontSize: 10, // Aumentado de 8 a 10 (25% más grande)
           ),
         ),
       ),
       Padding(
-        padding: EdgeInsets.all(heightReduced ? 3 : 8), // Reducido aún más: de 4 a 3
+        padding: EdgeInsets.symmetric(vertical: 3, horizontal: 4),
         child: Text(
           value,
           style: TextStyle(
             fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
             color: isTotal ? Colors.white : Colors.black,
-            fontSize: heightReduced ? 10 : 12, // Reducido aún más: de 11 a 10
+            fontSize: 10, // Aumentado de 8 a 10
           ),
         ),
       ),
     ],
   );
 }
+
+
 
   // Widget para fila de información en vista previa
   Widget _buildInfoRow(String label, String value) {
