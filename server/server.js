@@ -1359,9 +1359,9 @@ app.post('/upload-productos', upload.single('productos'), (req, res) => {
 });
 
 // Iniciar el servidor
-app.listen(PORT, () => {
-  console.log(`Servidor ejecutándose en http://localhost:${PORT}`);
-  console.log(`Interfaz de administración: http://localhost:${PORT}/admin`);
+app.listen(PORT,'0.0.0.0', () => {
+  console.log(`Servidor escuchando en http://0.0.0.0:${PORT}`);
+  console.log(`Puedes acceder desde otros dispositivos usando: http://<IP_LOCAL>:${PORT}`);
 
   procesarCsvProductos(path.join(productosDirPath, 'productos.csv'));
 });
