@@ -83,22 +83,41 @@ class _LoginScreenState extends State<LoginScreen> {
   });
 
   try {
-    // Cambio aquí - usar el nuevo servicio local
+    // Buscar el asesor por correo electrónico
     final asesorEncontrado = await AsesorServiceLocal.buscarAsesorPorCorreo(emailIngresado);
     
-    if (asesorEncontrado != null && password == "1234") {
-      await _guardarDatos();
+    if (asesorEncontrado != null) {
+      // Obtener el ID del asesor
+      final asesorId = asesorEncontrado['ID']?.toString() ?? '';
       
-      // Guardamos información del asesor en sesión
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('asesor_id', asesorEncontrado['ID']?.toString() ?? '');
-      await prefs.setString('asesor_nombre', asesorEncontrado['NOMBRE']?.toString() ?? '');
-      await prefs.setString('asesor_zona', asesorEncontrado['ZONA']?.toString() ?? '');
+      // Obtener los últimos 4 dígitos del ID como contraseña
+      String passwordCorrecta = '';
+      if (asesorId.length >= 4) {
+        passwordCorrecta = asesorId.substring(asesorId.length - 4);
+      } else {
+        // Si el ID tiene menos de 4 dígitos, usar el ID completo
+        passwordCorrecta = asesorId;
+      }
       
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => OrdenDePedidoMain()),
-      );
+      // Verificar si la contraseña ingresada coincide con los últimos 4 dígitos del ID
+      if (password == passwordCorrecta) {
+        await _guardarDatos();
+        
+        // Guardamos información del asesor en sesión
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('asesor_id', asesorEncontrado['ID']?.toString() ?? '');
+        await prefs.setString('asesor_nombre', asesorEncontrado['NOMBRE']?.toString() ?? '');
+        await prefs.setString('asesor_zona', asesorEncontrado['ZONA']?.toString() ?? '');
+        
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => OrdenDePedidoMain()),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Correo o contraseña incorrectos')),
+        );
+      }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Correo o contraseña incorrectos')),

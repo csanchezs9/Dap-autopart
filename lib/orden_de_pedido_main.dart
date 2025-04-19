@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'orden.dart';
 import 'main.dart';
-import 'catalogo_service.dart'; // Importamos nuestro nuevo servicio
+import 'catalogo_service.dart'; // Importamos el servicio de catálogo
+import 'lista_precios_service.dart'; // Importamos el nuevo servicio
 
 class OrdenDePedidoMain extends StatelessWidget {
   const OrdenDePedidoMain({super.key});
@@ -118,11 +119,8 @@ class OrdenDePedidoMain extends StatelessWidget {
                   icon: Icon(Icons.price_change),
                   label: Text("LISTA DE\nPRECIOS", textAlign: TextAlign.center),
                   onPressed: () {
-                    // Aquí iría la navegación a la lista de precios
-                    // Por ahora, mostrar un mensaje informativo
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Funcionalidad en desarrollo')),
-                    );
+                    // Generar y mostrar la lista de precios
+                    ListaPreciosService.generarListaPrecios(context);
                   },
                   style: ElevatedButton.styleFrom(
                     foregroundColor: Colors.black,
