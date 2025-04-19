@@ -12,10 +12,14 @@ const crypto = require('crypto');
 
 const app = express();
 
+app.use(bodyParser.json()); // Ya deberías tener esto
+app.use(bodyParser.urlencoded({ extended: true }));
 
-// Configurar CORS para permitir solicitudes de la app
-app.use(cors());
-app.use(bodyParser.json());
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
+// Contraseña: dap2024
+const ADMIN_PASSWORD_HASH = process.env.ADMIN_PASSWORD_HASH || '1e5c2776cf544e213c3d279c40719643';
+
+
 
 // Crear carpeta de archivos si no existe
 const uploadDir = path.join(__dirname, 'uploads');
@@ -38,6 +42,8 @@ if (!fs.existsSync(ordenesPath)) {
 });
 
 let ultimoNumeroOrden = 1;
+
+
 
 // Intentar cargar el contador desde un archivo
 try {
@@ -65,39 +71,56 @@ function guardarContador() {
   }
 }
 
-const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
-const ADMIN_PASSWORD_HASH = process.env.ADMIN_PASSWORD_HASH || 'dapauto';
 
 function verificarPassword(password) {
   const hash = crypto.createHash('md5').update(password).digest('hex');
+  console.log("Hash calculado:", hash);
   return hash === ADMIN_PASSWORD_HASH;
 }
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'dap-autoparts-secret-key',
-  resave: false,
-  saveUninitialized: true,
-  cookie: { 
-    secure: process.env.NODE_ENV === 'production', 
-    maxAge: 3600000 // 1 hora
-  }
-}));
+
+
 function requireAuth(req, res, next) {
-  if (req.session && req.session.authenticated) {
+  console.log("Verificando autenticación para:", req.path);
+  console.log("Estado de sesión:", req.session ? req.session.authenticated : "No hay sesión");
+  
+  if (req.session && req.session.authenticated === true) {
+    console.log("Autenticación exitosa, procediendo");
     return next();
   } else {
+    console.log("Autenticación fallida, redirigiendo a login");
     return res.redirect('/login');
   }
 }
+
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'dap-autoparts-secret-key',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { 
+    secure: false, // Cambiar a true si usas HTTPS
+    maxAge: 3600000 // 1 hora
+  }
+}));
+
+
 app.get('/login', (req, res) => {
+  console.log("Acceso a página de login");
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
-app.post('/login', bodyParser.urlencoded({ extended: true }), (req, res) => {
-  const { username, password } = req.body;
+
+// Procesamiento de login
+app.post('/login', (req, res) => {
+  const username = req.body.username;
+  const password = req.body.password;
+  
+  console.log("Intento de login para usuario:", username);
   
   if (username === ADMIN_USERNAME && verificarPassword(password)) {
+    console.log("Login exitoso");
     req.session.authenticated = true;
     res.redirect('/admin');
   } else {
+    console.log("Login fallido");
     res.status(401).send(`
       <html>
         <head>
@@ -117,13 +140,17 @@ app.post('/login', bodyParser.urlencoded({ extended: true }), (req, res) => {
     `);
   }
 });
+
+// Ruta de logout
 app.get('/logout', (req, res) => {
   req.session.destroy();
   res.redirect('/login');
 });
 
-// Proteger la ruta de administración
+// PROTEGER LAS RUTAS DE ADMINISTRACIÓN - REEMPLAZA LA RUTA ORIGINAL
+// Ruta de admin
 app.get('/admin', requireAuth, (req, res) => {
+  console.log("Acceso exitoso a admin");
   res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 
@@ -1444,8 +1471,6 @@ app.get('/ping', (req, res) => {
 });
 
 
-// Servir archivos estáticos para la interfaz de administración
-app.use(express.static(path.join(__dirname, 'public')));
 
 // Subir un nuevo catálogo
 app.post('/upload-catalogo',requireAuth, upload.single('catalogo'), (req, res) => {
@@ -1515,6 +1540,10 @@ app.post('/upload-productos',requireAuth, upload.single('productos'), (req, res)
     res.status(500).json({ success: false, message: error.toString() });
   }
 });
+
+app.use('/css', express.static(path.join(__dirname, 'public', 'css')));
+app.use('/js', express.static(path.join(__dirname, 'public', 'js')));
+app.use('/images', express.static(path.join(__dirname, 'public', 'images')));
 
 
 const PORT = process.env.PORT;
