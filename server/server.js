@@ -11,6 +11,7 @@ const { parse } = require('csv-parse/sync'); // Para control manual del parsing
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+
 // Configurar CORS para permitir solicitudes de la app
 app.use(cors());
 app.use(bodyParser.json());
@@ -23,11 +24,109 @@ const productosDirPath = path.join(__dirname, 'productos');
 const asesoresDirPath = path.join(__dirname, 'asesores');
 const clientesDirPath = path.join(__dirname, 'clientes');
 const correosDirPath = path.join(__dirname, 'correos');
+const ordenesPath = path.join(__dirname, 'ordenes');
+if (!fs.existsSync(ordenesPath)) {
+  fs.mkdirSync(ordenesPath, { recursive: true });
+}
 
 
-[uploadDir, catDirPath, tempDir, productosDirPath, asesoresDirPath, clientesDirPath, correosDirPath].forEach(dir => {
+[uploadDir, catDirPath, tempDir, productosDirPath, asesoresDirPath, clientesDirPath, correosDirPath, ordenesPath].forEach(dir => {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
+  }
+});
+
+let ultimoNumeroOrden = 1;
+
+// Intentar cargar el contador desde un archivo
+try {
+  const contadorPath = path.join(ordenesPath, 'contador.json');
+  if (fs.existsSync(contadorPath)) {
+    const data = fs.readFileSync(contadorPath, 'utf8');
+    const contador = JSON.parse(data);
+    ultimoNumeroOrden = contador.ultimoNumero || 1;
+    console.log(`Contador de órdenes cargado: ${ultimoNumeroOrden}`);
+  } else {
+    // Crear el archivo si no existe
+    fs.writeFileSync(contadorPath, JSON.stringify({ ultimoNumero: ultimoNumeroOrden }));
+    console.log(`Archivo de contador creado con valor inicial: ${ultimoNumeroOrden}`);
+  }
+} catch (error) {
+  console.error('Error al cargar el contador de órdenes:', error);
+}
+
+function guardarContador() {
+  try {
+    const contadorPath = path.join(ordenesPath, 'contador.json');
+    fs.writeFileSync(contadorPath, JSON.stringify({ ultimoNumero: ultimoNumeroOrden }));
+  } catch (error) {
+    console.error('Error al guardar el contador de órdenes:', error);
+  }
+}
+
+app.get('/siguiente-orden', (req, res) => {
+  try {
+    // Formatear el número que SERÍA el siguiente (pero sin incrementar todavía)
+    const numeroFormateado = `OP-${(ultimoNumeroOrden + 1).toString().padStart(5, '0')}`;
+    
+    console.log(`Consultando próximo número de orden: ${numeroFormateado}`);
+    
+    // Devolver el número formateado y el valor numérico
+    res.json({
+      success: true,
+      numeroOrden: numeroFormateado,
+      valor: ultimoNumeroOrden + 1  // Valor que sería, pero no lo guardamos todavía
+    });
+  } catch (error) {
+    console.error('Error al consultar próximo número de orden:', error);
+    res.status(500).json({ success: false, message: error.toString() });
+  }
+});
+
+// Endpoint para confirmar que un número de orden fue utilizado
+// Endpoint para confirmar e INCREMENTAR el número de orden
+app.post('/confirmar-orden', (req, res) => {
+  try {
+    const { numeroOrden } = req.body;
+    
+    if (!numeroOrden) {
+      return res.status(400).json({ success: false, message: 'Falta el número de orden' });
+    }
+    
+    // Incrementar el contador ahora que se confirma el uso
+    ultimoNumeroOrden++;
+    
+    // Guardar el nuevo valor
+    guardarContador();
+    
+    console.log(`Orden confirmada y contador incrementado a: ${ultimoNumeroOrden}`);
+    
+    // Guardar registro de la orden
+    const registroPath = path.join(ordenesPath, 'registro.json');
+    let registro = [];
+    
+    if (fs.existsSync(registroPath)) {
+      try {
+        const data = fs.readFileSync(registroPath, 'utf8');
+        registro = JSON.parse(data);
+      } catch (e) {
+        console.error('Error al cargar registro:', e);
+      }
+    }
+    
+    registro.push({
+      numeroOrden: numeroOrden,
+      contador: ultimoNumeroOrden,
+      fecha: new Date().toISOString(),
+      ip: req.ip
+    });
+    
+    fs.writeFileSync(registroPath, JSON.stringify(registro, null, 2));
+    
+    res.json({ success: true, message: 'Orden confirmada correctamente' });
+  } catch (error) {
+    console.error('Error al confirmar orden:', error);
+    res.status(500).json({ success: false, message: error.toString() });
   }
 });
 

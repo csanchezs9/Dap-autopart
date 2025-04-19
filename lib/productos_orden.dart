@@ -625,12 +625,13 @@ Future<Uint8List?> _generarPDFMejorado() async {
             
             // Sección inferior: Observaciones y Totales
             pw.Row(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                // Observaciones
+  crossAxisAlignment: pw.CrossAxisAlignment.start,
+  children: [
+    // Observaciones
                 pw.Expanded(
                   flex: 3,
                   child: pw.Container(
+                    height: 100, // Reducido (antes no había altura fija)
                     decoration: pw.BoxDecoration(
                       border: pw.Border.all(),
                     ),
@@ -639,125 +640,131 @@ Future<Uint8List?> _generarPDFMejorado() async {
                       children: [
                         pw.Container(
                           color: PdfColors.blue900,
-                          padding: pw.EdgeInsets.all(8),
+                          padding: pw.EdgeInsets.all(5), // Reducido de 8
                           width: double.infinity,
                           child: pw.Text(
                             'OBSERVACIONES',
                             style: pw.TextStyle(
                               color: PdfColors.white,
                               fontWeight: pw.FontWeight.bold,
+                              fontSize: 8, // Reducido de 10-12
                             ),
                           ),
                         ),
-                        pw.Padding(
-                          padding: pw.EdgeInsets.all(8),
-                          child: pw.Text(observacionesController.text.isEmpty ? 
-                            'Sin observaciones' : observacionesController.text),
+                        pw.Expanded(
+                          child: pw.Padding(
+                            padding: pw.EdgeInsets.all(5), // Reducido de 8
+                            child: pw.Text(
+                              observacionesController.text.isEmpty ? 
+                              'Sin observaciones' : observacionesController.text,
+                              style: pw.TextStyle(fontSize: 8), // Reducido
+                            ),
+                          ),
                         ),
                       ],
                     ),
                   ),
                 ),
                 
-                pw.SizedBox(width: 20),
+                pw.SizedBox(width: 15), // Reducido de 20
                 
                 // Totales
-                pw.Expanded(
-                  flex: 2,
-                  child: pw.Container(
-                    child: pw.Column(
-                      children: [
-                        pw.Container(
-                          decoration: pw.BoxDecoration(
-                            border: pw.Border.all(),
-                          ),
-                          child: pw.Padding(
-                            padding: pw.EdgeInsets.all(8),
-                            child: pw.Row(
-                              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                              children: [
-                                pw.Text('V.BRUTO'),
-                                pw.Text(formatCurrency(valorBrutoTotal)),
-                              ],
-                            ),
-                          ),
+                pw.Container(
+                  width: 140, // Reducido
+                  height: 100, // Altura fija para que coincida con observaciones
+                  child: pw.Column(
+                    mainAxisSize: pw.MainAxisSize.min,
+                    children: [
+                      pw.Container(
+                        decoration: pw.BoxDecoration(
+                          border: pw.Border.all(),
                         ),
-                        pw.Container(
-                          decoration: pw.BoxDecoration(
-                            border: pw.Border(
-                              left: pw.BorderSide(),
-                              right: pw.BorderSide(),
-                              bottom: pw.BorderSide(),
-                            ),
-                          ),
-                          child: pw.Padding(
-                            padding: pw.EdgeInsets.all(8),
-                            child: pw.Row(
-                              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                              children: [
-                                pw.Text('DSCTO'),
-                                pw.Text(formatCurrency(descuentoTotal)),
-                              ],
-                            ),
-                          ),
-                        ),
-                        pw.Container(
-                          decoration: pw.BoxDecoration(
-                            border: pw.Border(
-                              left: pw.BorderSide(),
-                              right: pw.BorderSide(),
-                              bottom: pw.BorderSide(),
-                            ),
-                          ),
-                          child: pw.Padding(
-                            padding: pw.EdgeInsets.all(8),
-                            child: pw.Row(
-                              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                              children: [
-                                pw.Text('SUBTOTAL'),
-                                pw.Text(formatCurrency(subtotal)),
-                              ],
-                            ),
-                          ),
-                        ),
-                        pw.Container(
-                          decoration: pw.BoxDecoration(
-                            border: pw.Border(
-                              left: pw.BorderSide(),
-                              right: pw.BorderSide(),
-                              bottom: pw.BorderSide(),
-                            ),
-                          ),
-                          child: pw.Padding(
-                            padding: pw.EdgeInsets.all(8),
-                            child: pw.Row(
-                              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                              children: [
-                                pw.Text('IVA'),
-                                pw.Text(formatCurrency(iva)),
-                              ],
-                            ),
-                          ),
-                        ),
-                        pw.Container(
-                          color: PdfColors.blue900,
-                          padding: pw.EdgeInsets.all(8),
+                        child: pw.Padding(
+                          padding: pw.EdgeInsets.all(4), // Reducido de 8
                           child: pw.Row(
                             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                             children: [
-                              pw.Text('TOTAL', 
-                                style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white)),
-                              pw.Text(formatCurrency(total), 
-                                style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white)),
+                              pw.Text('V.BRUTO', style: pw.TextStyle(fontSize: 8)),
+                              pw.Text(formatCurrency(valorBrutoTotal), style: pw.TextStyle(fontSize: 8)),
                             ],
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                      pw.Container(
+                        decoration: pw.BoxDecoration(
+                          border: pw.Border(
+                            left: pw.BorderSide(),
+                            right: pw.BorderSide(),
+                            bottom: pw.BorderSide(),
+                          ),
+                        ),
+                        child: pw.Padding(
+                          padding: pw.EdgeInsets.all(4), // Reducido de 8
+                          child: pw.Row(
+                            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                            children: [
+                              pw.Text('DSCTO', style: pw.TextStyle(fontSize: 8)),
+                              pw.Text(formatCurrency(descuentoTotal), style: pw.TextStyle(fontSize: 8)),
+                            ],
+                          ),
+                        ),
+                      ),
+                      pw.Container(
+                        decoration: pw.BoxDecoration(
+                          border: pw.Border(
+                            left: pw.BorderSide(),
+                            right: pw.BorderSide(),
+                            bottom: pw.BorderSide(),
+                          ),
+                        ),
+                        child: pw.Padding(
+                          padding: pw.EdgeInsets.all(4), // Reducido de 8
+                          child: pw.Row(
+                            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                            children: [
+                              pw.Text('SUBTOTAL', style: pw.TextStyle(fontSize: 8)),
+                              pw.Text(formatCurrency(subtotal), style: pw.TextStyle(fontSize: 8)),
+                            ],
+                          ),
+                        ),
+                      ),
+                      pw.Container(
+                        decoration: pw.BoxDecoration(
+                          border: pw.Border(
+                            left: pw.BorderSide(),
+                            right: pw.BorderSide(),
+                            bottom: pw.BorderSide(),
+                          ),
+                        ),
+                        child: pw.Padding(
+                          padding: pw.EdgeInsets.all(4), // Reducido de 8
+                          child: pw.Row(
+                            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                            children: [
+                              pw.Text('IVA', style: pw.TextStyle(fontSize: 8)),
+                              pw.Text(formatCurrency(iva), style: pw.TextStyle(fontSize: 8)),
+                            ],
+                          ),
+                        ),
+                      ),
+                      pw.Container(
+                        color: PdfColors.blue900,
+                        padding: pw.EdgeInsets.all(4), // Reducido de 8
+                        child: pw.Row(
+                          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                          children: [
+                            pw.Text('TOTAL', 
+                              style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white, fontSize: 8)),
+                            pw.Text(formatCurrency(total), 
+                              style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white, fontSize: 8)),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
-            ),
+            )
           ];
         },
       ),
@@ -1372,11 +1379,7 @@ Widget _buildTableViewCell(String text, {int maxLines = 1}) {
     print("Preparando solicitud al servidor...");
     final request = http.MultipartRequest(
       'POST',
-      // Cambia esta URL según dónde esté ejecutándose tu servidor
-      //Uri.parse('http://localhost:3000/send-email'), // Para web
-      //Uri.parse('http://10.0.2.2:3000/send-email'), // Para emulador Android
-       Uri.parse('http://192.168.1.2:3000/send-email'), // Para dispositivo real (cambia la IP)
-      // Cambia esta URL según dónde esté ejecutándose tu servidor
+      Uri.parse('http://192.168.1.2:3000/send-email'), // Para dispositivo real
     );
     
     // Agregar los campos
@@ -1414,32 +1417,20 @@ DAP AutoPart's
       final jsonResponse = json.decode(response.body);
       
       if (jsonResponse['success']) {
-        // NUEVO: Incrementar el número de orden automáticamente
+        // ✨ NUEVO: Confirmar el uso del número de orden para sincronizar con otros dispositivos
         try {
-          // Extraer el número actual de la orden
-          String ordenActual = widget.ordenNumero;
-          int numeroActual = 1;
-          
-          // Extraer el número de la cadena (formato esperado: OP-00001)
-          if (ordenActual.contains('-')) {
-            String numStr = ordenActual.split('-').last.replaceAll(RegExp(r'[^0-9]'), '');
-            numeroActual = int.tryParse(numStr) ?? 1;
-          } else {
-            // Si no tiene formato con guion, intentar parsear directamente
-            numeroActual = int.tryParse(ordenActual.replaceAll(RegExp(r'[^0-9]'), '')) ?? 1;
-          }
-          
-          // Incrementar para la próxima orden
-          int nuevoNumero = numeroActual + 1;
-          
-          // Guardar en SharedPreferences para su posterior uso
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setInt('ultimoNumeroOrden', nuevoNumero);
-          
-          print("Número de orden incrementado: $numeroActual -> $nuevoNumero");
+          // Enviar confirmación al servidor
+          await http.post(
+            Uri.parse('http://192.168.1.2:3000/confirmar-orden'),
+            headers: {'Content-Type': 'application/json'},
+            body: json.encode({
+              'numeroOrden': widget.ordenNumero,
+            }),
+          );
+          print("Número de orden confirmado en el servidor");
         } catch (e) {
-          print("Error al incrementar el número de orden: $e");
-          // Continuar mostrando éxito aunque falle el incremento
+          print("Error al confirmar número de orden: $e");
+          // Continuar aunque falle la confirmación
         }
         
         // Mostrar diálogo de éxito
@@ -1477,7 +1468,7 @@ DAP AutoPart's
       throw Exception("Error de conexión: ${response.statusCode}");
     }
     
-   } catch (e) {
+  } catch (e) {
     print("Error detallado: ${e.toString()}");
     
     // Añadir mensaje más informativo
@@ -1543,7 +1534,7 @@ DAP AutoPart's
         : errorMessage.isNotEmpty 
           ? Center(child: Text('Error: $errorMessage', style: const TextStyle(color: Colors.red)))
           : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1714,178 +1705,186 @@ DAP AutoPart's
                   
                   // Tabla de productos
                   Container(
-                      width: MediaQuery.of(context).size.width,
-                      child: Column(
-                        children: [
-                          // Cabecera de la tabla
-                          Table(
-                            border: TableBorder.all(color: const Color(0xFF1A4379)),
-                            columnWidths: const {
-                              0: FractionColumnWidth(0.05), // #
-                              1: FractionColumnWidth(0.09), // CÓDIGO
-                              2: FractionColumnWidth(0.05), // UB
-                              3: FractionColumnWidth(0.09), // REF
-                              4: FractionColumnWidth(0.08), // ORIGEN
-                              5: FractionColumnWidth(0.15), // DESCRIPCIÓN
-                              6: FractionColumnWidth(0.12), // VEHÍCULO
-                              7: FractionColumnWidth(0.09), // MARCA
-                              8: FractionColumnWidth(0.09), // ANTES IVA
-                              9: FractionColumnWidth(0.05), // DSCTO
-                              10: FractionColumnWidth(0.05), // CANT
-                              11: FractionColumnWidth(0.09), // V.BRUTO
-                            },
-                            children: [
-                              TableRow(
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF1A4379),
+                        width: MediaQuery.of(context).size.width,
+                        child: Column(
+                          children: [
+                            // Cabecera de la tabla
+                            Table(
+                              border: TableBorder.all(color: const Color(0xFF1A4379)),
+                              columnWidths: const {
+                                0: FractionColumnWidth(0.05), // #
+                                1: FractionColumnWidth(0.09), // CÓDIGO
+                                2: FractionColumnWidth(0.05), // UB
+                                3: FractionColumnWidth(0.09), // REF
+                                4: FractionColumnWidth(0.08), // ORIGEN
+                                5: FractionColumnWidth(0.15), // DESCRIPCIÓN
+                                6: FractionColumnWidth(0.12), // VEHÍCULO
+                                7: FractionColumnWidth(0.09), // MARCA
+                                8: FractionColumnWidth(0.09), // ANTES IVA
+                                9: FractionColumnWidth(0.05), // DSCTO
+                                10: FractionColumnWidth(0.05), // CANT
+                                11: FractionColumnWidth(0.09), // V.BRUTO
+                              },
+                              children: [
+                                TableRow(
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF1A4379),
+                                  ),
+                                  children: [
+                                    _buildHeaderCell('#'),
+                                    _buildHeaderCell('CÓDIGO'),
+                                    _buildHeaderCell('UB'),
+                                    _buildHeaderCell('REF'),
+                                    _buildHeaderCell('ORIGEN'),
+                                    _buildHeaderCell('DESCRIPCIÓN'),
+                                    _buildHeaderCell('VEHÍCULO'),
+                                    _buildHeaderCell('MARCA'),
+                                    _buildHeaderCell('ANTES IVA'),
+                                    _buildHeaderCell('DSCTO'),
+                                    _buildHeaderCell('CANT'),
+                                    _buildHeaderCell('V.BRUTO'),
+                                  ],
                                 ),
-                                children: [
-                                  _buildHeaderCell('#'),
-                                  _buildHeaderCell('CÓDIGO'),
-                                  _buildHeaderCell('UB'),
-                                  _buildHeaderCell('REF'),
-                                  _buildHeaderCell('ORIGEN'),
-                                  _buildHeaderCell('DESCRIPCIÓN'),
-                                  _buildHeaderCell('VEHÍCULO'),
-                                  _buildHeaderCell('MARCA'),
-                                  _buildHeaderCell('ANTES IVA'),
-                                  _buildHeaderCell('DSCTO'),
-                                  _buildHeaderCell('CANT'),
-                                  _buildHeaderCell('V.BRUTO'),
-                                ],
-                              ),
-                            ],
-                          ),
+                              ],
+                            ),
 
-                          // Cuerpo de la tabla con scroll vertical
-                          Container(
-                            height: MediaQuery.of(context).size.height * 0.3,
-                            child: SingleChildScrollView(
-                              physics: const AlwaysScrollableScrollPhysics(),
-                              child: Table(
-                                border: TableBorder.all(color: Colors.grey.shade300),
-                                columnWidths: const {
-                                  0: FractionColumnWidth(0.05), // #
-                                  1: FractionColumnWidth(0.09), // CÓDIGO
-                                  2: FractionColumnWidth(0.05), // UB
-                                  3: FractionColumnWidth(0.09), // REF
-                                  4: FractionColumnWidth(0.08), // ORIGEN
-                                  5: FractionColumnWidth(0.15), // DESCRIPCIÓN
-                                  6: FractionColumnWidth(0.12), // VEHÍCULO
-                                  7: FractionColumnWidth(0.09), // MARCA
-                                  8: FractionColumnWidth(0.09), // ANTES IVA
-                                  9: FractionColumnWidth(0.05), // DSCTO
-                                  10: FractionColumnWidth(0.05), // CANT
-                                  11: FractionColumnWidth(0.09), // V.BRUTO
-                                },
-                                defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-                                children: productosAgregados.map((producto) {
-                                  bool isSelected = producto['CODIGO'] == productoCodigoSeleccionado;
-                                  return TableRow(
-                                    decoration: BoxDecoration(
-                                      color: isSelected ? Colors.blue.withOpacity(0.1) : Colors.transparent,
-                                    ),
-                                    children: [
-                                      _buildDataCell(producto['#']?.toString() ?? '', producto: producto),
-                                      _buildDataCell(producto['CODIGO']?.toString() ?? '', producto: producto),
-                                      _buildDataCell(producto['UB']?.toString() ?? '', producto: producto),
-                                      _buildDataCell(producto['REF']?.toString() ?? '', producto: producto),
-                                      _buildDataCell(producto['ORIGEN']?.toString() ?? '', producto: producto),
-                                      _buildDataCell(producto['DESCRIPCION']?.toString() ?? '', maxLines: 2, producto: producto),
-                                      _buildDataCell(producto['VEHICULO']?.toString() ?? '', producto: producto),
-                                      _buildDataCell(producto['MARCA']?.toString() ?? '', producto: producto),
-                                      _buildDataCell(_formatMoneda(producto['VLR ANTES DE IVA']), producto: producto),
-                                      _buildDataCell('${producto['DSCTO']}%', producto: producto),
-                                      _buildDataCell(producto['CANT']?.toString() ?? '', producto: producto),
-                                      _buildDataCell(_formatMoneda(producto['V.BRUTO']), producto: producto),
-                                    ],
-                                  );
-                                }).toList(),
+                            // Cuerpo de la tabla con altura adaptativa
+                            Container(
+                              // Altura mínima para siempre mostrar algo
+                              constraints: BoxConstraints(
+                                minHeight: 100,
+                                // Altura máxima que sea aproximadamente 1/3 de la pantalla
+                                maxHeight: MediaQuery.of(context).size.height * 0.33,
+                              ),
+                              child: SingleChildScrollView(
+                                physics: const AlwaysScrollableScrollPhysics(),
+                                child: Table(
+                                  border: TableBorder.all(color: Colors.grey.shade300),
+                                  columnWidths: const {
+                                    0: FractionColumnWidth(0.05), // #
+                                    1: FractionColumnWidth(0.09), // CÓDIGO
+                                    2: FractionColumnWidth(0.05), // UB
+                                    3: FractionColumnWidth(0.09), // REF
+                                    4: FractionColumnWidth(0.08), // ORIGEN
+                                    5: FractionColumnWidth(0.15), // DESCRIPCIÓN
+                                    6: FractionColumnWidth(0.12), // VEHÍCULO
+                                    7: FractionColumnWidth(0.09), // MARCA
+                                    8: FractionColumnWidth(0.09), // ANTES IVA
+                                    9: FractionColumnWidth(0.05), // DSCTO
+                                    10: FractionColumnWidth(0.05), // CANT
+                                    11: FractionColumnWidth(0.09), // V.BRUTO
+                                  },
+                                  defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+                                  children: productosAgregados.map((producto) {
+                                    bool isSelected = producto['CODIGO'] == productoCodigoSeleccionado;
+                                    return TableRow(
+                                      decoration: BoxDecoration(
+                                        color: isSelected ? Colors.blue.withOpacity(0.1) : Colors.transparent,
+                                      ),
+                                      children: [
+                                        _buildDataCell(producto['#']?.toString() ?? '', producto: producto),
+                                        _buildDataCell(producto['CODIGO']?.toString() ?? '', producto: producto),
+                                        _buildDataCell(producto['UB']?.toString() ?? '', producto: producto),
+                                        _buildDataCell(producto['REF']?.toString() ?? '', producto: producto),
+                                        _buildDataCell(producto['ORIGEN']?.toString() ?? '', producto: producto),
+                                        _buildDataCell(producto['DESCRIPCION']?.toString() ?? '', maxLines: 2, producto: producto),
+                                        _buildDataCell(producto['VEHICULO']?.toString() ?? '', producto: producto),
+                                        _buildDataCell(producto['MARCA']?.toString() ?? '', producto: producto),
+                                        _buildDataCell(_formatMoneda(producto['VLR ANTES DE IVA']), producto: producto),
+                                        _buildDataCell('${producto['DSCTO']}%', producto: producto),
+                                        _buildDataCell(producto['CANT']?.toString() ?? '', producto: producto),
+                                        _buildDataCell(_formatMoneda(producto['V.BRUTO']), producto: producto),
+                                      ],
+                                    );
+                                  }).toList(),
+                                ),
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  
-                  const SizedBox(height: 20),
-                  
-                  // Sección inferior
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Imagen del producto
-                      Container(
-                        width: 180,
-                        height: 140,
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: _buildImagenProducto(),
-                      ),
-                      
-                      const SizedBox(width: 16),
-                      
-                      // Observaciones
-                      Expanded(
-                        flex: 2,
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          height: 140,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFCFD5E1),
-                            borderRadius: BorderRadius.circular(5),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('OBSERVACIONES:', style: TextStyle(fontWeight: FontWeight.bold)),
-                              const SizedBox(height: 5),
-                              Expanded(
-                                child: TextField(
-                                  controller: observacionesController,
-                                  maxLines: null,
-                                  expands: true,
-                                  textAlignVertical: TextAlignVertical.top,
-                                  decoration: const InputDecoration(
-                                    filled: true,
-                                    fillColor: Colors.white,
-                                    contentPadding: EdgeInsets.all(8),
-                                    border: OutlineInputBorder(),
-                                    alignLabelWithHint: true,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      
-                      const SizedBox(width: 16),
-                      
-                      // Totales
-                      Container(
-                        width: 180,
-                        child: Table(
-                          border: TableBorder.all(),
-                          columnWidths: const {
-                            0: FlexColumnWidth(1),
-                            1: FlexColumnWidth(1),
-                          },
-                          children: [
-                            _buildTotalRow2('V.BRUTO', formatCurrency(valorBrutoTotal)),
-                            _buildTotalRow2('DSCTO', formatCurrency(descuentoTotal)),
-                            _buildTotalRow2('SUBTOTAL', formatCurrency(subtotal)),
-                            _buildTotalRow2('IVA', formatCurrency(iva)),
-                            _buildTotalRow2('TOTAL', formatCurrency(total), isTotal: true),
                           ],
                         ),
                       ),
-                    ],
-                  ),
                   
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 10),
+                  
+                  // Sección inferior
+                  Row(
+  crossAxisAlignment: CrossAxisAlignment.start,
+  children: [
+    // Imagen del producto (ligeramente más pequeña)
+    Container(
+      width: 100, // Reducido de 110 a 100
+      height: 85,
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: _buildImagenProducto(),
+    ),
+    
+    const SizedBox(width: 10), // Reducido de 12 a 10
+    
+    // Observaciones (expansible)
+    Expanded(
+      flex: 3, // Aumentado de 2 a 3 para darle más espacio
+      child: Container(
+        padding: const EdgeInsets.all(6),
+        height: 85,
+        decoration: BoxDecoration(
+          color: const Color(0xFFCFD5E1),
+          borderRadius: BorderRadius.circular(5),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('OBSERVACIONES:', 
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+            const SizedBox(height: 3),
+            Expanded(
+              child: TextField(
+                controller: observacionesController,
+                maxLines: null,
+                expands: true,
+                style: TextStyle(fontSize: 11),
+                textAlignVertical: TextAlignVertical.top,
+                decoration: const InputDecoration(
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding: EdgeInsets.all(6),
+                  border: OutlineInputBorder(),
+                  alignLabelWithHint: true,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+    
+    const SizedBox(width: 10),
+    
+    // Totales (reducido)
+   Container(
+      width: 140, // Reducido de 150 a 140
+      child: Table(
+        border: TableBorder.all(),
+        columnWidths: const {
+          0: FlexColumnWidth(1),
+          1: FlexColumnWidth(1),
+        },
+        defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+        children: [
+          _buildTotalRow2('V.BRUTO', formatCurrency(valorBrutoTotal), heightReduced: true),
+          _buildTotalRow2('DSCTO', formatCurrency(descuentoTotal), heightReduced: true),
+          _buildTotalRow2('SUBTOTAL', formatCurrency(subtotal), heightReduced: true),
+          _buildTotalRow2('IVA', formatCurrency(iva), heightReduced: true),
+          _buildTotalRow2('TOTAL', formatCurrency(total), isTotal: true, heightReduced: true),
+        ],
+      ),
+    ),
+  ],
+),
+                  
+                  const SizedBox(height: 10),
                   
                   // Botones
                   Center(
@@ -2220,29 +2219,31 @@ String formatCurrency(dynamic value) {
     );
   }
 
-  TableRow _buildTotalRow2(String label, String value, {bool isTotal = false}) {
+  TableRow _buildTotalRow2(String label, String value, {bool isTotal = false, bool heightReduced = false}) {
   return TableRow(
     decoration: BoxDecoration(
       color: isTotal ? const Color(0xFF1A4379) : const Color(0xFFCFD5E1),
     ),
     children: [
       Padding(
-        padding: const EdgeInsets.all(8),
+        padding: EdgeInsets.all(heightReduced ? 3 : 8), // Reducido aún más: de 4 a 3
         child: Text(
           label,
           style: TextStyle(
             fontWeight: FontWeight.bold,
             color: isTotal ? Colors.white : Colors.black,
+            fontSize: heightReduced ? 10 : 12, // Reducido aún más: de 11 a 10
           ),
         ),
       ),
       Padding(
-        padding: const EdgeInsets.all(8),
+        padding: EdgeInsets.all(heightReduced ? 3 : 8), // Reducido aún más: de 4 a 3
         child: Text(
           value,
           style: TextStyle(
             fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
             color: isTotal ? Colors.white : Colors.black,
+            fontSize: heightReduced ? 10 : 12, // Reducido aún más: de 11 a 10
           ),
         ),
       ),

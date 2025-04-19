@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'cliente_service_local.dart';
-import 'asesor_service_local.dart'; // Cambio aquí - importar el nuevo servicio
+import 'asesor_service_local.dart';
 import 'productos_orden.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class OrdenDePedido extends StatefulWidget {
   const OrdenDePedido({super.key});
@@ -26,20 +27,103 @@ class _OrdenDePedidoState extends State<OrdenDePedido> {
   String errorMessage = '';
   final TextEditingController ordenNumeroController = TextEditingController();
 
+  // URL base del servidor - usar la misma que en los servicios
+  static const String baseUrl = 'http://192.168.1.2:3000'; // Para dispositivo real
+
   @override
   void initState() {
     super.initState();
     // Inicializar la localización antes de usarla
     initializeDateFormatting('es_ES', null);
-    // Cargar último número de orden
-    _cargarNumeroOrden();
-}
+    // Obtener número de orden del servidor
+    _obtenerSiguienteNumeroOrden();
+  }
 
   String obtenerFechaActual() {
     final now = DateTime.now();
     final formatter = DateFormat('dd – MMMM – yyyy', 'es_ES');
     String fecha = formatter.format(now).toUpperCase();
     return fecha;
+  }
+
+  // Nuevo método para obtener número del servidor
+  Future<void> _obtenerSiguienteNumeroOrden() async {
+    setState(() {
+      isLoading = true;
+      errorMessage = '';
+    });
+
+    try {
+      // Intentar obtener el número del servidor
+      final response = await http.get(
+        Uri.parse('$baseUrl/siguiente-orden'),
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(
+        Duration(seconds: 10),
+        onTimeout: () => throw Exception('Tiempo de espera agotado al conectar con el servidor'),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        
+        if (data['success']) {
+          // Actualizar el estado con el nuevo número
+          setState(() {
+            // Guardar el valor numérico para referencia
+            numeroOrdenActual = data['valor'];
+            // Usar el formato proporcionado por el servidor
+            ordenNumeroController.text = data['numeroOrden'];
+          });
+          
+          // También guardar en SharedPreferences como respaldo
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setInt('ultimoNumeroOrden', numeroOrdenActual);
+          
+          print("Número de orden obtenido del servidor: ${ordenNumeroController.text}");
+        } else {
+          // Error en la respuesta del servidor
+          throw Exception(data['message'] ?? 'Error al obtener número de orden');
+        }
+      } else {
+        // Error HTTP
+        throw Exception('Error en la solicitud: ${response.statusCode}');
+      }
+    } catch (e) {
+      print("Error al obtener número de orden: $e");
+      
+      // Plan B: Usar SharedPreferences local como respaldo
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        numeroOrdenActual = prefs.getInt('ultimoNumeroOrden') ?? 1;
+        // Incrementar para la próxima orden
+        numeroOrdenActual++;
+        // Guardar el valor actualizado
+        await prefs.setInt('ultimoNumeroOrden', numeroOrdenActual);
+        
+        // Formatear el número para mostrar
+        ordenNumeroController.text = 'OP-${numeroOrdenActual.toString().padLeft(5, '0')}';
+        
+        // Mostrar advertencia
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('No se pudo conectar al servidor. Usando número de orden local.'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 5),
+          ),
+        );
+      } catch (localError) {
+        // Si falla el plan B, usar un valor predeterminado
+        setState(() {
+          numeroOrdenActual = DateTime.now().millisecondsSinceEpoch % 10000; // Usar timestamp como respaldo final
+          ordenNumeroController.text = 'OP-${numeroOrdenActual.toString().padLeft(5, '0')}';
+          errorMessage = 'Error al generar número de orden: $e';
+        });
+      }
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
   }
 
   Future<void> _cargarNumeroOrden() async {
@@ -186,6 +270,42 @@ class _OrdenDePedidoState extends State<OrdenDePedido> {
     );
   }
 
+  bool _puedeAvanzar() {
+  // Verificamos si tenemos datos mínimos del cliente y asesor
+  return clienteData.isNotEmpty && 
+         clienteData.containsKey('NIT CLIENTE') && 
+         !clienteData['NIT CLIENTE']!.isEmpty &&
+         asesorData.isNotEmpty && 
+         asesorData.containsKey('ID') && 
+         !asesorData['ID']!.isEmpty;
+}
+
+// Método para mostrar alerta si faltan datos
+void _mostrarAlertaDatosIncompletos() {
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: Text('Datos incompletos'),
+        content: Text(
+          'Para continuar, debe ingresar al menos:\n\n'
+          '• Información del cliente (NIT)\n'
+          '• Información del asesor (ID)\n\n'
+          'Por favor, complete estos datos antes de proceder.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+            child: Text('Entendido'),
+          ),
+        ],
+      );
+    },
+  );
+}
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -246,16 +366,22 @@ class _OrdenDePedidoState extends State<OrdenDePedido> {
                           // Botón de Productos a Solicitar (reemplazando el recuadro)
                           GestureDetector(
                             onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => ProductosOrden(
-                                    clienteData: clienteData,
-                                    asesorData: asesorData,
-                                    ordenNumero: ordenNumeroController.text,
+                              if (_puedeAvanzar()) {
+                                // Si tenemos datos suficientes, navegamos a la pantalla de productos
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => ProductosOrden(
+                                      clienteData: clienteData,
+                                      asesorData: asesorData,
+                                      ordenNumero: ordenNumeroController.text,
+                                    ),
                                   ),
-                                ),
-                              );
+                                );
+                              } else {
+                                // Si faltan datos, mostramos la alerta
+                                _mostrarAlertaDatosIncompletos();
+                              }
                             },
                             child: Container(
                               padding: EdgeInsets.all(16),
