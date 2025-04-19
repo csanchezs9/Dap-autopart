@@ -15,8 +15,9 @@ const app = express();
 app.use(bodyParser.json()); // Ya deberías tener esto
 app.use(bodyParser.urlencoded({ extended: true }));
 
-const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin'; 
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME
 // Contraseña: dap2024
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD
 
 
 // Crear carpeta de archivos si no existe
@@ -71,9 +72,9 @@ function guardarContador() {
 
 
 function verificarPassword(password) {
-  console.log("Contraseña ingresada:", password);
-  // Verificación directa sin hash
-  return password === 'dap2024';
+  const hash = crypto.createHash('md5').update(password).digest('hex');
+  console.log("Hash calculado:", hash);
+  return hash === ADMIN_PASSWORD;
 }
 
 
@@ -112,10 +113,6 @@ app.post('/login', (req, res) => {
   const password = req.body.password;
   
   console.log("Intento de login para usuario:", username);
-  console.log("Contraseña recibida:", password);
-  console.log("Username recibido:", username);
-console.log("Username esperado:", ADMIN_USERNAME);
-console.log("¿Son iguales?", username === ADMIN_USERNAME);
   
   if (username === ADMIN_USERNAME && verificarPassword(password)) {
     console.log("Login exitoso");
@@ -123,9 +120,6 @@ console.log("¿Son iguales?", username === ADMIN_USERNAME);
     res.redirect('/admin');
   } else {
     console.log("Login fallido");
-    console.log("¿Username correcto?", username === ADMIN_USERNAME);
-    console.log("¿Password correcto?", verificarPassword(password));
-
     res.status(401).send(`
       <html>
         <head>
@@ -256,8 +250,8 @@ const transporter = nodemailer.createTransport({
   port: 587,
   secure: false,
   auth: {
-    user: process.env.EMAIL_USER || 'camilosanchezwwe@gmail.com',
-    pass: process.env.EMAIL_PASS || 'xens efby pvfc qdhz'
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
   }
 });
 
@@ -482,7 +476,7 @@ app.post('/send-email', upload.single('pdf'), async (req, res) => {
     console.log("Lista final de CC:", ccList);
 
     const mailOptions = {
-      from: '"DAP AutoPart\'s" <camilosanchezwwe@gmail.com>',
+      from: '"DAP AutoPart\'s"',
       to: clienteEmail,
       cc: ccList.join(', '),
       subject: asunto || 'Orden de Pedido - DAP AutoPart\'s',
