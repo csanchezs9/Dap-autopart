@@ -9,7 +9,6 @@ const csv = require('csv-parser'); // Para CSV estándar
 const { parse } = require('csv-parse/sync'); // Para control manual del parsing
 
 const app = express();
-const PORT = process.env.PORT;
 
 
 // Configurar CORS para permitir solicitudes de la app
@@ -1457,6 +1456,7 @@ app.post('/upload-productos', upload.single('productos'), (req, res) => {
   }
 });
 
+const PORT = process.env.PORT;
 // Iniciar el servidor
 app.listen(PORT, () => {
   console.log(`Servidor escuchando en http://0.0.0.0:${PORT}`);
