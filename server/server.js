@@ -161,8 +161,8 @@ const transporter = nodemailer.createTransport({
   port: 587,
   secure: false,
   auth: {
-    user: 'camilosanchezwwe@gmail.com',
-    pass: 'xens efby pvfc qdhz'
+    user: process.env.EMAIL_USER || 'camilosanchezwwe@gmail.com',
+    pass: process.env.EMAIL_PASS || 'xens efby pvfc qdhz'
   }
 });
 
@@ -1458,7 +1458,8 @@ app.post('/upload-productos', upload.single('productos'), (req, res) => {
 });
 
 // Iniciar el servidor
-app.listen(PORT,'0.0.0.0', () => {
+PORT = process.env.PORT || 3000;
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Servidor escuchando en http://0.0.0.0:${PORT}`);
   console.log(`Puedes acceder desde otros dispositivos usando: http://<IP_LOCAL>:${PORT}`);
 
