@@ -127,14 +127,6 @@ class _OrdenDePedidoState extends State<OrdenDePedido> {
     }
   }
 
-  Future<void> _cargarNumeroOrden() async {
-  final prefs = await SharedPreferences.getInstance();
-  setState(() {
-    numeroOrdenActual = prefs.getInt('ultimoNumeroOrden') ?? 1;
-    ordenNumeroController.text = 'OP-${numeroOrdenActual.toString().padLeft(5, '0')}';
-  });
-}
-
   // Método para buscar cliente por NIT usando el servicio
   void buscarClientePorNIT(String nit) async {
     if (nit.trim().isEmpty) {

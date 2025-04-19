@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -43,21 +42,24 @@ class ListaPreciosService {
       final asesorNombre = prefs.getString('asesor_nombre') ?? '';
       final asesorZona = prefs.getString('asesor_zona') ?? '';
       String asesorCorreo = '';
+      String asesorTelefono = '';
+      
       
       if (asesorId.isNotEmpty) {
-        try {
-          final asesorResponse = await http.get(Uri.parse('$baseUrl/asesores/$asesorId'));
-          if (asesorResponse.statusCode == 200) {
-            final asesorData = json.decode(asesorResponse.body);
-            if (asesorData['success'] && asesorData.containsKey('asesor')) {
-              final asesor = asesorData['asesor'];
-              asesorCorreo = asesor['MAIL'] ?? '';
-            }
+      try {
+        final asesorResponse = await http.get(Uri.parse('$baseUrl/asesores/$asesorId'));
+        if (asesorResponse.statusCode == 200) {
+          final asesorData = json.decode(asesorResponse.body);
+          if (asesorData['success'] && asesorData.containsKey('asesor')) {
+            final asesor = asesorData['asesor'];
+            asesorCorreo = asesor['MAIL'] ?? '';
+            asesorTelefono = asesor['CEL'] ?? ''; // Obtener el teléfono
           }
-        } catch (e) {
-          print("Error al obtener correo del asesor: $e");
         }
+      } catch (e) {
+        print("Error al obtener datos del asesor: $e");
       }
+    }
 
       // Obtener productos del servidor
       final productosResponse = await http.get(Uri.parse('$baseUrl/productos'));
@@ -123,13 +125,14 @@ class ListaPreciosService {
       final filePath = '${directory.path}/lista_precios_completa.pdf';
       
       // Generar el PDF directamente en un archivo para ahorrar memoria
-      await _generarPDFDirecto(
-        filePath,
-        productosDisponibles,
-        asesorNombre,
-        asesorZona,
-        asesorCorreo
-      );
+       await _generarPDFDirecto(
+      filePath,
+      productosDisponibles,
+      asesorNombre,
+      asesorZona,
+      asesorCorreo,
+      asesorTelefono // Añadir parámetro de teléfono
+    );
       
       // Cerrar diálogo de carga
       Navigator.of(context, rootNavigator: true).pop();
@@ -180,7 +183,8 @@ class ListaPreciosService {
     List<Map<String, dynamic>> productos,
     String asesorNombre,
     String asesorZona,
-    String asesorCorreo
+    String asesorCorreo,
+    String asesorTelefono,
   ) async {
     // Inicializar fecha
     await initializeDateFormatting('es_ES', null);
@@ -257,19 +261,21 @@ class ListaPreciosService {
             
             // Información fecha y asesor
             pw.Expanded(
-              flex: 4,
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.end,
-                children: [
-                  pw.Text('Fecha: $fechaActual', 
-                    style: pw.TextStyle(fontSize: fuenteEncabezado)),
-                  pw.Text('Asesor: $asesorNombre', 
-                    style: pw.TextStyle(fontSize: fuenteEncabezado)),
-                  pw.Text('$asesorZona | $asesorCorreo', 
-                    style: pw.TextStyle(fontSize: fuenteEncabezado-1)),
-                ],
-              ),
-            ),
+    flex: 4,
+    child: pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.end,
+      children: [
+        pw.Text('Fecha: $fechaActual', 
+          style: pw.TextStyle(fontSize: fuenteEncabezado)),
+        pw.Text('Asesor: $asesorNombre', 
+          style: pw.TextStyle(fontSize: fuenteEncabezado)),
+        // Aquí añadimos el número de teléfono
+        pw.Text('$asesorZona | $asesorCorreo${asesorTelefono.isNotEmpty ? " | Tel: $asesorTelefono" : ""}', 
+          style: pw.TextStyle(fontSize: fuenteEncabezado-1)),
+      ],
+    ),
+  ),
+  
           ],
         ),
       );
