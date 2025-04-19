@@ -1458,7 +1458,6 @@ app.post('/upload-productos', upload.single('productos'), (req, res) => {
 });
 
 // Iniciar el servidor
-PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Servidor escuchando en http://0.0.0.0:${PORT}`);
   console.log(`Puedes acceder desde otros dispositivos usando: http://<IP_LOCAL>:${PORT}`);
