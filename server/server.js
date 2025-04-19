@@ -7,6 +7,8 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const csv = require('csv-parser'); // Para CSV estándar
 const { parse } = require('csv-parse/sync'); // Para control manual del parsing
+const session = require('express-session');
+const crypto = require('crypto');
 
 const app = express();
 
@@ -62,6 +64,68 @@ function guardarContador() {
     console.error('Error al guardar el contador de órdenes:', error);
   }
 }
+
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
+const ADMIN_PASSWORD_HASH = process.env.ADMIN_PASSWORD_HASH || 'dapauto';
+
+function verificarPassword(password) {
+  const hash = crypto.createHash('md5').update(password).digest('hex');
+  return hash === ADMIN_PASSWORD_HASH;
+}
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'dap-autoparts-secret-key',
+  resave: false,
+  saveUninitialized: true,
+  cookie: { 
+    secure: process.env.NODE_ENV === 'production', 
+    maxAge: 3600000 // 1 hora
+  }
+}));
+function requireAuth(req, res, next) {
+  if (req.session && req.session.authenticated) {
+    return next();
+  } else {
+    return res.redirect('/login');
+  }
+}
+app.get('/login', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+app.post('/login', bodyParser.urlencoded({ extended: true }), (req, res) => {
+  const { username, password } = req.body;
+  
+  if (username === ADMIN_USERNAME && verificarPassword(password)) {
+    req.session.authenticated = true;
+    res.redirect('/admin');
+  } else {
+    res.status(401).send(`
+      <html>
+        <head>
+          <title>Error de autenticación</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 0; padding: 20px; text-align: center; }
+            .error { color: red; margin-bottom: 20px; }
+            .btn { padding: 10px 20px; background-color: #1A4379; color: white; border: none; border-radius: 5px; cursor: pointer; }
+          </style>
+        </head>
+        <body>
+          <h2>Error de autenticación</h2>
+          <p class="error">Usuario o contraseña incorrectos</p>
+          <a href="/login" class="btn">Volver a intentar</a>
+        </body>
+      </html>
+    `);
+  }
+});
+app.get('/logout', (req, res) => {
+  req.session.destroy();
+  res.redirect('/login');
+});
+
+// Proteger la ruta de administración
+app.get('/admin', requireAuth, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+});
 
 app.get('/siguiente-orden', (req, res) => {
   try {
@@ -298,7 +362,7 @@ app.get('/correos', (req, res) => {
 });
 
 // Subir un nuevo archivo de correos
-app.post('/upload-correos', upload.single('correos'), (req, res) => {
+app.post('/upload-correos',requireAuth, upload.single('correos'), (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'No se ha subido ningún archivo' });
@@ -630,7 +694,7 @@ app.get('/clientes/:nit', (req, res) => {
 });
 
 // Subir un nuevo archivo de clientes
-app.post('/upload-clientes', upload.single('clientes'), (req, res) => {
+app.post('/upload-clientes', requireAuth,upload.single('clientes'), (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'No se ha subido ningún archivo' });
@@ -908,7 +972,7 @@ app.get('/asesores/correo/:email', (req, res) => {
 });
 
 // Subir un nuevo archivo de asesores
-app.post('/upload-asesores', upload.single('asesores'), (req, res) => {
+app.post('/upload-asesores',requireAuth, upload.single('asesores'), (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'No se ha subido ningún archivo' });
@@ -1379,16 +1443,12 @@ app.get('/ping', (req, res) => {
   res.json({ status: 'ok' });
 });
 
-// Endpoints para la administración web
-app.get('/admin', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'admin.html'));
-});
 
 // Servir archivos estáticos para la interfaz de administración
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Subir un nuevo catálogo
-app.post('/upload-catalogo', upload.single('catalogo'), (req, res) => {
+app.post('/upload-catalogo',requireAuth, upload.single('catalogo'), (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'No se ha subido ningún archivo' });
@@ -1412,7 +1472,7 @@ app.post('/upload-catalogo', upload.single('catalogo'), (req, res) => {
 });
 
 // Subir un nuevo archivo de productos
-app.post('/upload-productos', upload.single('productos'), (req, res) => {
+app.post('/upload-productos',requireAuth, upload.single('productos'), (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'No se ha subido ningún archivo' });
@@ -1455,6 +1515,7 @@ app.post('/upload-productos', upload.single('productos'), (req, res) => {
     res.status(500).json({ success: false, message: error.toString() });
   }
 });
+
 
 const PORT = process.env.PORT;
 // Iniciar el servidor

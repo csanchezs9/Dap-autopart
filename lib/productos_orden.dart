@@ -11,7 +11,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'producto_service.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
+
 
 
 
@@ -281,43 +281,7 @@ String _formatMoneda(dynamic valor) {
   return '\$${formatter.format(numValor)}';
 }
 
-  pw.Widget _buildPDFInfoRow(String label, String value) {
-  return pw.Padding(
-    padding: pw.EdgeInsets.symmetric(vertical: 2),
-    child: pw.Row(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        pw.SizedBox(
-          width: 120,
-          child: pw.Text(
-            label,
-            style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9),
-          ),
-        ),
-        pw.Expanded(
-          child: pw.Text(value, style: pw.TextStyle(fontSize: 9)),
-        ),
-      ],
-    ),
-  );
-}
-
-
-pw.Widget _buildPDFTotalRow(String label, String value) {
-  return pw.Container(
-    padding: pw.EdgeInsets.all(8),
-    decoration: pw.BoxDecoration(
-      border: pw.Border(bottom: pw.BorderSide()),
-    ),
-    child: pw.Row(
-      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-      children: [
-        pw.Text(label, style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-        pw.Text(value),
-      ],
-    ),
-  );
-}
+ 
 Widget _buildCompactInfoRow(String label, String value) {
   return Padding(
     padding: const EdgeInsets.symmetric(vertical: 1),
@@ -1272,33 +1236,6 @@ Future<Uint8List?> _generarPDFMejorado() async {
   );
 }
 
-  Widget _buildTableViewHeaderCell(String text) {
-  return Padding(
-    padding: EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-    child: Text(
-      text,
-      style: TextStyle(
-        color: Colors.white,
-        fontWeight: FontWeight.bold,
-        fontSize: 11,
-      ),
-      textAlign: TextAlign.center,
-    ),
-  );
-}
-
-Widget _buildTableViewCell(String text, {int maxLines = 1}) {
-  return Padding(
-    padding: EdgeInsets.symmetric(vertical: 4, horizontal: 4),
-    child: Text(
-      text,
-      style: TextStyle(fontSize: 11),
-      overflow: TextOverflow.ellipsis,
-      maxLines: maxLines,
-      textAlign: TextAlign.center,
-    ),
-  );
-}
   
 
  Future<void> _enviarCorreoPorServidor() async {
@@ -2233,19 +2170,7 @@ String formatCurrency(dynamic value) {
   );
 }
 
-  Widget _buildCheckbox(String label, bool value, Function(bool?) onChanged) {
-    return Row(
-      children: [
-        Checkbox(
-          value: value,
-          onChanged: onChanged,
-          activeColor: Colors.black,
-        ),
-        Text(label, style: const TextStyle(fontSize: 12)),
-        const SizedBox(width: 10),
-      ],
-    );
-  }
+ 
 
   TableRow _buildTotalRowLarge(String label, String value, {bool isTotal = false}) {
   return TableRow(
@@ -2279,32 +2204,6 @@ String formatCurrency(dynamic value) {
   );
 }
 
-
-
-  // Widget para fila de información en vista previa
-  Widget _buildInfoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 120,
-            child: Text(
-              label,
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: TextStyle(fontSize: 12),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
   
   // Widget para fila de totales en vista previa
   Widget _buildTotalRow(String label, String value) {
