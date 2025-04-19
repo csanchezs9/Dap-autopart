@@ -67,6 +67,7 @@ const transporter = nodemailer.createTransport({
   }
 });
 
+// Función para procesar CSV de correos de área
 function procesarCsvCorreos(filePath) {
   try {
     // Leer el archivo completo
@@ -79,7 +80,6 @@ function procesarCsvCorreos(filePath) {
     let headerRowIndex = -1;
     for (let i = 0; i < Math.min(10, lines.length); i++) {
       const line = lines[i].toUpperCase();
-      // Buscar una línea que contenga "AREA" y "MAIL" que probablemente sea la fila de encabezados
       if (line.includes('AREA') && line.includes('MAIL')) {
         headerRowIndex = i;
         break;
@@ -93,42 +93,49 @@ function procesarCsvCorreos(filePath) {
     
     // Extraer encabezados
     const headerLine = lines[headerRowIndex];
-    
-    // Dividir encabezados considerando comillas
     const headers = dividirCSV(headerLine);
     
-    // Buscar posiciones de las columnas clave
+    // Buscar posiciones de las columnas
     const AREA_INDEX = encontrarIndice(headers, ['AREA', 'DEPARTAMENTO', 'SECCION']);
     const MAIL_INDEX = encontrarIndice(headers, ['MAIL', 'EMAIL', 'CORREO']);
     
-    // Procesar las líneas de datos 
     const correos = [];
+    
+    // Variable para marcar cuando encontramos la primera fila de asesores
+    let encontradoAsesores = false;
     
     for (let i = headerRowIndex + 1; i < lines.length; i++) {
       const line = lines[i].trim();
       if (!line) continue; // Saltar líneas vacías
       
       try {
-        // Dividir la línea considerando comillas
         const campos = dividirCSV(line);
         
-        // Saltar la línea si no hay suficientes columnas
-        if (campos.length < 2) {
+        // Saltar si no hay correo
+        if (campos.length <= MAIL_INDEX || !campos[MAIL_INDEX].trim()) {
           continue;
         }
         
-        // Validar que tengamos área y mail
-        if (AREA_INDEX >= 0 && AREA_INDEX < campos.length && MAIL_INDEX >= 0 && MAIL_INDEX < campos.length) {
-          const area = campos[AREA_INDEX].trim();
-          const mail = campos[MAIL_INDEX].trim();
-          
-          // Si ambos campos están completos y no es área de asesores
-          if (area && mail && area.toUpperCase() !== 'ASESORES') {
-            correos.push({
-              AREA: area,
-              MAIL: mail
-            });
-          }
+        const area = (AREA_INDEX >= 0 && AREA_INDEX < campos.length) ? campos[AREA_INDEX].trim().toUpperCase() : '';
+        const mail = campos[MAIL_INDEX].trim();
+        
+        // Si encontramos "ASESOR QUE GENERA EL PEDIDO", marcamos que empiezan los asesores
+        if (area === 'ASESOR QUE GENERA EL PEDIDO') {
+          encontradoAsesores = true;
+          continue; // Saltar esta fila
+        }
+        
+        // Si ya encontramos la sección de asesores, saltamos todas las filas siguientes
+        if (encontradoAsesores) {
+          continue;
+        }
+        
+        // Solo incluimos filas antes de la sección de asesores
+        if (mail) {
+          correos.push({
+            AREA: area,
+            MAIL: mail
+          });
         }
       } catch (parseError) {
         console.error(`Error al procesar línea ${i+1}:`, parseError);
@@ -141,7 +148,6 @@ function procesarCsvCorreos(filePath) {
     return [];
   }
 }
-
 // Endpoint para obtener información sobre el CSV de correos
 app.get('/correos-info', (req, res) => {
   try {
@@ -249,7 +255,7 @@ app.post('/send-email', upload.single('pdf'), async (req, res) => {
       return res.status(400).json({ success: false, message: 'Falta el correo del cliente' });
     }
 
-    // Obtener la lista de correos por área
+    // Obtener la lista de correos por área (solo incluirá áreas antes de ASESOR QUE GENERA EL PEDIDO)
     const correosPath = path.join(correosDirPath, 'correos.csv');
     let correosAdicionales = [];
     
@@ -263,13 +269,15 @@ app.post('/send-email', upload.single('pdf'), async (req, res) => {
       }
     }
 
-    // Combinar todos los destinatarios de copia
+    // Lista de CC
     let ccList = [];
+    
+    // Agregar el asesor que hizo login
     if (asesorEmail && asesorEmail.trim()) {
       ccList.push(asesorEmail.trim());
     }
     
-    // Agregar correos adicionales a la lista de CC
+    // Agregar áreas adicionales (solo CARTERA, BODEGA, DIRECCION COMERCIAL)
     if (correosAdicionales.length > 0) {
       ccList = ccList.concat(correosAdicionales);
     }
@@ -282,7 +290,7 @@ app.post('/send-email', upload.single('pdf'), async (req, res) => {
     const mailOptions = {
       from: '"DAP AutoPart\'s" <camilosanchezwwe@gmail.com>',
       to: clienteEmail,
-      cc: ccList.join(', '), // Unir todos los correos separados por coma
+      cc: ccList.join(', '),
       subject: asunto || 'Orden de Pedido - DAP AutoPart\'s',
       text: cuerpo || 'Adjunto encontrará su orden de pedido.',
       attachments: [
