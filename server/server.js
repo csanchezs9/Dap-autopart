@@ -12,6 +12,18 @@ const crypto = require('crypto');
 
 const app = express();
 
+const sessionConfig = {
+  secret: process.env.SESSION_SECRET || 'dap-autoparts-secret-key',
+  resave: true,                // Cambiado a true para forzar guardado de sesión
+  saveUninitialized: true,     // Cambiado a true para asegurar que se guarde
+  cookie: { 
+    secure: false,             // Cambiado a false (incluso en producción)
+    maxAge: 24 * 60 * 60 * 1000 // Aumentar a 24 horas
+  }
+};
+
+app.use(session(sessionConfig));
+
 app.use(bodyParser.json()); // Ya deberías tener esto
 app.use(bodyParser.urlencoded({ extended: true }));
 
@@ -78,8 +90,10 @@ function verificarPassword(password) {
 
 
 function requireAuth(req, res, next) {
+  console.log("Cookies recibidas:", req.headers.cookie);
+  console.log("Sesión completa:", req.session);
   console.log("Verificando autenticación para:", req.path);
-  console.log("Estado de sesión:", req.session ? req.session.authenticated : "No hay sesión");
+  console.log("Estado de autenticación:", req.session.authenticated);
   
   if (req.session && req.session.authenticated === true) {
     console.log("Autenticación exitosa, procediendo");
