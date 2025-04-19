@@ -136,12 +136,18 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: Center(
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
+  return Scaffold(
+    backgroundColor: Colors.white,
+    // Añadimos resizeToAvoidBottomInset para que la pantalla no se redimensione con el teclado
+    resizeToAvoidBottomInset: false, 
+    body: SingleChildScrollView(
+      child: Center(
+        child: Container(
+          // Esto asegura que el contenido tenga al menos la altura de la pantalla
+          height: MediaQuery.of(context).size.height,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
             // Parte izquierda: Login
             Expanded(
               flex: 2,
@@ -241,6 +247,8 @@ class _LoginScreenState extends State<LoginScreen> {
           ],
         ),
       ),
+    ),
+  ),
     );
   }
 }
