@@ -15,7 +15,7 @@ const app = express();
 app.use(bodyParser.json()); // Ya deberías tener esto
 app.use(bodyParser.urlencoded({ extended: true }));
 
-const ADMIN_USERNAME = process.env.ADMIN_USERNAME || '  ';
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin'; 
 // Contraseña: dap2024
 
 
@@ -113,6 +113,9 @@ app.post('/login', (req, res) => {
   
   console.log("Intento de login para usuario:", username);
   console.log("Contraseña recibida:", password);
+  console.log("Username recibido:", username);
+console.log("Username esperado:", ADMIN_USERNAME);
+console.log("¿Son iguales?", username === ADMIN_USERNAME);
   
   if (username === ADMIN_USERNAME && verificarPassword(password)) {
     console.log("Login exitoso");
