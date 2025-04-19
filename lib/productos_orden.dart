@@ -13,10 +13,13 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
+
+
 class ProductosOrden extends StatefulWidget {
   final Map<String, String> clienteData;
   final Map<String, String> asesorData;
   final String ordenNumero;
+
 
   const ProductosOrden({
     Key? key, 
@@ -1393,7 +1396,7 @@ Widget _buildTableViewCell(String text, {int maxLines = 1}) {
     print("Preparando solicitud al servidor...");
     final request = http.MultipartRequest(
       'POST',
-      Uri.parse('http://192.168.1.2:3000/send-email'), // Para dispositivo real
+      Uri.parse('https://dapautopart.onrender.com/send-email'),    
     );
     
     // Agregar los campos
@@ -1435,7 +1438,7 @@ DAP AutoPart's
         try {
           // Enviar confirmación al servidor
           await http.post(
-            Uri.parse('http://192.168.1.2:3000/confirmar-orden'),
+            Uri.parse('https://dapautopart.onrender.com/confirmar-orden'),
             headers: {'Content-Type': 'application/json'},
             body: json.encode({
               'numeroOrden': widget.ordenNumero,

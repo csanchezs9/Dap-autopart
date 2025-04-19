@@ -14,8 +14,9 @@ import 'package:open_file/open_file.dart';
 class ListaPreciosService {
   // URL base del servidor
   //static const String baseUrl = 'http://10.0.2.2:3000'; // Para emulador Android
-  static const String baseUrl = 'http://192.168.1.2:3000'; // Para dispositivo real (cambia la IP)
+  //static const String baseUrl = 'http://192.168.1.2:3000'; // Para dispositivo real (cambia la IP)
   // Método principal para generar y mostrar la lista de precios
+  static const String baseUrl = 'https://dapautopart.onrender.com'; // URL de producción
   static Future<void> generarListaPrecios(BuildContext context) async {
     try {
       // Mostrar diálogo de carga

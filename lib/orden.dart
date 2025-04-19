@@ -28,7 +28,8 @@ class _OrdenDePedidoState extends State<OrdenDePedido> {
   final TextEditingController ordenNumeroController = TextEditingController();
 
   // URL base del servidor - usar la misma que en los servicios
-  static const String baseUrl = 'http://192.168.1.2:3000'; // Para dispositivo real
+  //static const String baseUrl = 'http://192.168.1.2:3000'; // Para dispositivo real
+  static const String baseUrl = 'https://dapautopart.onrender.com'; 
 
   @override
   void initState() {

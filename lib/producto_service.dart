@@ -5,7 +5,7 @@ class ProductoService {
   // URL base del servidor - Usar la misma configuración que en CatalogoService
   //static const String baseUrl = 'http://10.0.2.2:3000'; // Para emulador Android
   // static const String baseUrl = 'http://localhost:3000'; // Para web
-  static const String baseUrl = 'http://192.168.1.2:3000'; // Para dispositivo real (cambia la IP)
+  static const String baseUrl = 'https://dapautopart.onrender.com'; // URL de producción
 
   static Future<List<Map<String, dynamic>>> obtenerProductos() async {
     final url = '$baseUrl/productos';

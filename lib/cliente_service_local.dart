@@ -3,10 +3,10 @@ import 'dart:convert';
 
 class ClienteServiceLocal {
   // URL base del servidor - Deberás ajustarla según la ubicación de tu servidor
-  static const String baseUrl = 'http://192.168.1.2:3000'; // Para dispositivo real (cambia la IP)
+  //static const String baseUrl = 'http://192.168.1.2:3000'; // Para dispositivo real (cambia la IP)
   // static const String baseUrl = 'http://localhost:3000'; // Para web
   //static const String baseUrl = 'http://10.0.2.2:3000'; // Para emulador Android
-
+static const String baseUrl = 'https://dapautopart.onrender.com'; // URL de producción
   // Método para obtener todos los clientes desde el servidor
   static Future<List<Map<String, dynamic>>> obtenerClientes() async {
     final url = '$baseUrl/clientes';
