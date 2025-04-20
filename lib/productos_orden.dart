@@ -40,6 +40,7 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
   final TextEditingController numeroController = TextEditingController();
   final TextEditingController cantidadController = TextEditingController();
   final TextEditingController observacionesController = TextEditingController();
+   final FocusNode observacionesFocusNode = FocusNode();
   
   
   bool isLoading = false;
@@ -81,12 +82,37 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
       duration: const Duration(seconds: 2),
       vsync: this,
     )..repeat();
+
+
+    observacionesFocusNode.addListener(() {
+      print("Cambio de foco en observaciones: ${observacionesFocusNode.hasFocus}");
+    });
+
   }
   
   @override
   void dispose() {
+    observacionesFocusNode.dispose();
     _animationController.dispose();
     super.dispose();
+  }
+
+  void _ocultarTeclado() {
+    print("Intentando ocultar teclado...");
+    
+    // Primera estrategia: unfocus en el FocusNode específico
+    if (observacionesFocusNode.hasFocus) {
+      observacionesFocusNode.unfocus();
+    }
+    
+    // Segunda estrategia: quitar foco de todo el contexto
+    FocusScope.of(context).unfocus();
+    
+    // Tercera estrategia: mover el foco a otro widget
+    FocusScope.of(context).requestFocus(FocusNode());
+    
+    // Cuarta estrategia: forzar ocultar el teclado usando SystemChannels
+    SystemChannels.textInput.invokeMethod('TextInput.hide');
   }
 
   String obtenerFechaActual() {
@@ -1151,43 +1177,59 @@ Future<Uint8List?> _generarPDFMejorado() async {
                               Expanded(
   flex: 3,
   child: Container(
+    padding: const EdgeInsets.all(4),
+    height: 90,
     decoration: BoxDecoration(
-      border: Border.all(color: Colors.grey),
-      borderRadius: BorderRadius.circular(5),
+      color: const Color(0xFFCFD5E1),
+      borderRadius: BorderRadius.circular(4),
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          padding: EdgeInsets.all(8),
-          color: Color(0xFF1A4379),
-          width: double.infinity,
-          child: Text(
-            'OBSERVACIONES',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          ),
-        ),
-        Padding(
-          padding: EdgeInsets.all(8),
-          // Contenedor con restricciones para ajustarse al contenido
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              minHeight: 20, // Altura mínima para consistencia visual
-              maxHeight: 150, // Altura máxima razonable
-            ),
-            child: SingleChildScrollView( // Para permitir desplazamiento si hay mucho texto
-              child: Text(
-                observacionesController.text.isEmpty ? 
-                'Sin observaciones' : observacionesController.text
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text('OBSERVACIONES:', 
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10)),
+            // Botón para cerrar el teclado
+            InkWell(
+              onTap: _ocultarTeclado,
+              child: Container(
+                padding: EdgeInsets.all(2),
+                child: Icon(Icons.keyboard_hide, size: 14, color: Colors.black54),
               ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 2), 
+        Expanded(
+          child: TextField(
+            controller: observacionesController,
+            focusNode: observacionesFocusNode,
+            maxLines: null,
+            expands: true,
+            style: TextStyle(fontSize: 10),
+            textAlignVertical: TextAlignVertical.top,
+            // Propiedades adicionales para mejor manejo del teclado
+            textInputAction: TextInputAction.done,
+            onEditingComplete: _ocultarTeclado,
+            decoration: const InputDecoration(
+              filled: true,
+              fillColor: Colors.white,
+              contentPadding: EdgeInsets.all(4),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(4)),
+                borderSide: BorderSide(width: 0.5),
+              ),
+              isDense: true,
+              alignLabelWithHint: true,
             ),
           ),
         ),
       ],
     ),
   ),
-),
-                              
+),    
                               SizedBox(width: 20),
                               
                               // Totales
@@ -1442,9 +1484,19 @@ DAP AutoPart's
     });
   }
 }
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
+
+
+// 2. Ahora, modifica tu método build para envolver todo en un GestureDetector:
+
+@override
+Widget build(BuildContext context) {
+  return GestureDetector(
+    // Al tocar en cualquier parte de la pantalla, ocultar el teclado
+    onTap: _ocultarTeclado,
+    // Necesario para que el detector capte gestos en áreas "vacías"
+    behavior: HitTestBehavior.opaque,
+    child: Scaffold(
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: const Text('Productos a Solicitar', style: TextStyle(color: Colors.white),),
         backgroundColor: const Color(0xFF1A4379),
@@ -1776,11 +1828,14 @@ Row(
     const SizedBox(width: 8),
     
     // Observaciones (expansible)
-    Expanded(
-      flex: 3,
+     Expanded(
+    flex: 3,
+    child: GestureDetector(
+      // Al tocar fuera del TextField, se cerrará el teclado
+      onTap: _ocultarTeclado,
       child: Container(
         padding: const EdgeInsets.all(4),
-        height: 90, // Aumentado de 70 a 90 para mantener proporción con la imagen
+        height: 90,
         decoration: BoxDecoration(
           color: const Color(0xFFCFD5E1),
           borderRadius: BorderRadius.circular(4),
@@ -1794,9 +1849,11 @@ Row(
             Expanded(
               child: TextField(
                 controller: observacionesController,
+                // Asignar el FocusNode al TextField
+                focusNode: observacionesFocusNode,
                 maxLines: null,
                 expands: true,
-                style: TextStyle(fontSize: 10), // Ligeramente más grande de 9 a 10
+                style: TextStyle(fontSize: 10),
                 textAlignVertical: TextAlignVertical.top,
                 decoration: const InputDecoration(
                   filled: true,
@@ -1815,6 +1872,7 @@ Row(
         ),
       ),
     ),
+  ),
     
     const SizedBox(width: 8),
     
@@ -1895,6 +1953,7 @@ Row(
                 ],
               ),
             ),
+          ),
     );
   }
   
