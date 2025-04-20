@@ -8,123 +8,143 @@ class ProductoService {
   static const String baseUrl = 'https://dapautopart.onrender.com'; // URL de producción
 
   static Future<List<Map<String, dynamic>>> obtenerProductos() async {
-    final url = '$baseUrl/productos';
+  final url = '$baseUrl/productos';
+  
+  try {
+    final response = await http.get(Uri.parse(url)).timeout(
+      Duration(seconds: 15),
+      onTimeout: () => throw Exception('Tiempo de espera agotado. Verifique su conexión a internet.'),
+    );
     
-    try {
-      final response = await http.get(Uri.parse(url));
-      print("Respuesta de la API: ${response.statusCode}");
+    print("Respuesta de la API: ${response.statusCode}");
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (!data.containsKey('success') || !data['success']) {
-          print("Respuesta no exitosa: ${data['message'] ?? 'Error desconocido'}");
-          return [];
-        }
-
-        if (!data.containsKey('productos') || data['productos'].isEmpty) {
-          print("No se encontraron productos en la respuesta");
-          return [];
-        }
-
-        final productos = <Map<String, dynamic>>[];
-        final productosData = data['productos'] as List;
-
-        // Debugging
-        if (productosData.isNotEmpty) {
-          print("Muestra de estructura de producto recibido: ${productosData.first}");
-        }
-
-        // Procesar cada producto del servidor
-        for (int i = 0; i < productosData.length; i++) {
-          final productoOriginal = Map<String, dynamic>.from(productosData[i]);
-          
-          // Normalizar el producto para nuestra aplicación
-          final producto = normalizarProducto(productoOriginal, i);
-          
-          if (producto != null) {
-            productos.add(producto);
-          }
-        }
-
-        print("Total de productos procesados correctamente: ${productos.length}");
-        return productos;
-      } else {
-        print('Error al obtener productos: ${response.statusCode} - ${response.body}');
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      if (!data.containsKey('success') || !data['success']) {
+        print("Respuesta no exitosa: ${data['message'] ?? 'Error desconocido'}");
         return [];
       }
-    } catch (e) {
-      print('Excepción al obtener productos: $e');
-      return [];
-    }
-  }
 
-  static Future<Map<String, dynamic>?> buscarProductoPorNumero(String numero) async {
-    print("Buscando producto con número: $numero");
-    try {
-      // Primero intentamos buscar el producto directamente en el servidor
-      final url = '$baseUrl/productos/$numero';
-      final response = await http.get(Uri.parse(url));
-      
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['success'] && data.containsKey('producto')) {
-          final productoOriginal = Map<String, dynamic>.from(data['producto']);
-          print("Producto encontrado en servidor (raw): $productoOriginal");
-          
-          // Convertir a nuestro formato normalizado
-          final producto = normalizarProducto(productoOriginal, 0);
-          
-          if (producto != null) {
-            print("¡Producto encontrado por servidor y normalizado!: $producto");
-            return producto;
-          } else {
-            print("Producto encontrado pero con formato inválido o agotado");
-          }
+      if (!data.containsKey('productos') || data['productos'].isEmpty) {
+        print("No se encontraron productos en la respuesta");
+        return [];
+      }
+
+      final productos = <Map<String, dynamic>>[];
+      final productosData = data['productos'] as List;
+
+      // Debugging
+      if (productosData.isNotEmpty) {
+        print("Muestra de estructura de producto recibido: ${productosData.first}");
+      }
+
+      // Procesar cada producto del servidor
+      for (int i = 0; i < productosData.length; i++) {
+        final productoOriginal = Map<String, dynamic>.from(productosData[i]);
+        
+        // Normalizar el producto para nuestra aplicación
+        final producto = normalizarProducto(productoOriginal, i);
+        
+        if (producto != null) {
+          productos.add(producto);
         }
       }
-      
-      // Como alternativa, si el servidor no encuentra el producto,
-      // o no está disponible, cargamos todos los productos y buscamos localmente
-      final productos = await obtenerProductos();
-      if (productos.isEmpty) {
-        print("No se cargaron productos del servidor");
-        return null;
-      }
-      
-      // Depuración: mostrar algunas filas para ver estructura
-      print("Primeros 3 productos disponibles:");
-      for (int i = 0; i < min(3, productos.length); i++) {
-        print("Índice $i: #=${productos[i]['#']}, CODIGO=${productos[i]['CODIGO']}");
-      }
-      
-      // Buscar primero por número exacto
-      var producto = productos.firstWhere(
-        (p) => p['#'].toString().trim() == numero.trim(),
-        orElse: () => <String, dynamic>{},
+
+      print("Total de productos procesados correctamente: ${productos.length}");
+      return productos;
+    } else {
+      print('Error al obtener productos: ${response.statusCode} - ${response.body}');
+      return [];
+    }
+  } catch (e) {
+    print('Excepción al obtener productos: $e');
+    throw Exception('Error de conexión: $e');
+  }
+}
+
+  static Future<Map<String, dynamic>?> buscarProductoPorNumero(String numero) async {
+  print("Buscando producto con número: $numero");
+  try {
+    // Verificar conectividad con un ping rápido
+    try {
+      final pingResponse = await http.get(
+        Uri.parse('$baseUrl/ping'),
+      ).timeout(
+        Duration(seconds: 5),
+        onTimeout: () => throw Exception('Sin conexión a internet'),
       );
       
-      if (producto.isNotEmpty) {
-        print("¡Producto encontrado por número exacto!: $producto");
-        return producto;
+      if (pingResponse.statusCode != 200) {
+        throw Exception('El servidor no está disponible');
       }
-      
-      // Si no se encuentra por número exacto, intentar interpretar como índice
-      int numeroInt = int.tryParse(numero) ?? 0;
-      if (numeroInt > 0 && numeroInt <= productos.length) {
-        int indice = numeroInt - 1;
-        print("Buscando producto en el índice: $indice");
-        producto = productos[indice];
-        print("¡Producto encontrado por índice!: $producto");
-        return producto;
+    } catch (connectionError) {
+      throw Exception('No se puede conectar al servidor. Verifique su conexión a internet.');
+    }
+    
+    // Primero intentamos buscar el producto directamente en el servidor
+    final url = '$baseUrl/productos/$numero';
+    final response = await http.get(Uri.parse(url));
+    
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      if (data['success'] && data.containsKey('producto')) {
+        final productoOriginal = Map<String, dynamic>.from(data['producto']);
+        print("Producto encontrado en servidor (raw): $productoOriginal");
+        
+        // Convertir a nuestro formato normalizado
+        final producto = normalizarProducto(productoOriginal, 0);
+        
+        if (producto != null) {
+          print("¡Producto encontrado por servidor y normalizado!: $producto");
+          return producto;
+        } else {
+          print("Producto encontrado pero con formato inválido o agotado");
+        }
       }
-      
-      print("No se encontró ningún producto con número/índice: $numero");
-      return null;
-    } catch (e) {
-      print("Error en buscarProductoPorNumero: $e");
+    }
+    
+    // Como alternativa, si el servidor no encuentra el producto,
+    // o no está disponible, cargamos todos los productos y buscamos localmente
+    final productos = await obtenerProductos();
+    if (productos.isEmpty) {
+      print("No se cargaron productos del servidor");
       return null;
     }
+    
+    // Depuración: mostrar algunas filas para ver estructura
+    print("Primeros 3 productos disponibles:");
+    for (int i = 0; i < min(3, productos.length); i++) {
+      print("Índice $i: #=${productos[i]['#']}, CODIGO=${productos[i]['CODIGO']}");
+    }
+    
+    // Buscar primero por número exacto
+    var producto = productos.firstWhere(
+      (p) => p['#'].toString().trim() == numero.trim(),
+      orElse: () => <String, dynamic>{},
+    );
+    
+    if (producto.isNotEmpty) {
+      print("¡Producto encontrado por número exacto!: $producto");
+      return producto;
+    }
+    
+    // Si no se encuentra por número exacto, intentar interpretar como índice
+    int numeroInt = int.tryParse(numero) ?? 0;
+    if (numeroInt > 0 && numeroInt <= productos.length) {
+      int indice = numeroInt - 1;
+      print("Buscando producto en el índice: $indice");
+      producto = productos[indice];
+      print("¡Producto encontrado por índice!: $producto");
+      return producto;
+    }
+    
+    print("No se encontró ningún producto con número/índice: $numero");
+    return null;
+  } catch (e) {
+    print("Error en buscarProductoPorNumero: $e");
+    throw Exception('Error al buscar producto: $e');
   }
+}
   
   // Método para normalizar un producto del formato del servidor al formato de la app
     static Map<String, dynamic>? normalizarProducto(Map<String, dynamic> productoOriginal, int indice) {

@@ -3,7 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'orden_de_pedido_main.dart';
 import 'package:flutter/services.dart';
 import 'asesor_service_local.dart';
-
+import 'package:http/http.dart' as http;
 
 void main() {
   // Aseguramos que Flutter esté inicializado antes de configurar la orientación
@@ -83,27 +83,38 @@ class _LoginScreenState extends State<LoginScreen> {
   });
 
   try {
-    // Buscar el asesor por correo electrónico
+    // Primero verificar conectividad con un ping rápido al servidor
+    try {
+      final pingResponse = await http.get(
+        Uri.parse('${AsesorServiceLocal.baseUrl}/ping'),
+      ).timeout(
+        Duration(seconds: 5),
+        onTimeout: () => throw Exception('Sin conexión a internet'),
+      );
+      
+      if (pingResponse.statusCode != 200) {
+        throw Exception('El servidor no está disponible');
+      }
+    } catch (connectionError) {
+      throw Exception('No se puede conectar al servidor. Verifique su conexión a internet.');
+    }
+
+    // Si llegamos aquí, hay conexión. Seguimos con el proceso normal
     final asesorEncontrado = await AsesorServiceLocal.buscarAsesorPorCorreo(emailIngresado);
     
     if (asesorEncontrado != null) {
-      // Obtener el ID del asesor
       final asesorId = asesorEncontrado['ID']?.toString() ?? '';
       
-      // Obtener los últimos 4 dígitos del ID como contraseña
       String passwordCorrecta = '';
       if (asesorId.length >= 4) {
         passwordCorrecta = asesorId.substring(asesorId.length - 4);
       } else {
-        // Si el ID tiene menos de 4 dígitos, usar el ID completo
         passwordCorrecta = asesorId;
       }
       
-      // Verificar si la contraseña ingresada coincide con los últimos 4 dígitos del ID
       if (password == passwordCorrecta) {
         await _guardarDatos();
         
-        // Guardamos información del asesor en sesión
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('asesor_id', asesorEncontrado['ID']?.toString() ?? '');
         await prefs.setString('asesor_nombre', asesorEncontrado['NOMBRE']?.toString() ?? '');
@@ -124,16 +135,43 @@ class _LoginScreenState extends State<LoginScreen> {
       );
     }
   } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error al iniciar sesión: $e')),
+    // Mejorar el mensaje de error para mostrar un mensaje más amigable al usuario
+    String mensajeError = 'Error al iniciar sesión';
+    
+    if (e.toString().contains('internet') || 
+        e.toString().contains('conectar') ||
+        e.toString().contains('conexión') ||
+        e.toString().contains('timeout') ||
+        e.toString().contains('SocketException')) {
+      mensajeError = 'No hay conexión a internet. Por favor verifique su conexión y vuelva a intentarlo.';
+    }
+    
+    // Mostrar un diálogo de error en lugar de solo un SnackBar para mayor visibilidad
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Error de conexión'),
+          content: Text(mensajeError),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text('Aceptar'),
+            ),
+          ],
+        );
+      },
     );
+    
+    print('Error detallado: $e');
   } finally {
     setState(() {
       isLoading = false;
     });
   }
 }
-
   @override
   Widget build(BuildContext context) {
   return Scaffold(

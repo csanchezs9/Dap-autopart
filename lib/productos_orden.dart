@@ -133,153 +133,195 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
   // Ajuste en la clase _ProductosOrdenState para modificar la función buscarProductoPorNumero
 
  void buscarProductoPorNumero() async {
-    String numero = numeroController.text.trim();
-    if (numero.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Por favor ingrese un número de producto')),
+  String numero = numeroController.text.trim();
+  if (numero.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Por favor ingrese un número de producto')),
+    );
+    return;
+  }
+  
+  // Mostrar indicador de carga
+  setState(() {
+    isLoading = true;
+  });
+  
+  try {
+    // Verificar conectividad con un ping rápido
+    try {
+      final pingResponse = await http.get(
+        Uri.parse('${ProductoService.baseUrl}/ping'),
+      ).timeout(
+        Duration(seconds: 5),
+        onTimeout: () => throw Exception('Sin conexión a internet'),
       );
-      return;
+      
+      if (pingResponse.statusCode != 200) {
+        throw Exception('El servidor no está disponible');
+      }
+    } catch (connectionError) {
+      throw Exception('No se puede conectar al servidor. Verifique su conexión a internet.');
     }
     
-    // Mostrar indicador de carga
-    setState(() {
-      isLoading = true;
-    });
+    // Obtener cantidad
+    int cantidad = 1;
+    if (cantidadController.text.isNotEmpty) {
+      cantidad = int.tryParse(cantidadController.text.trim()) ?? 1;
+    }
     
-    try {
-      // Obtener cantidad
-      int cantidad = 1;
-      if (cantidadController.text.isNotEmpty) {
-        cantidad = int.tryParse(cantidadController.text.trim()) ?? 1;
+    // Buscar producto por número en el servidor
+    final productoEncontrado = await ProductoService.buscarProductoPorNumero(numero);
+    
+    if (productoEncontrado != null) {
+      // Verificar si está agotado 
+      bool agotado = false;
+      if (productoEncontrado.containsKey('ESTADO')) {
+        agotado = productoEncontrado['ESTADO'].toString().toUpperCase().contains('AGOTADO');
       }
       
-      // Buscar producto por número en el servidor
-      final productoEncontrado = await ProductoService.buscarProductoPorNumero(numero);
-      
-      if (productoEncontrado != null) {
-        // Verificar si está agotado 
-        bool agotado = false;
-        if (productoEncontrado.containsKey('ESTADO')) {
-          agotado = productoEncontrado['ESTADO'].toString().toUpperCase().contains('AGOTADO');
+      if (agotado) {
+        // Mostrar alerta de producto agotado
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('Producto Agotado'),
+              content: Text('El producto número $numero está agotado y no puede ser añadido a la orden.'),
+              actions: [
+                TextButton(
+                  child: const Text('Aceptar'),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      } else {
+        // Procesar el producto encontrado
+        String codigo = productoEncontrado['CODIGO']?.toString() ?? '';
+        
+        Map<String, dynamic> producto = {
+          'CODIGO': codigo,
+          'CANT': cantidad,
+          '#': numero
+        };
+        
+        // Resto del código para procesar el producto encontrado
+        // ...
+        
+        // Mapeo de campos que vienen del servidor
+        producto['UB'] = productoEncontrado['UB'] ?? '';
+        producto['REF'] = productoEncontrado['REF'] ?? '';
+        producto['ORIGEN'] = productoEncontrado['ORIGEN'] ?? '';
+        producto['DESCRIPCION'] = productoEncontrado['DESCRIPCION'] ?? '';
+        producto['VEHICULO'] = productoEncontrado['VEHICULO'] ?? '';
+        producto['MARCA'] = productoEncontrado['MARCA'] ?? '';
+        
+        // Procesar precio - Asegurar que es un número
+        double valorUnidad = 0;
+        if (productoEncontrado.containsKey('VLR ANTES DE IVA')) {
+          if (productoEncontrado['VLR ANTES DE IVA'] is num) {
+            valorUnidad = (productoEncontrado['VLR ANTES DE IVA'] as num).toDouble();
+          } else {
+            valorUnidad = double.tryParse(productoEncontrado['VLR ANTES DE IVA'].toString()) ?? 0;
+          }
         }
         
-        if (agotado) {
-          // Mostrar alerta de producto agotado
-          showDialog(
-            context: context,
-            builder: (BuildContext context) {
-              return AlertDialog(
-                title: const Text('Producto Agotado'),
-                content: Text('El producto número $numero está agotado y no puede ser añadido a la orden.'),
-                actions: [
-                  TextButton(
-                    child: const Text('Aceptar'),
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                    },
-                  ),
-                ],
-              );
-            },
-          );
-        } else {
-          // Procesar el producto encontrado
-          String codigo = productoEncontrado['CODIGO']?.toString() ?? '';
-          
-          Map<String, dynamic> producto = {
-            'CODIGO': codigo,
-            'CANT': cantidad,
-            '#': numero
-          };
-          
-          // Mapeo de campos que vienen del servidor
-          producto['UB'] = productoEncontrado['UB'] ?? '';
-          producto['REF'] = productoEncontrado['REF'] ?? '';
-          producto['ORIGEN'] = productoEncontrado['ORIGEN'] ?? '';
-          producto['DESCRIPCION'] = productoEncontrado['DESCRIPCION'] ?? '';
-          producto['VEHICULO'] = productoEncontrado['VEHICULO'] ?? '';
-          producto['MARCA'] = productoEncontrado['MARCA'] ?? '';
-          
-          // Procesar precio - Asegurar que es un número
-          double valorUnidad = 0;
-          if (productoEncontrado.containsKey('VLR ANTES DE IVA')) {
-            if (productoEncontrado['VLR ANTES DE IVA'] is num) {
-              valorUnidad = (productoEncontrado['VLR ANTES DE IVA'] as num).toDouble();
-            } else {
-              valorUnidad = double.tryParse(productoEncontrado['VLR ANTES DE IVA'].toString()) ?? 0;
-            }
+        producto['VLR ANTES DE IVA'] = valorUnidad;
+        
+        // Procesar descuento - Asegurar que es un número
+        double descuentoOriginal = 0;
+        if (productoEncontrado.containsKey('DSCTO')) {
+          if (productoEncontrado['DSCTO'] is num) {
+            descuentoOriginal = (productoEncontrado['DSCTO'] as num).toDouble();
+             } else {
+            descuentoOriginal = double.tryParse(productoEncontrado['DSCTO'].toString().replaceAll('%', '')) ?? 0;
           }
-
-          // Imprimir para depuración
-          print("Valor antes de IVA para ${codigo}: $valorUnidad");
-
-          producto['VLR ANTES DE IVA'] = valorUnidad;
-
-          // Procesar descuento - Asegurar que es un número
-          double descuentoOriginal = 0;
-          if (productoEncontrado.containsKey('DSCTO')) {
-            if (productoEncontrado['DSCTO'] is num) {
-              descuentoOriginal = (productoEncontrado['DSCTO'] as num).toDouble();
-            } else {
-              descuentoOriginal = double.tryParse(productoEncontrado['DSCTO'].toString().replaceAll('%', '')) ?? 0;
-            }
-          }
-
-          // Guardar descuento original
-          producto['DSCTO_ORIGINAL'] = descuentoOriginal;
-
-          // Aplicar descuento según modo actual
-          if (isCondicionado) {
-            producto['DSCTO'] = 0.0;
-          } else if (isContado) {
-            // Solo aumentar 2% si el descuento original es exactamente 15% o 20%
-            if (descuentoOriginal == 15.0 || descuentoOriginal == 20.0) {
-              producto['DSCTO'] = descuentoOriginal + 2.0; // Aumentar 2% en modo CONTADO
-            } else {
-              producto['DSCTO'] = descuentoOriginal; // Mantener el descuento original para otros valores
-            }
-          } else {
-            producto['DSCTO'] = descuentoOriginal;
-          }
-
-          // Establecer V.BRUTO igual a VLR ANTES DE IVA (sin aplicar descuento)
-          double valorBruto = valorUnidad;
-
-          // Imprimir para depuración
-          print("Valor bruto establecido igual al valor antes de IVA: $valorBruto");
-
-          producto['V.BRUTO'] = valorBruto;
-          
-          setState(() {
-            productosAgregados.add(producto);
-            numeroController.clear();
-            cantidadController.clear();
-            calcularTotales();
-            
-            productoCodigoSeleccionado = codigo;
-            _checkImageExistence(codigo);
-          });
-
-          // Depuración: mostrar detalles del producto agregado
-          print("⭐ PRODUCTO AGREGADO A LA LISTA: $producto");
         }
-      } else {
-        // Si no se encuentra, mostrar mensaje
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('No se encontró producto con número: $numero')),
-        );
+        
+        // Guardar descuento original
+        producto['DSCTO_ORIGINAL'] = descuentoOriginal;
+        
+        // Aplicar descuento según modo actual
+        if (isCondicionado) {
+          producto['DSCTO'] = 0.0;
+        } else if (isContado) {
+          // Solo aumentar 2% si el descuento original es exactamente 15% o 20%
+          if (descuentoOriginal == 15.0 || descuentoOriginal == 20.0) {
+            producto['DSCTO'] = descuentoOriginal + 2.0; // Aumentar 2% en modo CONTADO
+          } else {
+            producto['DSCTO'] = descuentoOriginal; // Mantener el descuento original para otros valores
+          }
+        } else {
+          producto['DSCTO'] = descuentoOriginal;
+        }
+        
+        // Establecer V.BRUTO igual a VLR ANTES DE IVA (sin aplicar descuento)
+        double valorBruto = valorUnidad;
+        
+        producto['V.BRUTO'] = valorBruto;
+        
+        setState(() {
+          productosAgregados.add(producto);
+          numeroController.clear();
+          cantidadController.clear();
+          calcularTotales();
+          
+          productoCodigoSeleccionado = codigo;
+          _checkImageExistence(codigo);
+        });
+        
+        // Depuración: mostrar detalles del producto agregado
+        print("⭐ PRODUCTO AGREGADO A LA LISTA: $producto");
       }
-    } catch (e) {
-      print("Error al buscar producto: $e");
+    } else {
+      // Si no se encuentra, mostrar mensaje
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al procesar el producto: $e')),
+        SnackBar(content: Text('No se encontró producto con número: $numero')),
       );
-    } finally {
-      setState(() {
-        isLoading = false;
-      });
     }
+  } catch (e) {
+    // Mensaje más informativo según el tipo de error
+    String errorMsg = 'Error al buscar producto';
+    
+    if (e.toString().contains('internet') || 
+        e.toString().contains('conectar') ||
+        e.toString().contains('conexión') ||
+        e.toString().contains('timeout') ||
+        e.toString().contains('SocketException')) {
+      errorMsg = 'No hay conexión a internet. Por favor verifique su conexión y vuelva a intentarlo.';
+    } else {
+      errorMsg = 'Error al procesar el producto: $e';
+    }
+    
+    // Mostrar un diálogo en lugar de un SnackBar
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Error de conexión'),
+          content: Text(errorMsg),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text('Aceptar'),
+            ),
+          ],
+        );
+      },
+    );
+    
+    print("Error al buscar producto: $e");
+  } finally {
+    setState(() {
+      isLoading = false;
+    });
   }
+}
 
 
 
@@ -1286,6 +1328,22 @@ Future<Uint8List?> _generarPDFMejorado() async {
   });
 
   try {
+    // Verificar conectividad con un ping rápido
+    try {
+      final pingResponse = await http.get(
+        Uri.parse('${ProductoService.baseUrl}/ping'),
+      ).timeout(
+        Duration(seconds: 5),
+        onTimeout: () => throw Exception('Sin conexión a internet'),
+      );
+      
+      if (pingResponse.statusCode != 200) {
+        throw Exception('El servidor no está disponible');
+      }
+    } catch (connectionError) {
+      throw Exception('No se puede conectar al servidor. Verifique su conexión a internet.');
+    }
+    
     print("Generando PDF...");
     final pdf = await _generarPDFMejorado();
     print("PDF generado correctamente: ${pdf?.length ?? 0} bytes");
@@ -1375,7 +1433,7 @@ Future<Uint8List?> _generarPDFMejorado() async {
     print("Preparando solicitud al servidor...");
     final request = http.MultipartRequest(
       'POST',
-      Uri.parse('https://dapautopart.onrender.com/send-email'),    
+      Uri.parse('${ProductoService.baseUrl}/send-email'),    
     );
     
     // Agregar los campos
@@ -1404,7 +1462,11 @@ DAP AutoPart's
     
     // Enviar la solicitud
     print("Enviando solicitud al servidor...");
-    final streamedResponse = await request.send();
+    final streamedResponse = await request.send().timeout(
+      Duration(seconds: 30),
+      onTimeout: () => throw Exception('Tiempo de espera agotado al enviar el correo. Verifique su conexión.'),
+    );
+    
     print("Respuesta del servidor recibida: ${streamedResponse.statusCode}");
     final response = await http.Response.fromStream(streamedResponse);
     print("Cuerpo de la respuesta: ${response.body}");
@@ -1417,7 +1479,7 @@ DAP AutoPart's
         try {
           // Enviar confirmación al servidor
           await http.post(
-            Uri.parse('https://dapautopart.onrender.com/confirmar-orden'),
+            Uri.parse('${ProductoService.baseUrl}/confirmar-orden'),
             headers: {'Content-Type': 'application/json'},
             body: json.encode({
               'numeroOrden': widget.ordenNumero,
@@ -1467,16 +1529,38 @@ DAP AutoPart's
   } catch (e) {
     print("Error detallado: ${e.toString()}");
     
-    // Añadir mensaje más informativo
+    // Mensaje más informativo según el tipo de error
     String errorMsg = 'Error al enviar el correo: $e';
-    if (e.toString().contains('timed out')) {
+    
+    if (e.toString().contains('internet') || 
+        e.toString().contains('conectar') ||
+        e.toString().contains('conexión') ||
+        e.toString().contains('timeout') ||
+        e.toString().contains('SocketException')) {
+      errorMsg = 'No hay conexión a internet. Por favor verifique su conexión y vuelva a intentarlo.';
+    } else if (e.toString().contains('timed out')) {
       errorMsg = 'No se pudo conectar al servidor (tiempo de espera agotado). Verifica que el servidor esté funcionando y que la IP sea correcta.';
     } else if (e.toString().contains('connection refused')) {
-      errorMsg = 'Conexión rechazada. Verifica que el servidor esté funcionando en el puerto 3000.';
+      errorMsg = 'Conexión rechazada. Verifica que el servidor esté funcionando en el puerto correcto.';
     }
     
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(errorMsg)),
+    // Mostrar un diálogo en lugar de un SnackBar
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Error de conexión'),
+          content: Text(errorMsg),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text('Aceptar'),
+            ),
+          ],
+        );
+      },
     );
   } finally {
     setState(() {

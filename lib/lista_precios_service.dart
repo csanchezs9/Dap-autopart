@@ -17,35 +17,103 @@ class ListaPreciosService {
   // Método principal para generar y mostrar la lista de precios
   static const String baseUrl = 'https://dapautopart.onrender.com'; // URL de producción
   static Future<void> generarListaPrecios(BuildContext context) async {
+  try {
+    // Mostrar diálogo de carga
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Verificando conexión...')
+            ],
+          ),
+        );
+      },
+    );
+
+    // Verificar conectividad
     try {
-      // Mostrar diálogo de carga
+      final pingResponse = await http.get(
+        Uri.parse('$baseUrl/ping'),
+      ).timeout(
+        Duration(seconds: 5),
+        onTimeout: () => throw Exception('Sin conexión a internet'),
+      );
+      
+      if (pingResponse.statusCode != 200) {
+        throw Exception('El servidor no está disponible');
+      }
+    } catch (connectionError) {
+      // Cerrar diálogo de carga
+      Navigator.of(context, rootNavigator: true).pop();
+      
+      // Mensaje más informativo según el tipo de error
+      String errorMsg = 'Error: No se pudo conectar al servidor.';
+      
+      if (connectionError.toString().contains('internet') || 
+          connectionError.toString().contains('conectar') ||
+          connectionError.toString().contains('conexión') ||
+          connectionError.toString().contains('timeout') ||
+          connectionError.toString().contains('SocketException')) {
+        errorMsg = 'No hay conexión a internet. Por favor verifique su conexión y vuelva a intentarlo.';
+      } else {
+        errorMsg = 'Error al conectar con el servidor: $connectionError';
+      }
+      
+      // Mostrar un diálogo en lugar de un SnackBar
       showDialog(
         context: context,
-        barrierDismissible: false,
         builder: (BuildContext context) {
           return AlertDialog(
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(height: 16),
-                Text('Preparando productos...')
-              ],
-            ),
+            title: Text('Error de conexión'),
+            content: Text(errorMsg),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: Text('Aceptar'),
+              ),
+            ],
           );
         },
       );
+      return;
+    }
 
-      // Obtener información del asesor logueado
-      final prefs = await SharedPreferences.getInstance();
-      final asesorId = prefs.getString('asesor_id') ?? '';
-      final asesorNombre = prefs.getString('asesor_nombre') ?? '';
-      final asesorZona = prefs.getString('asesor_zona') ?? '';
-      String asesorCorreo = '';
-      String asesorTelefono = '';
-      
-      
-      if (asesorId.isNotEmpty) {
+    // Actualizar diálogo
+    Navigator.of(context, rootNavigator: true).pop();
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Preparando productos...')
+            ],
+          ),
+        );
+      },
+    );
+
+    // Obtener información del asesor logueado
+    final prefs = await SharedPreferences.getInstance();
+    final asesorId = prefs.getString('asesor_id') ?? '';
+    final asesorNombre = prefs.getString('asesor_nombre') ?? '';
+    final asesorZona = prefs.getString('asesor_zona') ?? '';
+    String asesorCorreo = '';
+    String asesorTelefono = '';
+    
+    if (asesorId.isNotEmpty) {
       try {
         final asesorResponse = await http.get(Uri.parse('$baseUrl/asesores/$asesorId'));
         if (asesorResponse.statusCode == 200) {
@@ -53,7 +121,7 @@ class ListaPreciosService {
           if (asesorData['success'] && asesorData.containsKey('asesor')) {
             final asesor = asesorData['asesor'];
             asesorCorreo = asesor['MAIL'] ?? '';
-            asesorTelefono = asesor['CEL'] ?? ''; // Obtener el teléfono
+            asesorTelefono = asesor['CEL'] ?? '';
           }
         }
       } catch (e) {
@@ -61,16 +129,19 @@ class ListaPreciosService {
       }
     }
 
-      // Obtener productos del servidor
-      final productosResponse = await http.get(Uri.parse('$baseUrl/productos'));
+    // Obtener productos del servidor
+    try {
+      final productosResponse = await http.get(Uri.parse('$baseUrl/productos')).timeout(
+        Duration(seconds: 15),
+        onTimeout: () => throw Exception('Tiempo de espera agotado al obtener productos.'),
+      );
+      
       if (productosResponse.statusCode != 200) {
-        Navigator.of(context, rootNavigator: true).pop();
         throw Exception('Error al obtener productos: ${productosResponse.statusCode}');
       }
 
       final productosData = json.decode(productosResponse.body);
       if (!productosData['success']) {
-        Navigator.of(context, rootNavigator: true).pop();
         throw Exception('Error en la respuesta del servidor: ${productosData['message']}');
       }
 
@@ -125,14 +196,14 @@ class ListaPreciosService {
       final filePath = '${directory.path}/lista_precios_completa.pdf';
       
       // Generar el PDF directamente en un archivo para ahorrar memoria
-       await _generarPDFDirecto(
-      filePath,
-      productosDisponibles,
-      asesorNombre,
-      asesorZona,
-      asesorCorreo,
-      asesorTelefono // Añadir parámetro de teléfono
-    );
+      await _generarPDFDirecto(
+        filePath,
+        productosDisponibles,
+        asesorNombre,
+        asesorZona,
+        asesorCorreo,
+        asesorTelefono // Añadir parámetro de teléfono
+      );
       
       // Cerrar diálogo de carga
       Navigator.of(context, rootNavigator: true).pop();
@@ -170,12 +241,71 @@ class ListaPreciosService {
       // Cerrar diálogo de carga si hay error
       Navigator.of(context, rootNavigator: true).pop();
       
-      // Mostrar error
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al generar lista de precios: $e')),
+      // Mensaje más informativo según el tipo de error
+      String errorMsg = 'Error al generar lista de precios';
+      
+      if (e.toString().contains('internet') || 
+          e.toString().contains('conectar') ||
+          e.toString().contains('conexión') ||
+          e.toString().contains('timeout') ||
+          e.toString().contains('SocketException')) {
+        errorMsg = 'No hay conexión a internet. Por favor verifique su conexión y vuelva a intentarlo.';
+      } else {
+        errorMsg = 'Error al generar lista de precios: $e';
+      }
+      
+      // Mostrar un diálogo en lugar de un SnackBar
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text('Error'),
+            content: Text(errorMsg),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: Text('Aceptar'),
+              ),
+            ],
+          );
+        },
       );
     }
+  } catch (e) {
+    // Mostrar mensaje de error
+    String errorMsg = 'Error inesperado';
+    
+    if (e.toString().contains('internet') || 
+        e.toString().contains('conectar') ||
+        e.toString().contains('conexión') ||
+        e.toString().contains('timeout') ||
+        e.toString().contains('SocketException')) {
+      errorMsg = 'No hay conexión a internet. Por favor verifique su conexión y vuelva a intentarlo.';
+    } else {
+      errorMsg = 'Error inesperado: $e';
+    }
+    
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Error'),
+          content: Text(errorMsg),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text('Aceptar'),
+            ),
+          ],
+        );
+      },
+    );
   }
+}
 
   // Método para generar PDF directamente a un archivo (ahorra memoria)
   static Future<void> _generarPDFDirecto(

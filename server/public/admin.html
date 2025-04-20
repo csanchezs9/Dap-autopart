@@ -150,8 +150,9 @@
                 </div>
                 
                 <div class="current-file" id="currentCatalogo">
-                    Catálogo actual: <span id="catalogoNombre">No hay archivo</span>
+                    <span id="catalogoNombre">Último archivo subido: No hay archivo</span>
                 </div>
+                
                 
                 <button type="submit" class="btn">Actualizar Catálogo</button>
             </form>
@@ -181,8 +182,8 @@
                 </div>
                 
                 <div class="current-file" id="currentProductos">
-                    Archivo de productos actual: <span id="productosNombre">No hay archivo</span>
-                </div>
+                    <span id="productosNombre">Último archivo subido: No hay archivo</span>
+                </div>      
                 
                 <button type="submit" class="btn">Actualizar Lista de Productos</button>
             </form>
@@ -214,7 +215,7 @@
                 </div>
                 
                 <div class="current-file" id="currentClientes">
-                    Archivo de clientes actual: <span id="clientesNombre">No hay archivo</span>
+                    <span id="clientesNombre">Último archivo subido: No hay archivo</span>
                 </div>
                 
                 <button type="submit" class="btn">Actualizar Lista de Clientes</button>
@@ -244,7 +245,7 @@
                 </div>
                 
                 <div class="current-file" id="currentAsesores">
-                    Archivo de asesores actual: <span id="asesoresNombre">No hay archivo</span>
+                    <span id="asesoresNombre">Último archivo subido: No hay archivo</span>
                 </div>
                 
                 <button type="submit" class="btn">Actualizar Lista de Asesores</button>
@@ -270,7 +271,7 @@
                     </div>
                     
                     <div class="current-file" id="currentCorreos">
-                        Archivo de correos actual: <span id="correosNombre">No hay archivo</span>
+                        <span id="correosNombre">Último archivo subido: No hay archivo</span>
                     </div>
                     
                     <button type="submit" class="btn">Actualizar Lista de Correos</button>
@@ -321,63 +322,63 @@
         });
 
         function checkExistingFiles() {
-            console.log("Verificando archivos existentes...");
-            
-            // Obtener información sobre el catálogo actual
-            fetch('/catalogo-info')
-                .then(response => response.json())
-                .then(data => {
-                    console.log("Respuesta de catálogo-info:", data);
-                    if (data.success && data.filename) {
-                        document.getElementById('catalogoNombre').textContent = data.filename;
-                    }
-                })
-                .catch(error => console.error('Error al verificar catálogo:', error));
-            
-            // Obtener información sobre el archivo de productos actual
-            fetch('/productos-info')
-                .then(response => response.json())
-                .then(data => {
-                    console.log("Respuesta de productos-info:", data);
-                    if (data.success && data.filename) {
-                        document.getElementById('productosNombre').textContent = data.filename;
-                    }
-                })
-                .catch(error => console.error('Error al verificar productos:', error));
-            
-            // Obtener información sobre el archivo de asesores actual
-            fetch('/asesores-info')
-                .then(response => response.json())
-                .then(data => {
-                    console.log("Respuesta de asesores-info:", data);
-                    if (data.success && data.filename) {
-                        document.getElementById('asesoresNombre').textContent = data.filename;
-                    }
-                })
-                .catch(error => console.error('Error al verificar asesores:', error));
+    console.log("Verificando archivos existentes...");
+    
+    // Obtener información sobre el catálogo actual
+    fetch('/catalogo-info')
+        .then(response => response.json())
+        .then(data => {
+            console.log("Respuesta de catálogo-info:", data);
+            if (data.success && data.filename) {
+                document.getElementById('catalogoNombre').textContent = `Último archivo subido: ${data.filename}`;
+            }
+        })
+        .catch(error => console.error('Error al verificar catálogo:', error));
+    
+    // Obtener información sobre el archivo de productos actual
+    fetch('/productos-info')
+        .then(response => response.json())
+        .then(data => {
+            console.log("Respuesta de productos-info:", data);
+            if (data.success && data.filename) {
+                document.getElementById('productosNombre').textContent = `Último archivo subido: ${data.filename}`;
+            }
+        })
+        .catch(error => console.error('Error al verificar productos:', error));
+    
+    // Obtener información sobre el archivo de asesores actual
+    fetch('/asesores-info')
+        .then(response => response.json())
+        .then(data => {
+            console.log("Respuesta de asesores-info:", data);
+            if (data.success && data.filename) {
+                document.getElementById('asesoresNombre').textContent = `Último archivo subido: ${data.filename}`;
+            }
+        })
+        .catch(error => console.error('Error al verificar asesores:', error));
 
-                fetch('/clientes-info')
-                .then(response => response.json())
-                .then(data => {
-                    console.log("Respuesta de clientes-info:", data);
-                    if (data.success && data.filename) {
-                        document.getElementById('clientesNombre').textContent = data.filename;
-                    }
-                })
-                .catch(error => console.error('Error al verificar clientes:', error));
+    fetch('/clientes-info')
+        .then(response => response.json())
+        .then(data => {
+            console.log("Respuesta de clientes-info:", data);
+            if (data.success && data.filename) {
+                document.getElementById('clientesNombre').textContent = `Último archivo subido: ${data.filename}`;
+            }
+        })
+        .catch(error => console.error('Error al verificar clientes:', error));
 
-                fetch('/correos-info')
-                .then(response => response.json())
-                .then(data => {
-                    console.log("Respuesta de correos-info:", data);
-                    if (data.success && data.filename) {
-                        document.getElementById('correosNombre').textContent = data.filename;
-                    }
-                })
-                .catch(error => console.error('Error al verificar correos:', error));
-        }
+    fetch('/correos-info')
+        .then(response => response.json())
+        .then(data => {
+            console.log("Respuesta de correos-info:", data);
+            if (data.success && data.filename) {
+                document.getElementById('correosNombre').textContent = `Último archivo subido: ${data.filename}`;
+            }
+        })
+        .catch(error => console.error('Error al verificar correos:', error));
+}
 
-        function uploadFile(fileInputId, endpoint) {
+function uploadFile(fileInputId, endpoint) {
     console.log(`Iniciando subida de archivo para ${fileInputId} al endpoint ${endpoint}`);
     
     // Mostrar alerta de "Subiendo..." mientras se procesa
@@ -401,7 +402,7 @@
         return;
     }
     
-    if ((fileInputId === 'productos' || fileInputId === 'asesores') && !file.name.endsWith('.csv')) {
+    if ((fileInputId === 'productos' || fileInputId === 'asesores' || fileInputId === 'clientes' || fileInputId === 'correos') && !file.name.endsWith('.csv')) {
         console.log(`Error: El archivo de ${fileInputId} debe ser CSV`);
         showAlert('alertError', 'El archivo debe ser un CSV.');
         return;
@@ -424,8 +425,8 @@
         console.log(`Datos de respuesta para ${endpoint}:`, data);
         if (data.success) {
             showAlert('alertSuccess', `¡El archivo ${getFileTypeLabel(fileInputId)} ha sido actualizado correctamente!`);
-            // Actualizar la información del archivo actual
-            document.getElementById(fileInputId + 'Nombre').textContent = file.name;
+            // Actualizar la información del último archivo subido
+            document.getElementById(fileInputId + 'Nombre').textContent = `Último archivo subido: ${file.name}`;
             // Resetear el formulario
             document.getElementById(fileInputId).value = '';
         } else {
@@ -437,6 +438,8 @@
         showAlert('alertError', `Error de conexión: No se pudo comunicar con el servidor. Detalles: ${error.message}`);
     });
 }
+
+
 function getFileTypeLabel(fileInputId) {
     switch(fileInputId) {
         case 'catalogo':

@@ -13,79 +13,130 @@ class CatalogoService {
 static const String baseUrl = 'https://dapautopart.onrender.com'; // URL de producción
   // Método principal para mostrar diálogo de confirmación
   static Future<void> abrirCatalogo(BuildContext context) async {
-    // Primero verificamos la conectividad con el servidor
-    try {
-      final response = await http.get(Uri.parse('$baseUrl/ping')).timeout(
-            Duration(seconds: 5),
-            onTimeout: () => throw Exception('Servidor no disponible'),
-          );
-      
-      print("Respuesta de ping: ${response.statusCode} - ${response.body}");
-      
-      if (response.statusCode != 200) {
-        throw Exception('Servidor respondió con error: ${response.statusCode}');
-      }
-      
-      // Verificar si el catálogo existe
-      final catalogoInfo = await http.get(Uri.parse('$baseUrl/catalogo-info'));
-      print("Respuesta de info catálogo: ${catalogoInfo.statusCode} - ${catalogoInfo.body}");
-      
-      if (catalogoInfo.statusCode != 200) {
-        throw Exception('Error al verificar el catálogo: ${catalogoInfo.statusCode}');
-      }
-      
-      // Decodificamos la respuesta para ver si existe el catálogo
-      final catalogoData = catalogoInfo.body.isNotEmpty ? 
-          await jsonDecode(catalogoInfo.body) : {'success': false};
-      
-      if (!catalogoData['success']) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('El catálogo no está disponible. Por favor contacte a soporte.')),
+  // Primero verificamos la conectividad con el servidor
+  try {
+    // Mostrar diálogo de carga
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Verificando conexión...')
+            ],
+          ),
         );
-        return;
-      }
-      
-    } catch (e) {
-      print("Error al verificar conectividad: $e");
+      },
+    );
+    
+    final response = await http.get(Uri.parse('$baseUrl/ping')).timeout(
+      Duration(seconds: 5),
+      onTimeout: () => throw Exception('Sin conexión a internet'),
+    );
+    
+    // Cerrar diálogo de carga
+    Navigator.of(context, rootNavigator: true).pop();
+    
+    print("Respuesta de ping: ${response.statusCode} - ${response.body}");
+    
+    if (response.statusCode != 200) {
+      throw Exception('Servidor respondió con error: ${response.statusCode}');
+    }
+    
+    // Verificar si el catálogo existe
+    final catalogoInfo = await http.get(Uri.parse('$baseUrl/catalogo-info'));
+    print("Respuesta de info catálogo: ${catalogoInfo.statusCode} - ${catalogoInfo.body}");
+    
+    if (catalogoInfo.statusCode != 200) {
+      throw Exception('Error al verificar el catálogo: ${catalogoInfo.statusCode}');
+    }
+    
+    // Decodificamos la respuesta para ver si existe el catálogo
+    final catalogoData = catalogoInfo.body.isNotEmpty ? 
+        await jsonDecode(catalogoInfo.body) : {'success': false};
+    
+    if (!catalogoData['success']) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: No se pudo conectar al servidor. $e')),
+        SnackBar(content: Text('El catálogo no está disponible. Por favor contacte a soporte.')),
       );
       return;
     }
-
-    // Mostrar diálogo de confirmación
-    bool? descargar = await showDialog<bool>(
+    
+  } catch (e) {
+    // Cerrar diálogo de carga si está abierto
+    Navigator.of(context, rootNavigator: true).pop();
+    
+    print("Error al verificar conectividad: $e");
+    
+    // Mensaje más informativo según el tipo de error
+    String errorMsg = 'Error: No se pudo conectar al servidor.';
+    
+    if (e.toString().contains('internet') || 
+        e.toString().contains('conectar') ||
+        e.toString().contains('conexión') ||
+        e.toString().contains('timeout') ||
+        e.toString().contains('SocketException')) {
+      errorMsg = 'No hay conexión a internet. Por favor verifique su conexión y vuelva a intentarlo.';
+    }
+    
+    // Mostrar un diálogo en lugar de un SnackBar
+    showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('Catálogo de Productos'),
-          content: Text('¿Desea descargar el catálogo de productos?'),
+          title: Text('Error de conexión'),
+          content: Text(errorMsg),
           actions: [
             TextButton(
-              child: Text('Cancelar'),
               onPressed: () {
-                Navigator.of(context).pop(false);
+                Navigator.of(context).pop();
               },
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Color(0xFF1A4379),
-                foregroundColor: Colors.white,
-              ),
-              child: Text('Descargar'),
-              onPressed: () {
-                Navigator.of(context).pop(true);
-              },
+              child: Text('Aceptar'),
             ),
           ],
         );
       },
     );
-
-    if (descargar == true) {
-      await _descargarYAbrirCatalogo(context);
-    }
+    return;
   }
+
+  // Mostrar diálogo de confirmación
+  bool? descargar = await showDialog<bool>(
+    context: context,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: Text('Catálogo de Productos'),
+        content: Text('¿Desea descargar el catálogo de productos?'),
+        actions: [
+          TextButton(
+            child: Text('Cancelar'),
+            onPressed: () {
+              Navigator.of(context).pop(false);
+            },
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Color(0xFF1A4379),
+              foregroundColor: Colors.white,
+            ),
+            child: Text('Descargar'),
+            onPressed: () {
+              Navigator.of(context).pop(true);
+            },
+          ),
+        ],
+      );
+    },
+  );
+
+  if (descargar == true) {
+    await _descargarYAbrirCatalogo(context);
+  }
+}
 
   // Método para descargar y abrir el catálogo
   static Future<void> _descargarYAbrirCatalogo(BuildContext context) async {

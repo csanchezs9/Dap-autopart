@@ -9,93 +9,113 @@ class ClienteServiceLocal {
 static const String baseUrl = 'https://dapautopart.onrender.com'; // URL de producción
   // Método para obtener todos los clientes desde el servidor
   static Future<List<Map<String, dynamic>>> obtenerClientes() async {
-    final url = '$baseUrl/clientes';
+  final url = '$baseUrl/clientes';
+  
+  try {
+    final response = await http.get(Uri.parse(url)).timeout(
+      Duration(seconds: 10),
+      onTimeout: () => throw Exception('Tiempo de espera agotado. Verifique su conexión a internet.'),
+    );
     
-    try {
-      final response = await http.get(Uri.parse(url));
-      print("Respuesta de la API (clientes): ${response.statusCode}");
+    print("Respuesta de la API (clientes): ${response.statusCode}");
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        
-        if (!data.containsKey('success') || !data['success']) {
-          print("Respuesta no exitosa: ${data['message'] ?? 'Error desconocido'}");
-          return [];
-        }
-
-        if (!data.containsKey('clientes') || data['clientes'].isEmpty) {
-          print("No se encontraron clientes en la respuesta");
-          return [];
-        }
-
-        final clientesData = data['clientes'] as List;
-        final clientes = clientesData.map((cliente) => Map<String, dynamic>.from(cliente)).toList();
-        
-        print("Total de clientes cargados: ${clientes.length}");
-        return clientes;
-      } else {
-        print('Error al obtener clientes: ${response.statusCode} - ${response.body}');
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      
+      if (!data.containsKey('success') || !data['success']) {
+        print("Respuesta no exitosa: ${data['message'] ?? 'Error desconocido'}");
         return [];
       }
-    } catch (e) {
-      print('Excepción al obtener clientes: $e');
+
+      if (!data.containsKey('clientes') || data['clientes'].isEmpty) {
+        print("No se encontraron clientes en la respuesta");
+        return [];
+      }
+
+      final clientesData = data['clientes'] as List;
+      final clientes = clientesData.map((cliente) => Map<String, dynamic>.from(cliente)).toList();
+      
+      print("Total de clientes cargados: ${clientes.length}");
+      return clientes;
+    } else {
+      print('Error al obtener clientes: ${response.statusCode} - ${response.body}');
       return [];
     }
+  } catch (e) {
+    print('Excepción al obtener clientes: $e');
+    throw Exception('Error de conexión: $e');
   }
+}
 
   // Método para buscar un cliente por su NIT
   static Future<Map<String, dynamic>?> buscarClientePorNIT(String nit) async {
-    print("Buscando cliente con NIT: $nit");
+  print("Buscando cliente con NIT: $nit");
+  try {
+    // Verificar conectividad con un ping rápido
     try {
-      // Primero intentamos buscar el cliente directamente del servidor
-      final url = '$baseUrl/clientes/$nit';
-      final response = await http.get(Uri.parse(url));
+      final pingResponse = await http.get(
+        Uri.parse('$baseUrl/ping'),
+      ).timeout(
+        Duration(seconds: 5),
+        onTimeout: () => throw Exception('Sin conexión a internet'),
+      );
       
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['success'] && data.containsKey('cliente')) {
-          final cliente = Map<String, dynamic>.from(data['cliente']);
-          print("¡Cliente encontrado!: $cliente");
-          return cliente;
-        }
+      if (pingResponse.statusCode != 200) {
+        throw Exception('El servidor no está disponible');
       }
-      
-      // Si no se encuentra por endpoint específico, buscar en la lista completa
-      final clientes = await obtenerClientes();
-      if (clientes.isEmpty) {
-        print("No se cargaron clientes del servidor");
-        return null;
+    } catch (connectionError) {
+      throw Exception('No se puede conectar al servidor. Verifique su conexión a internet.');
+    }
+    
+    // Primero intentamos buscar el cliente directamente del servidor
+    final url = '$baseUrl/clientes/$nit';
+    final response = await http.get(Uri.parse(url));
+    
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      if (data['success'] && data.containsKey('cliente')) {
+        final cliente = Map<String, dynamic>.from(data['cliente']);
+        print("¡Cliente encontrado!: $cliente");
+        return cliente;
       }
-      
-      // Normalizar el NIT para la búsqueda (sin espacios)
-      final nitNormalizado = nit.trim();
-      
-      // Buscar por NIT
-      for (var cliente in clientes) {
-        String rowNit = '';
-        
-        // Probar diferentes claves que podrían contener el NIT del cliente
-        if (cliente.containsKey('NIT CLIENTE')) {
-          rowNit = cliente['NIT CLIENTE'].toString().trim();
-        } else if (cliente.containsKey('NIT')) {
-          rowNit = cliente['NIT'].toString().trim();
-        } else if (cliente.containsKey('nit')) {
-          rowNit = cliente['nit'].toString().trim();
-        }
-        
-        if (rowNit == nitNormalizado) {
-          print("¡Cliente encontrado!: $cliente");
-          return cliente;
-        }
-      }
-      
-      print("No se encontró ningún cliente con NIT: $nit");
-      return null;
-    } catch (e) {
-      print("Error en buscarClientePorNIT: $e");
+    }
+    
+    // Si no se encuentra por endpoint específico, buscar en la lista completa
+    final clientes = await obtenerClientes();
+    if (clientes.isEmpty) {
+      print("No se cargaron clientes del servidor");
       return null;
     }
+    
+    // Normalizar el NIT para la búsqueda (sin espacios)
+    final nitNormalizado = nit.trim();
+    
+    // Buscar por NIT
+    for (var cliente in clientes) {
+      String rowNit = '';
+      
+      // Probar diferentes claves que podrían contener el NIT del cliente
+      if (cliente.containsKey('NIT CLIENTE')) {
+        rowNit = cliente['NIT CLIENTE'].toString().trim();
+      } else if (cliente.containsKey('NIT')) {
+        rowNit = cliente['NIT'].toString().trim();
+      } else if (cliente.containsKey('nit')) {
+        rowNit = cliente['nit'].toString().trim();
+      }
+      
+      if (rowNit == nitNormalizado) {
+        print("¡Cliente encontrado!: $cliente");
+        return cliente;
+      }
+    }
+    
+    print("No se encontró ningún cliente con NIT: $nit");
+    return null;
+  } catch (e) {
+    print("Error en buscarClientePorNIT: $e");
+    throw Exception('Error al buscar cliente: $e');
   }
+}
   
   // Método para buscar clientes por nombre (búsqueda parcial)
   static Future<List<Map<String, dynamic>>> buscarClientesPorNombre(String nombre) async {

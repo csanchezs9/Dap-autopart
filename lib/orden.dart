@@ -49,142 +49,208 @@ class _OrdenDePedidoState extends State<OrdenDePedido> {
 
   // Nuevo método para obtener número del servidor
   Future<void> _obtenerSiguienteNumeroOrden() async {
-    setState(() {
-      isLoading = true;
-      errorMessage = '';
-    });
+  setState(() {
+    isLoading = true;
+    errorMessage = '';
+  });
 
-    try {
-      // Intentar obtener el número del servidor
-      final response = await http.get(
-        Uri.parse('$baseUrl/siguiente-orden'),
-        headers: {'Content-Type': 'application/json'},
-      ).timeout(
-        Duration(seconds: 10),
-        onTimeout: () => throw Exception('Tiempo de espera agotado al conectar con el servidor'),
-      );
+  try {
+    // Intentar obtener el número únicamente del servidor
+    final response = await http.get(
+      Uri.parse('$baseUrl/siguiente-orden'),
+      headers: {'Content-Type': 'application/json'},
+    ).timeout(
+      Duration(seconds: 10),
+      onTimeout: () => throw Exception('Tiempo de espera agotado al conectar con el servidor'),
+    );
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        
-        if (data['success']) {
-          // Actualizar el estado con el nuevo número
-          setState(() {
-            // Guardar el valor numérico para referencia
-            numeroOrdenActual = data['valor'];
-            // Usar el formato proporcionado por el servidor
-            ordenNumeroController.text = data['numeroOrden'];
-          });
-          
-          // También guardar en SharedPreferences como respaldo
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setInt('ultimoNumeroOrden', numeroOrdenActual);
-          
-          print("Número de orden obtenido del servidor: ${ordenNumeroController.text}");
-        } else {
-          // Error en la respuesta del servidor
-          throw Exception(data['message'] ?? 'Error al obtener número de orden');
-        }
-      } else {
-        // Error HTTP
-        throw Exception('Error en la solicitud: ${response.statusCode}');
-      }
-    } catch (e) {
-      print("Error al obtener número de orden: $e");
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
       
-      // Plan B: Usar SharedPreferences local como respaldo
-      try {
-        final prefs = await SharedPreferences.getInstance();
-        numeroOrdenActual = prefs.getInt('ultimoNumeroOrden') ?? 1;
-        // Incrementar para la próxima orden
-        numeroOrdenActual++;
-        // Guardar el valor actualizado
-        await prefs.setInt('ultimoNumeroOrden', numeroOrdenActual);
-        
-        // Formatear el número para mostrar
-        ordenNumeroController.text = 'OP-${numeroOrdenActual.toString().padLeft(5, '0')}';
-        
-        // Mostrar advertencia
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('No se pudo conectar al servidor. Usando número de orden local.'),
-            backgroundColor: Colors.orange,
-            duration: Duration(seconds: 5),
-          ),
-        );
-      } catch (localError) {
-        // Si falla el plan B, usar un valor predeterminado
+      if (data['success']) {
+        // Actualizar el estado con el nuevo número
         setState(() {
-          numeroOrdenActual = DateTime.now().millisecondsSinceEpoch % 10000; // Usar timestamp como respaldo final
-          ordenNumeroController.text = 'OP-${numeroOrdenActual.toString().padLeft(5, '0')}';
-          errorMessage = 'Error al generar número de orden: $e';
+          // Guardar el valor numérico para referencia
+          numeroOrdenActual = data['valor'];
+          // Usar el formato proporcionado por el servidor
+          ordenNumeroController.text = data['numeroOrden'];
         });
+        
+        print("Número de orden obtenido del servidor: ${ordenNumeroController.text}");
+      } else {
+        // Error en la respuesta del servidor
+        throw Exception(data['message'] ?? 'Error al obtener número de orden');
       }
-    } finally {
-      setState(() {
-        isLoading = false;
-      });
+    } else {
+      // Error HTTP
+      throw Exception('Error en la solicitud: ${response.statusCode}');
     }
+  } catch (e) {
+    print("Error al obtener número de orden: $e");
+    
+    // Mostrar mensaje de error específico para la conexión
+    String errorMsg = 'Error al obtener número de orden';
+    
+    if (e.toString().contains('internet') || 
+        e.toString().contains('conectar') ||
+        e.toString().contains('conexión') ||
+        e.toString().contains('timeout') ||
+        e.toString().contains('SocketException')) {
+      errorMsg = 'No hay conexión a internet. Por favor verifique su conexión y vuelva a intentarlo.';
+    } else {
+      errorMsg = 'Error al obtener número de orden: $e';
+    }
+    
+    // Mostrar diálogo de error
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Error de conexión'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(errorMsg),
+              SizedBox(height: 10),
+              Text('No se puede continuar sin conexión al servidor.', 
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text('Aceptar'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _obtenerSiguienteNumeroOrden(); // Intentar nuevamente
+              },
+              child: Text('Reintentar'),
+            ),
+          ],
+        );
+      },
+    );
+    
+    setState(() {
+      // Dejar el campo vacío o con un texto que indique error
+      ordenNumeroController.text = 'Error de conexión';
+      errorMessage = errorMsg;
+    });
+  } finally {
+    setState(() {
+      isLoading = false;
+    });
   }
+}
 
   // Método para buscar cliente por NIT usando el servicio
   void buscarClientePorNIT(String nit) async {
-    if (nit.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Por favor ingrese un NIT')),
+  if (nit.trim().isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Por favor ingrese un NIT')),
+    );
+    return;
+  }
+  
+  setState(() {
+    isLoading = true;
+    clienteData = {};
+  });
+  
+  try {
+    // Verificar conectividad con un ping rápido
+    try {
+      final pingResponse = await http.get(
+        Uri.parse('${ClienteServiceLocal.baseUrl}/ping'),
+      ).timeout(
+        Duration(seconds: 5),
+        onTimeout: () => throw Exception('Sin conexión a internet'),
       );
-      return;
+      
+      if (pingResponse.statusCode != 200) {
+        throw Exception('El servidor no está disponible');
+      }
+    } catch (connectionError) {
+      throw Exception('No se puede conectar al servidor. Verifique su conexión a internet.');
     }
+    
+    final clienteEncontrado = await ClienteServiceLocal.buscarClientePorNIT(nit);
+    
+    if (clienteEncontrado != null) {
+      // Convertir el Map<String, dynamic> a Map<String, String>
+      Map<String, String> newData = {};
+      clienteEncontrado.forEach((key, value) {
+        newData[key] = value.toString();
+      });
+      
+      setState(() {
+        clienteData = newData;
+        
+        // Si encontramos el cliente, también podemos buscar su asesor automáticamente
+        String idAsesor = '';
+        if (clienteData.containsKey('ID ASESOR')) {
+          idAsesor = clienteData['ID ASESOR']!;
+        } else if (clienteData.containsKey('ASESOR ID')) {
+          idAsesor = clienteData['ASESOR ID']!;
+        }
+        
+        if (idAsesor.isNotEmpty) {
+          idAsesorController.text = idAsesor;
+          buscarAsesorPorID(idAsesor);
+        }
+      });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se encontró cliente con NIT: $nit')),
+      );
+    }
+  } catch (e) {
+    // Mensaje más informativo
+    String errorMsg = 'Error al buscar cliente';
+    if (e.toString().contains('internet') || 
+        e.toString().contains('conectar') ||
+        e.toString().contains('conexión') ||
+        e.toString().contains('timeout') ||
+        e.toString().contains('SocketException')) {
+      errorMsg = 'No hay conexión a internet. Por favor verifique su conexión y vuelva a intentarlo.';
+    } else {
+      errorMsg = 'Error al buscar cliente: $e';
+    }
+    
+    // Mostrar un diálogo en lugar de un SnackBar
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Error de conexión'),
+          content: Text(errorMsg),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text('Aceptar'),
+            ),
+          ],
+        );
+      },
+    );
     
     setState(() {
-      isLoading = true;
-      clienteData = {};
+      errorMessage = errorMsg;
     });
-    
-    try {
-      final clienteEncontrado = await ClienteServiceLocal.buscarClientePorNIT(nit);
-      
-      if (clienteEncontrado != null) {
-        // Convertir el Map<String, dynamic> a Map<String, String>
-        Map<String, String> newData = {};
-        clienteEncontrado.forEach((key, value) {
-          newData[key] = value.toString();
-        });
-        
-        setState(() {
-          clienteData = newData;
-          
-          // Si encontramos el cliente, también podemos buscar su asesor automáticamente
-          String idAsesor = '';
-          if (clienteData.containsKey('ID ASESOR')) {
-            idAsesor = clienteData['ID ASESOR']!;
-          } else if (clienteData.containsKey('ASESOR ID')) {
-            idAsesor = clienteData['ASESOR ID']!;
-          }
-          
-          if (idAsesor.isNotEmpty) {
-            idAsesorController.text = idAsesor;
-            buscarAsesorPorID(idAsesor);
-          }
-        });
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('No se encontró cliente con NIT: $nit')),
-        );
-      }
-    } catch (e) {
-      setState(() {
-        errorMessage = 'Error al buscar cliente: $e';
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al buscar cliente: $e')),
-      );
-    } finally {
-      setState(() {
-        isLoading = false;
-      });
-    }
+  } finally {
+    setState(() {
+      isLoading = false;
+    });
   }
+}
+
 
   // Método para buscar asesor por ID usando el servicio
   void buscarAsesorPorID(String id) async {
@@ -201,6 +267,22 @@ class _OrdenDePedidoState extends State<OrdenDePedido> {
   });
   
   try {
+    // Verificar conectividad con un ping rápido
+    try {
+      final pingResponse = await http.get(
+        Uri.parse('${AsesorServiceLocal.baseUrl}/ping'),
+      ).timeout(
+        Duration(seconds: 5),
+        onTimeout: () => throw Exception('Sin conexión a internet'),
+      );
+      
+      if (pingResponse.statusCode != 200) {
+        throw Exception('El servidor no está disponible');
+      }
+    } catch (connectionError) {
+      throw Exception('No se puede conectar al servidor. Verifique su conexión a internet.');
+    }
+    
     final asesorEncontrado = await AsesorServiceLocal.buscarAsesorPorID(id);
     
     if (asesorEncontrado != null) {
@@ -219,12 +301,40 @@ class _OrdenDePedidoState extends State<OrdenDePedido> {
       );
     }
   } catch (e) {
-    setState(() {
-      errorMessage = 'Error al buscar asesor: $e';
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error al buscar asesor: $e')),
+    // Mensaje más informativo
+    String errorMsg = 'Error al buscar asesor';
+    if (e.toString().contains('internet') || 
+        e.toString().contains('conectar') ||
+        e.toString().contains('conexión') ||
+        e.toString().contains('timeout') ||
+        e.toString().contains('SocketException')) {
+      errorMsg = 'No hay conexión a internet. Por favor verifique su conexión y vuelva a intentarlo.';
+    } else {
+      errorMsg = 'Error al buscar asesor: $e';
+    }
+    
+    // Mostrar un diálogo en lugar de un SnackBar
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Error de conexión'),
+          content: Text(errorMsg),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text('Aceptar'),
+            ),
+          ],
+        );
+      },
     );
+    
+    setState(() {
+      errorMessage = errorMsg;
+    });
   } finally {
     setState(() {
       isLoading = false;
