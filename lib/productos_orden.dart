@@ -1145,18 +1145,18 @@ Future<Uint8List?> _generarPDFMejorado() async {
                                       color: isSelected ? Colors.blue.withOpacity(0.1) : Colors.transparent,
                                     ),
                                     children: [
-                                      _buildDataCell(producto['#']?.toString() ?? '', producto: producto),
-                                      _buildDataCell(producto['CODIGO']?.toString() ?? '', producto: producto),
-                                      _buildDataCell(producto['UB']?.toString() ?? '', producto: producto),
-                                      _buildDataCell(producto['REF']?.toString() ?? '', producto: producto),
-                                      _buildDataCell(producto['ORIGEN']?.toString() ?? '', producto: producto),
-                                      _buildDataCell(producto['DESCRIPCION']?.toString() ?? '', maxLines: 2, producto: producto),
-                                      _buildDataCell(producto['VEHICULO']?.toString() ?? '', producto: producto),
-                                      _buildDataCell(producto['MARCA']?.toString() ?? '', producto: producto),
-                                      _buildDataCell(_formatMoneda(producto['VLR ANTES DE IVA']), producto: producto),
-                                      _buildDataCell('${producto['DSCTO']}%', producto: producto),
-                                      _buildDataCell(producto['CANT']?.toString() ?? '', producto: producto),
-                                      _buildDataCell(_formatMoneda(producto['V.BRUTO']), producto: producto),
+                                  _buildDataCell(producto['#']?.toString() ?? '', producto: producto),
+                                  _buildDataCell(producto['CODIGO']?.toString() ?? '', producto: producto),
+                                  _buildDataCell(producto['UB']?.toString() ?? '', producto: producto),
+                                  _buildDataCell(producto['REF']?.toString() ?? '', producto: producto),
+                                  _buildDataCell(producto['ORIGEN']?.toString() ?? '', producto: producto),
+                                  _buildDataCell(producto['DESCRIPCION']?.toString() ?? '', maxLines: 2, producto: producto),
+                                  _buildDataCell(producto['VEHICULO']?.toString() ?? '', producto: producto),
+                                  _buildDataCell(producto['MARCA']?.toString() ?? '', producto: producto),
+                                  _buildDataCell(_formatMoneda(producto['VLR ANTES DE IVA']), producto: producto),
+                                  _buildDataCell('${producto['DSCTO']}%', producto: producto),
+                                  _buildDataCell(producto['CANT']?.toString() ?? '', producto: producto),
+                                  _buildDataCell(_formatMoneda(producto['V.BRUTO']), producto: producto),
                                     ],
                                   );
                                 }).toList(),
@@ -1878,7 +1878,7 @@ Row(
     
     // Totales (20% más grande)
     Container(
-      width: 150, // Aumentado de 125 a 150 (20% más)
+      width: 150,
       child: Table(
         border: TableBorder.all(width: 0.5),
         columnWidths: const {
@@ -1898,79 +1898,133 @@ Row(
   ],
 ),
 
+// NUEVO: Botones de acciones justo después de la fila anterior pero antes de los botones principales
+Container(
+  padding: const EdgeInsets.only(top: 6, bottom: 6),
+  child: _buildBotonesAccion(),
+),
+
+const SizedBox(height: 4),
                   
-                  const SizedBox(height: 10),
-                  
-                  // Botones
-                  Center(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        // Botón Vista Previa
-                        ElevatedButton(
-                          onPressed: () {
-                            mostrarVistaPrevia();
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Color(0xFF1A4379),
-                            foregroundColor: Colors.white,
-                            side: const BorderSide(color: Colors.grey),
-                            padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
-                          ),
-                          child: const Text('VISTA PREVIA'),
-                        ),
-                        SizedBox(width: 20),
-                        // Botón Enviar
-                        ElevatedButton(
-                          onPressed: () {
-                            _enviarCorreoPorServidor(); // Cambio aquí
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
-                            foregroundColor: Colors.white,
-                            side: const BorderSide(color: Colors.grey),
-                            padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
-                          ),
-                          child: const Text('ENVIAR'),
-                        ),  
-                        SizedBox(width: 20),
-                        // Botón Cancelar Orden
-                        ElevatedButton(
-                          onPressed: () {
-                            Navigator.pop(context);
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: Colors.black,
-                            side: const BorderSide(color: Colors.grey),
-                            padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
-                          ),
-                          child: const Text('CANCELAR ORDEN'),
-                        ),
-                      ],
-                    ),
-                  ),
+// Botones principales (sin cambios)
+Center(
+  child: Row(
+    mainAxisAlignment: MainAxisAlignment.center,
+    children: [
+      // Botón Vista Previa
+      ElevatedButton(
+        onPressed: () {
+          mostrarVistaPrevia();
+        },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Color(0xFF1A4379),
+          foregroundColor: Colors.white,
+          side: const BorderSide(color: Colors.grey),
+          padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
+        ),
+        child: const Text('VISTA PREVIA'),
+      ),
+      SizedBox(width: 20),
+      // Botón Enviar
+      ElevatedButton(
+        onPressed: () {
+          _enviarCorreoPorServidor(); // Cambio aquí
+        },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.green,
+          foregroundColor: Colors.white,
+          side: const BorderSide(color: Colors.grey),
+          padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
+        ),
+        child: const Text('ENVIAR'),
+      ),  
+      SizedBox(width: 20),
+      // Botón Cancelar Orden
+      ElevatedButton(
+        onPressed: () {
+          Navigator.pop(context);
+        },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black,
+          side: const BorderSide(color: Colors.grey),
+          padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
+        ),
+        child: const Text('CANCELAR ORDEN'),
+      ),
+    ],
+  ),
+),
                 ],
               ),
             ),
           ),
     );
   }
+
+  Widget _buildBotonesAccion() {
+  // Solo mostrar botones si hay un producto seleccionado
+  if (productoCodigoSeleccionado == null) {
+    return SizedBox.shrink(); // Widget vacío
+  }
+  
+  // Buscar el producto seleccionado en la lista
+  final productoSeleccionado = productosAgregados.firstWhere(
+    (p) => p['CODIGO'] == productoCodigoSeleccionado,
+    orElse: () => <String, dynamic>{},
+  );
+  
+  if (productoSeleccionado.isEmpty) {
+    return SizedBox.shrink(); // Widget vacío
+  }
+  
+  // Construir los botones
+  return Row(
+    mainAxisAlignment: MainAxisAlignment.center,
+    children: [
+      // Botón de Editar
+      ElevatedButton.icon(
+        onPressed: () => _editarCantidad(productoSeleccionado),
+        icon: Icon(Icons.edit, size: 18),
+        label: Text('Editar'),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.orange,
+          foregroundColor: Colors.white,
+          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        ),
+      ),
+      
+      SizedBox(width: 15),
+      
+      // Botón de Eliminar
+      ElevatedButton.icon(
+        onPressed: () => _eliminarProducto(productoSeleccionado),
+        icon: Icon(Icons.delete, size: 18),
+        label: Text('Eliminar'),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.red,
+          foregroundColor: Colors.white,
+          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        ),
+      ),
+    ],
+  );
+}
   
   // Widget para mostrar la imagen del producto
   Widget _buildImagenProducto() {
   if (productoCodigoSeleccionado == null) {
-    // No hay producto seleccionado - interfaz ajustada al nuevo tamaño
+    // No hay producto seleccionado
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         mainAxisSize: MainAxisSize.min,
         children: const [
-          Icon(Icons.image, size: 40, color: Colors.grey), // Aumentado de 30 a 40
-          SizedBox(height: 4), // Aumentado de 2 a 4
+          Icon(Icons.image, size: 40, color: Colors.grey),
+          SizedBox(height: 4),
           Text(
             'Seleccione producto',
-            style: TextStyle(color: Colors.grey, fontSize: 10), // Aumentado de 8 a 10
+            style: TextStyle(color: Colors.grey, fontSize: 10),
             textAlign: TextAlign.center,
           ),
         ],
@@ -1981,55 +2035,210 @@ Row(
   final codigo = productoCodigoSeleccionado!;
   final bool imagenDisponible = _imagenesDisponibles[codigo] ?? false;
   
-  if (!imagenDisponible) {
-    // La imagen no existe - versión ajustada al nuevo tamaño
+  // Solo mostrar la imagen sin botones
+  if (imagenDisponible) {
+    return GestureDetector(
+      onTap: () => _mostrarImagenGrande(codigo),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(6),
+        child: Image.asset(
+          'assets/imagenesProductos/m$codigo.jpg',
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) {
+            _imagenesDisponibles[codigo] = false;
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.broken_image, size: 40, color: Colors.red),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Error al cargar imagen\n$codigo',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.red, fontSize: 10),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  } else {
+    // No hay imagen disponible
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.hide_image, size: 40, color: Colors.grey), // Aumentado de 30 a 40
-          const SizedBox(height: 4), // Aumentado de 2 a 4
+          const Icon(Icons.hide_image, size: 40, color: Colors.grey),
+          const SizedBox(height: 4),
           Text(
             'No hay imagen\npara $codigo',
             textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.grey, fontSize: 10), // Aumentado de 8 a 10
+            style: const TextStyle(color: Colors.grey, fontSize: 10),
           ),
         ],
       ),
     );
   }
-  
-  // Mostrar la imagen con el prefijo "m" y hacerla presionable
-  return GestureDetector(
-    onTap: () {
-      _mostrarImagenGrande(codigo);
+}
+
+
+void _eliminarProducto(Map<String, dynamic> producto) {
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: Text('Confirmar eliminación'),
+        content: Text('¿Estás seguro de eliminar este producto?'),
+        actions: [
+          TextButton(
+            child: Text('Cancelar'),
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: Text('Eliminar'),
+            onPressed: () {
+              setState(() {
+                productosAgregados.removeWhere((p) => 
+                  p['CODIGO'] == producto['CODIGO'] && 
+                  p['#'] == producto['#']
+                );
+                // Recalcular totales después de eliminar
+                calcularTotales();
+                // Limpiar selección actual si era este producto
+                if (productoCodigoSeleccionado == producto['CODIGO']) {
+                  productoCodigoSeleccionado = null;
+                }
+              });
+              Navigator.of(context).pop();
+              // Mostrar confirmación
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Producto eliminado correctamente'))
+              );
+            },
+          ),
+        ],
+      );
     },
-    child: ClipRRect(
-      borderRadius: BorderRadius.circular(6),
-      child: Image.asset(
-        'assets/imagenesProductos/m$codigo.jpg',
-        fit: BoxFit.contain,
-        errorBuilder: (context, error, stackTrace) {
-          _imagenesDisponibles[codigo] = false;
-          return Center(
+  );
+}
+
+
+void _editarCantidad(Map<String, dynamic> producto) {
+  String cantidadActual = producto['CANT']?.toString() ?? '1';
+  final TextEditingController cantController = TextEditingController(text: cantidadActual);
+  
+  // Abrir un diálogo simple para ingresar el número, pero con mejor manejo de espacio
+  showDialog(
+    context: context,
+    barrierDismissible: true,
+    builder: (BuildContext dialogContext) {
+      return SingleChildScrollView(
+        child: AlertDialog(
+          // Título más pequeño para ahorrar espacio
+          title: Text('Editar Cantidad', style: TextStyle(fontSize: 18)),
+          
+          // Contenido con más espacio
+          content: Container(
+            width: 200, // Ancho mayor para evitar que se apriete el contenido
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.broken_image, size: 40, color: Colors.red), // Aumentado de 30 a 40
-                const SizedBox(height: 4), // Aumentado de 2 a 4
+                // Subtítulo para indicar el producto
                 Text(
-                  'Error al cargar imagen\n$codigo',
+                  producto['DESCRIPCION'] ?? 'Producto',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.red, fontSize: 10), // Aumentado de 8 a 10
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                SizedBox(height: 15),
+                
+                // Campo de texto con más espacio y mejor formato
+                TextField(
+                  controller: cantController,
+                  keyboardType: TextInputType.number,
+                  autofocus: true,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+                  decoration: InputDecoration(
+                    hintText: '0',
+                    contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 ),
               ],
             ),
-          );
-        },
-      ),
-    ),
+          ),
+          
+          // Acciones en la parte inferior
+          actions: [
+            TextButton(
+              child: Text('Cancelar'),
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+              },
+            ),
+            ElevatedButton(
+              child: Text('Guardar'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Color(0xFF1A4379),
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () {
+                // Cerrar primero el diálogo
+                Navigator.of(dialogContext).pop();
+                
+                // Validar y actualizar después de cerrar el diálogo
+                String nuevaCantidad = cantController.text.trim();
+                if (nuevaCantidad.isNotEmpty) {
+                  int? num = int.tryParse(nuevaCantidad);
+                  if (num != null && num > 0) {
+                    // Actualizar en el siguiente frame para evitar problemas de estado
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      setState(() {
+                        producto['CANT'] = num;
+                        calcularTotales();
+                      });
+                      
+                      // Mostrar mensaje de confirmación
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Cantidad actualizada correctamente'))
+                      );
+                    });
+                  } else {
+                    // Mostrar mensaje de error si la cantidad no es válida
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Por favor ingrese una cantidad válida mayor a cero'))
+                    );
+                  }
+                }
+              },
+            ),
+          ],
+          
+          // Aplicar padding para ajustar con el teclado
+          insetPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+          
+          // Forma redondeada para mejor apariencia
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+      );
+    },
   );
 }
 
@@ -2299,29 +2508,9 @@ Widget _buildHeaderCell(String text) {
   );
 }
 
-_buildDataCell(String text, {int maxLines = 1, Map<String, dynamic>? producto}) {
-  // Para valores de descuento, asegurarse de mostrar el símbolo %
-  if (text.endsWith('%')) {
-    return GestureDetector(
-      onTap: () {
-        if (producto != null) {
-          seleccionarProducto(producto);
-        }
-      },
-      child: Container(
-        padding: const EdgeInsets.all(4),
-        child: Text(
-          text,
-          style: const TextStyle(fontSize: 9),
-          overflow: TextOverflow.ellipsis,
-          maxLines: maxLines,
-          textAlign: TextAlign.center,
-        ),
-      ),
-    );
-  }
+Widget _buildDataCell(String text, {int maxLines = 1, Map<String, dynamic>? producto}) {
+  bool isSelected = producto != null && producto['CODIGO'] == productoCodigoSeleccionado;
   
-  // Para otros valores
   return GestureDetector(
     onTap: () {
       if (producto != null) {
@@ -2330,9 +2519,12 @@ _buildDataCell(String text, {int maxLines = 1, Map<String, dynamic>? producto}) 
     },
     child: Container(
       padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: isSelected ? Colors.blue.withOpacity(0.1) : Colors.transparent,
+      ),
       child: Text(
         text,
-        style: const TextStyle(fontSize: 9),
+        style: TextStyle(fontSize: 9),
         overflow: TextOverflow.ellipsis,
         maxLines: maxLines,
         textAlign: TextAlign.center,
