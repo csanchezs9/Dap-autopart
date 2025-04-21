@@ -236,7 +236,6 @@
                     <li>CEL (número de teléfono celular)</li>
                 </ul>
             </div>
-
             
             <form id="asesoresForm">
                 <div class="form-group">
@@ -250,49 +249,59 @@
                 
                 <button type="submit" class="btn">Actualizar Lista de Asesores</button>
             </form>
-
-            <div class="card">
-                <h2>Actualizar Lista de Correos por Área</h2>
-                <p>Suba un archivo CSV con la información de los correos que recibirán copia de los pedidos.</p>
-                
-                <div class="info-box">
-                    <strong>Importante:</strong> El archivo CSV debe contener las siguientes columnas:
-                    <ul>
-                        <li>AREA (departamento o sección)</li>
-                        <li>MAIL (correo electrónico)</li>
-                    </ul>
-                    <p>Nota: Los pedidos se enviarán siempre al cliente y al asesor que realizó el pedido, además de los correos configurados aquí.</p>
+        </div>
+        
+        <!-- Nueva card para imágenes de productos -->
+        <div class="card">
+            <h2>Actualizar Imágenes de Productos</h2>
+            <p>Suba imágenes de productos en formato JPG. El nombre del archivo debe coincidir con el código del producto precedido por 'm'.</p>
+            
+            <div class="info-box">
+                <strong>Importante:</strong> Los archivos deben tener el formato m[CODIGO].jpg (ejemplo: m1234.jpg)
+            </div>
+            
+            <form id="imagenesForm">
+                <div class="form-group">
+                    <label for="imagenes">Seleccionar archivos JPG:</label>
+                    <input type="file" id="imagenes" name="imagenes" accept=".jpg, .jpeg" multiple class="input-file" required>
                 </div>
-
-                <form id="imagenesForm">
-                    <div class="form-group">
-                        <label for="imagenes">Seleccionar archivos JPG:</label>
-                        <input type="file" id="imagenes" name="imagenes" accept=".jpg, .jpeg" multiple class="input-file" required>
-                    </div>
-                    
-                    <div class="current-file" id="currentImagenes">
-                        <span id="imagenesNombre">Últimas imágenes subidas: Ninguna</span>
-                    </div>
-                    
-                    <button type="submit" class="btn">Subir Imágenes</button>
-                </form>
-            </div>
                 
-                <form id="correosForm">
-                    <div class="form-group">
-                        <label for="correos">Seleccionar archivo CSV:</label>
-                        <input type="file" id="correos" name="correos" accept=".csv" class="input-file" required>
-                    </div>
-                    
-                    <div class="current-file" id="currentCorreos">
-                        <span id="correosNombre">Último archivo subido: No hay archivo</span>
-                    </div>
-                    
-                    <button type="submit" class="btn">Actualizar Lista de Correos</button>
-                </form>
+                <div class="current-file" id="currentImagenes">
+                    <span id="imagenesNombre">Últimas imágenes subidas: Ninguna</span>
+                </div>
+                
+                <button type="submit" class="btn">Subir Imágenes</button>
+            </form>
+        </div>
+        
+        <div class="card">
+            <h2>Actualizar Lista de Correos por Área</h2>
+            <p>Suba un archivo CSV con la información de los correos que recibirán copia de los pedidos.</p>
+            
+            <div class="info-box">
+                <strong>Importante:</strong> El archivo CSV debe contener las siguientes columnas:
+                <ul>
+                    <li>AREA (departamento o sección)</li>
+                    <li>MAIL (correo electrónico)</li>
+                </ul>
+                <p>Nota: Los pedidos se enviarán siempre al cliente y al asesor que realizó el pedido, además de los correos configurados aquí.</p>
             </div>
+            
+            <form id="correosForm">
+                <div class="form-group">
+                    <label for="correos">Seleccionar archivo CSV:</label>
+                    <input type="file" id="correos" name="correos" accept=".csv" class="input-file" required>
+                </div>
+                
+                <div class="current-file" id="currentCorreos">
+                    <span id="correosNombre">Último archivo subido: No hay archivo</span>
+                </div>
+                
+                <button type="submit" class="btn">Actualizar Lista de Correos</button>
+            </form>
         </div>
     </div>
+</div>
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
