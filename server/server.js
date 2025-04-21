@@ -451,48 +451,63 @@ app.post('/send-email', upload.single('pdf'), async (req, res) => {
   try {
     const { clienteEmail, asesorEmail, asunto, cuerpo } = req.body;
     const pdfPath = req.file.path;
+    const clienteNombre = req.body.clienteNombre || ''; // Nuevo: capturar nombre del cliente
+    const ordenNumero = req.body.ordenNumero || ''; // Nuevo: capturar número de orden
 
     if (!clienteEmail) {
       return res.status(400).json({ success: false, message: 'Falta el correo del cliente' });
     }
 
-    // Obtener la lista de correos por área (solo incluirá áreas antes de ASESOR QUE GENERA EL PEDIDO)
+    // Obtener la lista de correos por área 
     const correosPath = path.join(correosDirPath, 'correos.csv');
-    let correosAdicionales = [];
+    let destinatariosPrincipales = [];
     
     if (fs.existsSync(correosPath)) {
       try {
         const correosPorArea = procesarCsvCorreos(correosPath);
-        correosAdicionales = correosPorArea.map(c => c.MAIL);
-        console.log("Correos adicionales para copia:", correosAdicionales);
+        destinatariosPrincipales = correosPorArea.map(c => c.MAIL);
+        console.log("Destinatarios principales:", destinatariosPrincipales);
       } catch (e) {
-        console.error("Error al procesar correos adicionales:", e);
+        console.error("Error al procesar correos de áreas:", e);
       }
     }
-
+    
+    // Si no hay destinatarios configurados, usar el correo del cliente como destinatario principal
+    if (destinatariosPrincipales.length === 0) {
+      console.log("No se encontraron destinatarios en correos.csv, usando el correo del cliente como principal");
+      destinatariosPrincipales = [clienteEmail];
+    }
+    
     // Lista de CC
     let ccList = [];
     
-    // Agregar el asesor que hizo login
+    // Agregar el cliente en CC (solo si no está ya en los destinatarios principales)
+    if (!destinatariosPrincipales.includes(clienteEmail) && clienteEmail.trim()) {
+      ccList.push(clienteEmail.trim());
+    }
+    
+    // Agregar el asesor que hizo login en CC
     if (asesorEmail && asesorEmail.trim()) {
       ccList.push(asesorEmail.trim());
     }
     
-    // Agregar áreas adicionales (solo CARTERA, BODEGA, DIRECCION COMERCIAL)
-    if (correosAdicionales.length > 0) {
-      ccList = ccList.concat(correosAdicionales);
-    }
-    
     // Filtrar duplicados y valores vacíos
+    destinatariosPrincipales = [...new Set(destinatariosPrincipales.filter(email => email && email.trim()))];
     ccList = [...new Set(ccList.filter(email => email && email.trim()))];
     
+    console.log("Lista final de destinatarios:", destinatariosPrincipales);
     console.log("Lista final de CC:", ccList);
+
+    // Formatear el asunto con el número de orden y nombre del cliente
+    const asuntoFormateado = ordenNumero ? 
+      `Orden de pedido ${ordenNumero}${clienteNombre ? `, ${clienteNombre}` : ''}` : 
+      (asunto || 'Orden de Pedido - DAP AutoPart\'s');
 
     const mailOptions = {
       from: '"DAP AutoPart\'s"',
-      to: clienteEmail,
+      to: destinatariosPrincipales.join(', '),
       cc: ccList.join(', '),
-      subject: asunto || 'Orden de Pedido - DAP AutoPart\'s',
+      subject: asuntoFormateado,
       text: cuerpo || 'Adjunto encontrará su orden de pedido.',
       attachments: [
         {
@@ -512,6 +527,7 @@ app.post('/send-email', upload.single('pdf'), async (req, res) => {
     res.status(500).json({ success: false, message: error.toString() });
   }
 });
+
 
 function procesarCsvClientes(filePath) {
   try {

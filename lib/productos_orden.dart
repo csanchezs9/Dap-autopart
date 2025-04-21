@@ -258,8 +258,8 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
           producto['DSCTO'] = descuentoOriginal;
         }
         
-        // Establecer V.BRUTO igual a VLR ANTES DE IVA (sin aplicar descuento)
-        double valorBruto = valorUnidad;
+      
+         double valorBruto = valorUnidad * cantidad;
         
         producto['V.BRUTO'] = valorBruto;
         
@@ -629,7 +629,7 @@ Future<Uint8List?> _generarPDFMejorado() async {
                     _buildPDFHeaderCell('DESCRIPCIÓN'),
                     _buildPDFHeaderCell('VEHÍCULO'),
                     _buildPDFHeaderCell('MARCA'),
-                    _buildPDFHeaderCell('ANTES IVA'),
+                    _buildPDFHeaderCell('V. ANTES IVA'),
                     _buildPDFHeaderCell('DSCTO'),
                     _buildPDFHeaderCell('CANT'),
                     _buildPDFHeaderCell('V.BRUTO'),
@@ -1130,7 +1130,7 @@ Future<Uint8List?> _generarPDFMejorado() async {
                               5: FractionColumnWidth(0.15), // DESCRIPCIÓN
                               6: FractionColumnWidth(0.12), // VEHÍCULO
                               7: FractionColumnWidth(0.09), // MARCA
-                              8: FractionColumnWidth(0.09), // ANTES IVA
+                              8: FractionColumnWidth(0.09), // V.ANTES IVA
                               9: FractionColumnWidth(0.05), // DSCTO
                               10: FractionColumnWidth(0.05), // CANT
                               11: FractionColumnWidth(0.09), // V.BRUTO
@@ -1149,7 +1149,7 @@ Future<Uint8List?> _generarPDFMejorado() async {
                                   _buildHeaderCell('DESCRIPCIÓN'),
                                   _buildHeaderCell('VEHÍCULO'),
                                   _buildHeaderCell('MARCA'),
-                                  _buildHeaderCell('ANTES IVA'),
+                                  _buildHeaderCell('V. ANTES IVA'),
                                   _buildHeaderCell('DSCTO'),
                                   _buildHeaderCell('CANT'),
                                   _buildHeaderCell('V.BRUTO'),
@@ -1174,7 +1174,7 @@ Future<Uint8List?> _generarPDFMejorado() async {
                                   5: FractionColumnWidth(0.15), // DESCRIPCIÓN
                                   6: FractionColumnWidth(0.12), // VEHÍCULO
                                   7: FractionColumnWidth(0.09), // MARCA
-                                  8: FractionColumnWidth(0.09), // ANTES IVA
+                                  8: FractionColumnWidth(0.09), // V. ANTES IVA
                                   9: FractionColumnWidth(0.05), // DSCTO
                                   10: FractionColumnWidth(0.05), // CANT
                                   11: FractionColumnWidth(0.09), // V.BRUTO
@@ -1436,11 +1436,17 @@ Future<Uint8List?> _generarPDFMejorado() async {
       Uri.parse('${ProductoService.baseUrl}/send-email'),    
     );
     
+     final nombreCliente = widget.clienteData['NOMBRE'] ?? '';
     // Agregar los campos
     request.fields['clienteEmail'] = emailCliente;
     request.fields['asesorEmail'] = widget.asesorData['MAIL'] ?? '';
+    request.fields['clienteNombre'] = nombreCliente; // Nuevo: nombre del cliente
+    request.fields['ordenNumero'] = widget.ordenNumero; // Nuevo: número de orden
+    
+    // Formato original del asunto (el servidor lo reformateará)
     request.fields['asunto'] = 'Orden de Pedido ${widget.ordenNumero} - DAP AutoPart\'s';
-    request.fields['cuerpo'] = '''Estimado cliente ${widget.clienteData['NOMBRE'] ?? ''},
+    
+    request.fields['cuerpo'] = '''Estimado cliente ${nombreCliente},
         
 Adjunto encontrará su orden de pedido #${widget.ordenNumero}.
   
@@ -1811,7 +1817,7 @@ Row(
                                 5: FractionColumnWidth(0.15), // DESCRIPCIÓN
                                 6: FractionColumnWidth(0.12), // VEHÍCULO
                                 7: FractionColumnWidth(0.09), // MARCA
-                                8: FractionColumnWidth(0.09), // ANTES IVA
+                                8: FractionColumnWidth(0.09), // V. ANTES IVA
                                 9: FractionColumnWidth(0.05), // DSCTO
                                 10: FractionColumnWidth(0.05), // CANT
                                 11: FractionColumnWidth(0.09), // V.BRUTO
@@ -1830,7 +1836,7 @@ Row(
                                     _buildHeaderCell('DESCRIPCIÓN'),
                                     _buildHeaderCell('VEHÍCULO'),
                                     _buildHeaderCell('MARCA'),
-                                    _buildHeaderCell('ANTES IVA'),
+                                    _buildHeaderCell('V. ANTES IVA'),
                                     _buildHeaderCell('DSCTO'),
                                     _buildHeaderCell('CANT'),
                                     _buildHeaderCell('V.BRUTO'),
@@ -1860,7 +1866,7 @@ Row(
                                     5: FractionColumnWidth(0.15), // DESCRIPCIÓN
                                     6: FractionColumnWidth(0.12), // VEHÍCULO
                                     7: FractionColumnWidth(0.09), // MARCA
-                                    8: FractionColumnWidth(0.09), // ANTES IVA
+                                    8: FractionColumnWidth(0.09), // V. ANTES IVA
                                     9: FractionColumnWidth(0.05), // DSCTO
                                     10: FractionColumnWidth(0.05), // CANT
                                     11: FractionColumnWidth(0.09), // V.BRUTO
@@ -2217,7 +2223,7 @@ void _eliminarProducto(Map<String, dynamic> producto) {
 }
 
 
-void _editarCantidad(Map<String, dynamic> producto) {
+void  _editarCantidad(Map<String, dynamic> producto) {
   String cantidadActual = producto['CANT']?.toString() ?? '1';
   final TextEditingController cantController = TextEditingController(text: cantidadActual);
   
@@ -2293,9 +2299,33 @@ void _editarCantidad(Map<String, dynamic> producto) {
                     // Actualizar en el siguiente frame para evitar problemas de estado
                     WidgetsBinding.instance.addPostFrameCallback((_) {
                       setState(() {
-                        producto['CANT'] = num;
-                        calcularTotales();
-                      });
+  // Actualizar la cantidad
+  producto['CANT'] = num;
+  
+  // Recalcular V.BRUTO basado en la nueva cantidad
+  if (producto.containsKey('VLR ANTES DE IVA')) {
+    double valorUnidad = 0;
+    if (producto['VLR ANTES DE IVA'] is double || producto['VLR ANTES DE IVA'] is int) {
+    valorUnidad = producto['VLR ANTES DE IVA'];
+} else {
+      valorUnidad = double.tryParse(producto['VLR ANTES DE IVA'].toString()) ?? 0;
+    }
+    
+    // Actualizar V.BRUTO = Valor unitario * cantidad
+    producto['V.BRUTO'] = valorUnidad * num;
+    
+    // Mostrar información de depuración en consola
+    print("Recalculando V.BRUTO para ${producto['CODIGO']}:");
+    print("  - Valor unitario: $valorUnidad");
+    print("  - Nueva cantidad: $num");
+    print("  - Nuevo V.BRUTO: ${producto['V.BRUTO']}");
+  } else {
+    print("ADVERTENCIA: No se encontró 'VLR ANTES DE IVA' para el producto");
+  }
+  
+  // Recalcular todos los totales para la orden
+  calcularTotales();
+});
                       
                       // Mostrar mensaje de confirmación
                       ScaffoldMessenger.of(context).showSnackBar(
