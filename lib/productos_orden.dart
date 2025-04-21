@@ -894,25 +894,25 @@ Future<Uint8List?> _generarPDFMejorado() async {
   
   // Verificar si la imagen existe y cachear el resultado
   Future<void> _checkImageExistence(String codigo) async {
-    if (_imagenesDisponibles.containsKey(codigo)) {
-      return; // Ya verificamos esta imagen
-    }
-    
-    try {
-      // Añadimos la 'm' al principio del código, según el formato mencionado
-      final assetPath = 'assets/imagenesProductos/m$codigo.jpg';
-      await rootBundle.load(assetPath);
-      _imagenesDisponibles[codigo] = true;
-    } catch (e) {
-      print("Imagen no encontrada para $codigo: $e");
-      _imagenesDisponibles[codigo] = false;
-    }
-    
-    // Forzar reconstrucción del widget para mostrar la imagen o el placeholder
-    if (mounted) {
-      setState(() {});
-    }
+  if (_imagenesDisponibles.containsKey(codigo)) {
+    return; // Ya verificamos esta imagen
   }
+  
+  try {
+    // Buscamos la imagen directamente con el código (sin 'm')
+    final assetPath = 'assets/imagenesProductos/$codigo.jpg';
+    await rootBundle.load(assetPath);
+    _imagenesDisponibles[codigo] = true;
+  } catch (e) {
+    print("Imagen no encontrada para $codigo: $e");
+    _imagenesDisponibles[codigo] = false;
+  }
+  
+  // Forzar reconstrucción del widget para mostrar la imagen o el placeholder
+  if (mounted) {
+    setState(() {});
+  }
+}
   
   // Método para mostrar la vista previa
   void mostrarVistaPrevia() {
@@ -2113,7 +2113,7 @@ Center(
       child: ClipRRect(
         borderRadius: BorderRadius.circular(6),
         child: Image.asset(
-          'assets/imagenesProductos/m$codigo.jpg',
+          'assets/imagenesProductos/$codigo.jpg',
           fit: BoxFit.contain,
           errorBuilder: (context, error, stackTrace) {
             _imagenesDisponibles[codigo] = false;
@@ -2378,83 +2378,83 @@ void  _editarCantidad(Map<String, dynamic> producto) {
 
   // Método para mostrar la imagen en tamaño grande
   void _mostrarImagenGrande(String codigo) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          insetPadding: const EdgeInsets.all(20),
-          child: Stack(
-            children: [
-              // Contenedor con la imagen
-              Container(
-                width: MediaQuery.of(context).size.width * 0.7,
-                height: MediaQuery.of(context).size.height * 0.7,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(10),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.5),
-                      spreadRadius: 5,
-                      blurRadius: 7,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: Image.asset(
-                    'assets/imagenesProductos/m$codigo.jpg',
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.broken_image, size: 64, color: Colors.red),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Error al cargar la imagen\n$codigo',
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(color: Colors.red, fontSize: 16),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(20),
+        child: Stack(
+          children: [
+            // Contenedor con la imagen
+            Container(
+              width: MediaQuery.of(context).size.width * 0.7,
+              height: MediaQuery.of(context).size.height * 0.7,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.5),
+                    spreadRadius: 5,
+                    blurRadius: 7,
+                    offset: const Offset(0, 3),
                   ),
-                ),
+                ],
               ),
-              
-              // Botón para cerrar
-              Positioned(
-                right: 10,
-                top: 10,
-                child: InkWell(
-                  onTap: () {
-                    Navigator.of(context).pop();
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Image.asset(
+                  'assets/imagenesProductos/$codigo.jpg',
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.broken_image, size: 64, color: Colors.red),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Error al cargar la imagen\n$codigo',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: Colors.red, fontSize: 16),
+                          ),
+                        ],
+                      ),
+                    );
                   },
-                  child: Container(
-                    padding: const EdgeInsets.all(5),
-                    decoration: const BoxDecoration(
-                      color: Colors.red,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.close,
-                      color: Colors.white,
-                      size: 20,
-                    ),
+                ),
+              ),
+            ),
+            
+            // Botón para cerrar
+            Positioned(
+              right: 10,
+              top: 10,
+              child: InkWell(
+                onTap: () {
+                  Navigator.of(context).pop();
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(5),
+                  decoration: const BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.close,
+                    color: Colors.white,
+                    size: 20,
                   ),
                 ),
               ),
-            ],
-          ),
-        );
-      },
-    );
-  }
+            ),
+          ],
+        ),
+      );
+    },
+  );
+}
 
   // Formato para moneda
   // Reemplaza la función formatCurrency en la clase _ProductosOrdenState

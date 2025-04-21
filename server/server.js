@@ -72,10 +72,17 @@ const imagenesStorage = multer.diskStorage({
 const uploadImagenes = multer({ 
   storage: imagenesStorage,
   fileFilter: function(req, file, cb) {
-    // Validar que sea un archivo JPG y que el nombre comience con 'm'
-    if (!file.originalname.match(/^m.*\.jpe?g$/i)) {
-      return cb(new Error('Solo se permiten archivos JPG con nombre que comience con "m"'), false);
+    // Verificar que sea un archivo JPG
+    if (!file.originalname.match(/\.jpe?g$/i)) {
+      return cb(new Error('Solo se permiten archivos JPG'), false);
     }
+    
+    // Verificar que el nombre sin extensión sea solo números
+    const filenameWithoutExt = file.originalname.replace(/\.jpe?g$/i, '');
+    if (!/^\d+$/.test(filenameWithoutExt)) {
+      return cb(new Error('El nombre del archivo debe ser el código del producto (solo números)'), false);
+    }
+    
     cb(null, true);
   }
 });
@@ -99,73 +106,6 @@ try {
   console.error('Error al cargar el contador de órdenes:', error);
 }
 
-function uploadImages() {
-  console.log("Iniciando subida de imágenes");
-  
-  // Mostrar alerta de "Subiendo..." mientras se procesa
-  showAlert('alertInfo', 'Subiendo imágenes, por favor espere...', 'info');
-  
-  const fileInput = document.getElementById('imagenes');
-  const files = fileInput.files;
-  
-  if (!files || files.length === 0) {
-      console.log("No se seleccionaron imágenes");
-      showAlert('alertError', 'Por favor seleccione al menos una imagen.');
-      return;
-  }
-  
-  console.log(`Se seleccionaron ${files.length} imágenes`);
-  
-  // Verificar que todos son archivos JPG
-  for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      if (!file.type.match('image/jpeg')) {
-          console.log(`Error: El archivo ${file.name} no es un JPG`);
-          showAlert('alertError', `El archivo ${file.name} no es un JPG válido.`);
-          return;
-      }
-      
-      // Verificar que el nombre sigue el formato requerido
-      if (!file.name.startsWith('m') || !file.name.endsWith('.jpg')) {
-          console.log(`Error: El archivo ${file.name} no tiene el formato correcto (debe ser m[CODIGO].jpg)`);
-          showAlert('alertError', `El archivo ${file.name} no tiene el formato correcto (debe ser m[CODIGO].jpg).`);
-          return;
-      }
-  }
-  
-  const formData = new FormData();
-  for (let i = 0; i < files.length; i++) {
-      formData.append('imagenes', files[i]);
-  }
-  
-  console.log(`Enviando solicitud a /upload-imagenes...`);
-  
-  fetch('/upload-imagenes', {
-      method: 'POST',
-      body: formData
-  })
-  .then(response => {
-      console.log(`Respuesta recibida de upload-imagenes:`, response);
-      return response.json();
-  })
-  .then(data => {
-      console.log(`Datos de respuesta para upload-imagenes:`, data);
-      if (data.success) {
-          showAlert('alertSuccess', `¡${data.count} imágenes han sido subidas correctamente!`);
-          // Mostrar los nombres de las imágenes subidas
-          const imagenesSubidas = data.filenames.join(', ');
-          document.getElementById('imagenesNombre').textContent = `Últimas imágenes subidas: ${imagenesSubidas}`;
-          // Resetear el formulario
-          document.getElementById('imagenes').value = '';
-      } else {
-          showAlert('alertError', data.message || `Error al subir las imágenes.`);
-      }
-  })
-  .catch(error => {
-      console.error(`Error en solicitud a upload-imagenes:`, error);
-      showAlert('alertError', `Error de conexión: No se pudo comunicar con el servidor. Detalles: ${error.message}`);
-  });
-}
 
 function guardarContador() {
   try {
@@ -362,7 +302,7 @@ app.get('/imagenes-info', (req, res) => {
   try {
     // Leer el directorio de imágenes
     const files = fs.readdirSync(imagenesDir).filter(file => 
-      file.startsWith('m') && file.endsWith('.jpg')
+      file.endsWith('.jpg')
     );
     
     res.json({
@@ -375,7 +315,6 @@ app.get('/imagenes-info', (req, res) => {
     res.status(500).json({ success: false, message: error.toString() });
   }
 });
-
 // Configurar almacenamiento para archivos subidos
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
