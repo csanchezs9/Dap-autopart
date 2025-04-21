@@ -508,7 +508,11 @@ app.post('/send-email', upload.single('pdf'), async (req, res) => {
       to: destinatariosPrincipales.join(', '),
       cc: ccList.join(', '),
       subject: asuntoFormateado,
-      text: cuerpo || 'Adjunto encontrará su orden de pedido.',
+      text: cuerpo || `Cordial saludo se adjunta orden de pedido #${ordenNumero} para ${clienteNombre}
+Por su colaboración mil gracias
+${asesorNombre || 'Asesor comercial'}
+Asesor comercial
+Distribuciones AutoPart's`,
       attachments: [
         {
           filename: path.basename(pdfPath),
