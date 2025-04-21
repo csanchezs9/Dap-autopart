@@ -11,6 +11,7 @@ const session = require('express-session');
 const crypto = require('crypto');
 
 const app = express();
+let ultimoNumeroOrden = 1;
 
 const sessionConfig = {
   secret: process.env.SESSION_SECRET || 'dap-autoparts-secret-key',
@@ -21,6 +22,7 @@ const sessionConfig = {
     maxAge: 24 * 60 * 60 * 1000 // Aumentar a 24 horas
   }
 };
+
 
 app.use(session(sessionConfig));
 
@@ -52,7 +54,7 @@ if (!fs.existsSync(ordenesPath)) {
   }
 });
 
-let ultimoNumeroOrden = 1;
+
 
 
 
