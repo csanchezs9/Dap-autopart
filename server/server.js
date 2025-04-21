@@ -72,21 +72,14 @@ const imagenesStorage = multer.diskStorage({
 const uploadImagenes = multer({ 
   storage: imagenesStorage,
   fileFilter: function(req, file, cb) {
-    // Verificar que sea un archivo JPG
+    // Verificar que sea un archivo JPG o JPEG
     if (!file.originalname.match(/\.jpe?g$/i)) {
-      return cb(new Error('Solo se permiten archivos JPG'), false);
+      return cb(new Error('Solo se permiten archivos JPG/JPEG'), false);
     }
-    
-    // Verificar que el nombre sin extensión sea solo números
-    const filenameWithoutExt = file.originalname.replace(/\.jpe?g$/i, '');
-    if (!/^\d+$/.test(filenameWithoutExt)) {
-      return cb(new Error('El nombre del archivo debe ser el código del producto (solo números)'), false);
-    }
-    
+    // Aceptar cualquier nombre de archivo que termine en .jpg o .jpeg
     cb(null, true);
   }
 });
-
 
 
 // Intentar cargar el contador desde un archivo

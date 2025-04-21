@@ -254,11 +254,10 @@
         <!-- Nueva card para imágenes de productos -->
         <div class="card">
             <h2>Actualizar Imágenes de Productos</h2>
-            <p>Suba imágenes de productos en formato JPG. El nombre del archivo debe coincidir con el código del producto.</p>
+            <p>Suba imágenes de productos en formato JPG/JPEG.</p>
             
             <div class="info-box">
-                <strong>Importante:</strong> Los archivos deben tener el formato [CODIGO].jpg (ejemplo: 1234.jpg)
-                <p>Estas imágenes se guardarán en la carpeta de imágenes de productos y estarán disponibles en la aplicación.</p>
+                <strong>Importante:</strong> Solo se permiten archivos con extensión .jpg o .jpeg
             </div>
             
             <form id="imagenesForm">
@@ -350,7 +349,6 @@
     uploadImages();
 });
         });
-
         function uploadImages() {
     console.log("Iniciando subida de imágenes");
     
@@ -368,21 +366,12 @@
     
     console.log(`Se seleccionaron ${files.length} imágenes`);
     
-    // Verificar que todos son archivos JPG
+    // Verificar que todos son archivos JPG/JPEG
     for (let i = 0; i < files.length; i++) {
         const file = files[i];
         if (!file.type.match('image/jpeg')) {
-            console.log(`Error: El archivo ${file.name} no es un JPG`);
-            showAlert('alertError', `El archivo ${file.name} no es un JPG válido.`);
-            return;
-        }
-        
-        // Verificar que el nombre sigue el formato requerido (código + .jpg)
-        const filenameWithoutExt = file.name.replace(/\.jpe?g$/i, '');
-        // Verificar que el nombre del archivo contiene solo números (código del producto)
-        if (!/^\d+$/.test(filenameWithoutExt)) {
-            console.log(`Error: El archivo ${file.name} no tiene el formato correcto (debe ser [CODIGO].jpg)`);
-            showAlert('alertError', `El archivo ${file.name} no tiene el formato correcto. El nombre debe ser solo el código del producto (números únicamente).`);
+            console.log(`Error: El archivo ${file.name} no es un JPG/JPEG`);
+            showAlert('alertError', `El archivo ${file.name} no es un JPG/JPEG válido.`);
             return;
         }
     }
