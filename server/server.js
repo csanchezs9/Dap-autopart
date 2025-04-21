@@ -43,7 +43,7 @@ const asesoresDirPath = path.join(__dirname, 'asesores');
 const clientesDirPath = path.join(__dirname, 'clientes');
 const correosDirPath = path.join(__dirname, 'correos');
 const ordenesPath = path.join(__dirname, 'ordenes');
-const imagenesDir = path.join(__dirname, '..', 'assets', 'imagenesProductos');
+const imagenesDir = path.join(__dirname, '..', 'assets', 'imagenesproductos');
 
 if (!fs.existsSync(ordenesPath)) {
   fs.mkdirSync(ordenesPath, { recursive: true });
@@ -273,9 +273,20 @@ app.post('/upload-imagenes', requireAuth, uploadImagenes.array('imagenes', 50), 
       });
     }
 
-    // Obtener los nombres de los archivos subidos
-    const filenames = req.files.map(file => file.originalname);
+    console.log(`Directorio de imágenes: ${imagenesDir}`);
+    console.log(`¿El directorio existe? ${fs.existsSync(imagenesDir)}`);
     
+    // Obtener los nombres de los archivos subidos y sus rutas completas
+    const fileInfo = req.files.map(file => ({
+      filename: file.originalname,
+      path: file.path
+    }));
+    
+    console.log(`Información detallada de archivos subidos:`, fileInfo);
+
+      // Obtener los nombres de los archivos subidos
+      const filenames = req.files.map(file => file.originalname);
+      
     console.log(`Se han subido ${req.files.length} imágenes: ${filenames.join(', ')}`);
     
     res.json({ 
