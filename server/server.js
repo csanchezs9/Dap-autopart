@@ -481,16 +481,16 @@ app.post('/send-email', upload.single('pdf'), async (req, res) => {
     }
     
     // Lista de CC
+    if (asesorEmail && asesorEmail.trim() && !destinatariosPrincipales.includes(asesorEmail.trim())) {
+      destinatariosPrincipales.push(asesorEmail.trim());
+    }
+    
+    // Lista de CC (solo el cliente)
     let ccList = [];
     
     // Agregar el cliente en CC (solo si no está ya en los destinatarios principales)
     if (!destinatariosPrincipales.includes(clienteEmail) && clienteEmail.trim()) {
       ccList.push(clienteEmail.trim());
-    }
-    
-    // Agregar el asesor que hizo login en CC
-    if (asesorEmail && asesorEmail.trim()) {
-      ccList.push(asesorEmail.trim());
     }
     
     // Filtrar duplicados y valores vacíos
