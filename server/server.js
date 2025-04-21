@@ -78,7 +78,12 @@ try {
 function guardarContador() {
   try {
     const contadorPath = path.join(ordenesPath, 'contador.json');
+    console.log(`Guardando contador con valor: ${ultimoNumeroOrden}`);
     fs.writeFileSync(contadorPath, JSON.stringify({ ultimoNumero: ultimoNumeroOrden }));
+    
+    // Verificar que se guardó correctamente
+    const contenido = fs.readFileSync(contadorPath, 'utf8');
+    console.log('Contenido del archivo después de guardar:', contenido);
   } catch (error) {
     console.error('Error al guardar el contador de órdenes:', error);
   }
