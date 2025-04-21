@@ -43,18 +43,42 @@ const asesoresDirPath = path.join(__dirname, 'asesores');
 const clientesDirPath = path.join(__dirname, 'clientes');
 const correosDirPath = path.join(__dirname, 'correos');
 const ordenesPath = path.join(__dirname, 'ordenes');
+const imagenesDir = path.join(__dirname, '..', 'assets', 'imagenesProductos');
+
 if (!fs.existsSync(ordenesPath)) {
   fs.mkdirSync(ordenesPath, { recursive: true });
 }
 
+if (!fs.existsSync(imagenesDir)) {
+  fs.mkdirSync(imagenesDir, { recursive: true });
+}
 
-[uploadDir, catDirPath, tempDir, productosDirPath, asesoresDirPath, clientesDirPath, correosDirPath, ordenesPath].forEach(dir => {
+[uploadDir, catDirPath, tempDir, productosDirPath, asesoresDirPath, clientesDirPath, correosDirPath, ordenesPath, imagenesDir].forEach(dir => {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
 });
 
+const imagenesStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, imagenesDir);
+  },
+  filename: function (req, file, cb) {
+    // Mantener el nombre original del archivo
+    cb(null, file.originalname);
+  }
+});
 
+const uploadImagenes = multer({ 
+  storage: imagenesStorage,
+  fileFilter: function(req, file, cb) {
+    // Validar que sea un archivo JPG y que el nombre comience con 'm'
+    if (!file.originalname.match(/^m.*\.jpe?g$/i)) {
+      return cb(new Error('Solo se permiten archivos JPG con nombre que comience con "m"'), false);
+    }
+    cb(null, true);
+  }
+});
 
 
 
@@ -73,6 +97,74 @@ try {
   }
 } catch (error) {
   console.error('Error al cargar el contador de órdenes:', error);
+}
+
+function uploadImages() {
+  console.log("Iniciando subida de imágenes");
+  
+  // Mostrar alerta de "Subiendo..." mientras se procesa
+  showAlert('alertInfo', 'Subiendo imágenes, por favor espere...', 'info');
+  
+  const fileInput = document.getElementById('imagenes');
+  const files = fileInput.files;
+  
+  if (!files || files.length === 0) {
+      console.log("No se seleccionaron imágenes");
+      showAlert('alertError', 'Por favor seleccione al menos una imagen.');
+      return;
+  }
+  
+  console.log(`Se seleccionaron ${files.length} imágenes`);
+  
+  // Verificar que todos son archivos JPG
+  for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (!file.type.match('image/jpeg')) {
+          console.log(`Error: El archivo ${file.name} no es un JPG`);
+          showAlert('alertError', `El archivo ${file.name} no es un JPG válido.`);
+          return;
+      }
+      
+      // Verificar que el nombre sigue el formato requerido
+      if (!file.name.startsWith('m') || !file.name.endsWith('.jpg')) {
+          console.log(`Error: El archivo ${file.name} no tiene el formato correcto (debe ser m[CODIGO].jpg)`);
+          showAlert('alertError', `El archivo ${file.name} no tiene el formato correcto (debe ser m[CODIGO].jpg).`);
+          return;
+      }
+  }
+  
+  const formData = new FormData();
+  for (let i = 0; i < files.length; i++) {
+      formData.append('imagenes', files[i]);
+  }
+  
+  console.log(`Enviando solicitud a /upload-imagenes...`);
+  
+  fetch('/upload-imagenes', {
+      method: 'POST',
+      body: formData
+  })
+  .then(response => {
+      console.log(`Respuesta recibida de upload-imagenes:`, response);
+      return response.json();
+  })
+  .then(data => {
+      console.log(`Datos de respuesta para upload-imagenes:`, data);
+      if (data.success) {
+          showAlert('alertSuccess', `¡${data.count} imágenes han sido subidas correctamente!`);
+          // Mostrar los nombres de las imágenes subidas
+          const imagenesSubidas = data.filenames.join(', ');
+          document.getElementById('imagenesNombre').textContent = `Últimas imágenes subidas: ${imagenesSubidas}`;
+          // Resetear el formulario
+          document.getElementById('imagenes').value = '';
+      } else {
+          showAlert('alertError', data.message || `Error al subir las imágenes.`);
+      }
+  })
+  .catch(error => {
+      console.error(`Error en solicitud a upload-imagenes:`, error);
+      showAlert('alertError', `Error de conexión: No se pudo comunicar con el servidor. Detalles: ${error.message}`);
+  });
 }
 
 function guardarContador() {
@@ -235,6 +327,51 @@ app.post('/confirmar-orden', (req, res) => {
     res.json({ success: true, message: 'Orden confirmada correctamente' });
   } catch (error) {
     console.error('Error al confirmar orden:', error);
+    res.status(500).json({ success: false, message: error.toString() });
+  }
+});
+
+app.post('/upload-imagenes', requireAuth, uploadImagenes.array('imagenes', 50), (req, res) => {
+  try {
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'No se han subido imágenes' 
+      });
+    }
+
+    // Obtener los nombres de los archivos subidos
+    const filenames = req.files.map(file => file.originalname);
+    
+    console.log(`Se han subido ${req.files.length} imágenes: ${filenames.join(', ')}`);
+    
+    res.json({ 
+      success: true, 
+      message: 'Imágenes subidas correctamente', 
+      count: req.files.length,
+      filenames: filenames
+    });
+  } catch (error) {
+    console.error('Error al subir imágenes:', error);
+    res.status(500).json({ success: false, message: error.toString() });
+  }
+});
+
+// Endpoint para obtener información sobre las imágenes disponibles
+app.get('/imagenes-info', (req, res) => {
+  try {
+    // Leer el directorio de imágenes
+    const files = fs.readdirSync(imagenesDir).filter(file => 
+      file.startsWith('m') && file.endsWith('.jpg')
+    );
+    
+    res.json({
+      success: true,
+      count: files.length,
+      filenames: files
+    });
+  } catch (error) {
+    console.error('Error al obtener info de imágenes:', error);
     res.status(500).json({ success: false, message: error.toString() });
   }
 });

@@ -263,6 +263,20 @@
                     </ul>
                     <p>Nota: Los pedidos se enviarán siempre al cliente y al asesor que realizó el pedido, además de los correos configurados aquí.</p>
                 </div>
+
+                <form id="imagenesForm">
+                    <div class="form-group">
+                        <label for="imagenes">Seleccionar archivos JPG:</label>
+                        <input type="file" id="imagenes" name="imagenes" accept=".jpg, .jpeg" multiple class="input-file" required>
+                    </div>
+                    
+                    <div class="current-file" id="currentImagenes">
+                        <span id="imagenesNombre">Últimas imágenes subidas: Ninguna</span>
+                    </div>
+                    
+                    <button type="submit" class="btn">Subir Imágenes</button>
+                </form>
+            </div>
                 
                 <form id="correosForm">
                     <div class="form-group">
@@ -319,6 +333,12 @@
                 e.preventDefault();
                 uploadFile('correos', 'upload-correos');
             });
+
+            document.getElementById('imagenesForm').addEventListener('submit', function(e) {
+    console.log("Evento submit de imagenesForm capturado");
+    e.preventDefault();
+    uploadImages();
+});
         });
 
         function checkExistingFiles() {
@@ -334,6 +354,16 @@
             }
         })
         .catch(error => console.error('Error al verificar catálogo:', error));
+
+        fetch('/imagenes-info')
+    .then(response => response.json())
+    .then(data => {
+        console.log("Respuesta de imagenes-info:", data);
+        if (data.success && data.count > 0) {
+            document.getElementById('imagenesNombre').textContent = `Imágenes disponibles: ${data.count} archivos`;
+        }
+    })
+    .catch(error => console.error('Error al verificar imágenes:', error));
     
     // Obtener información sobre el archivo de productos actual
     fetch('/productos-info')
