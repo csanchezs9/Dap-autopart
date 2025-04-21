@@ -172,25 +172,25 @@ class _LoginScreenState extends State<LoginScreen> {
     });
   }
 }
-  @override
-  Widget build(BuildContext context) {
+ @override
+Widget build(BuildContext context) {
   return Scaffold(
     backgroundColor: Colors.white,
-    // Añadimos resizeToAvoidBottomInset para que la pantalla no se redimensione con el teclado
     resizeToAvoidBottomInset: false, 
     body: SingleChildScrollView(
       child: Center(
         child: Container(
-          // Esto asegura que el contenido tenga al menos la altura de la pantalla
           height: MediaQuery.of(context).size.height,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-            // Parte izquierda: Login
-            Expanded(
-              flex: 2,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 32.0),
+              // Espaciador flexible a la izquierda para centrar mejor
+              Spacer(flex: 1),
+              
+              // Formulario de login centrado
+              Container(
+                width: 300, // Ancho fijo del formulario
+                margin: EdgeInsets.symmetric(horizontal: 20),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -258,35 +258,27 @@ class _LoginScreenState extends State<LoginScreen> {
                   ],
                 ),
               ),
-            ),
 
-            // Parte derecha: Logo / Marca
-            Expanded(
-              flex: 2,
-              child: Center(
-                child: RichText(
-                  textAlign: TextAlign.center,
-                  text: TextSpan(
-                    style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold),
-                    children: [
-                      TextSpan(
-                        text: 'DAP\n',
-                        style: TextStyle(color: Colors.blue[900]),
-                      ),
-                      TextSpan(
-                        text: 'AutoPart´s',
-                        style: TextStyle(color: Colors.red[700]),
-                      ),
-                    ],
-                  ),
+              // Espaciador entre formulario y logo
+              Spacer(flex: 1),
+
+              // Logo más grande
+              Container(
+                width: 240, // Aumentado de 200 a 240
+                margin: EdgeInsets.only(right: 40),
+                child: Image.asset(
+                  'assets/images/logo.png',
+                  fit: BoxFit.contain,
                 ),
               ),
-            ),
-          ],
+              
+              // Espaciador a la derecha
+              Spacer(flex: 1),
+            ],
+          ),
         ),
       ),
     ),
-  ),
-    );
-  }
+  );
+}
 }

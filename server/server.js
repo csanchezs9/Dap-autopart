@@ -472,11 +472,32 @@ app.post('/send-email', upload.single('pdf'), async (req, res) => {
     if (fs.existsSync(correosPath)) {
       try {
         const correosPorArea = procesarCsvCorreos(correosPath);
-        destinatariosPrincipales = correosPorArea.map(c => c.MAIL);
-        console.log("Destinatarios principales:", destinatariosPrincipales);
+        
+        // Log detallado para depuración
+        console.log("Correos encontrados en el CSV:", correosPorArea);
+        
+        // Filtrar correos válidos y eliminar espacios en blanco
+        destinatariosPrincipales = correosPorArea
+          .filter(c => c.MAIL && typeof c.MAIL === 'string' && c.MAIL.includes('@'))
+          .map(c => c.MAIL.trim());
+        
+        console.log("Destinatarios filtrados y validados:", destinatariosPrincipales);
       } catch (e) {
         console.error("Error al procesar correos de áreas:", e);
+        console.error("Detalle del error:", e.stack);
       }
+    } else {
+      console.log("Archivo de correos no encontrado en:", correosPath);
+    }
+    
+    // Siempre incluir al cliente en la lista de destinatarios si no está ya
+    if (clienteEmail && clienteEmail.trim() && !destinatariosPrincipales.includes(clienteEmail.trim())) {
+      destinatariosPrincipales.push(clienteEmail.trim());
+    }
+    
+    // Incluir al asesor en la lista si no está ya
+    if (asesorEmail && asesorEmail.trim() && !destinatariosPrincipales.includes(asesorEmail.trim())) {
+      destinatariosPrincipales.push(asesorEmail.trim());
     }
     
     // Si no hay destinatarios configurados, usar el correo del cliente como destinatario principal
@@ -510,23 +531,36 @@ app.post('/send-email', upload.single('pdf'), async (req, res) => {
       `Orden de pedido ${ordenNumero}${clienteNombre ? `, ${clienteNombre}` : ''}` : 
       (asunto || 'Orden de Pedido - DAP AutoPart\'s');
 
-    const mailOptions = {
-      from: '"DAP AutoPart\'s"',
-      to: destinatariosPrincipales.join(', '),
-      cc: ccList.join(', '),
-      subject: asuntoFormateado,
-      text: cuerpo || `Cordial saludo se adjunta orden de pedido #${ordenNumero} para ${clienteNombre}
-Por su colaboración mil gracias
-${asesorNombre || 'Asesor comercial'}
-Asesor comercial
-Distribuciones AutoPart's`,
-      attachments: [
-        {
-          filename: path.basename(pdfPath),
-          path: pdfPath
-        }
-      ]
-    };
+      const mailOptions = {
+        from: '"DAP AutoPart\'s" <' + process.env.EMAIL_USER + '>',
+        to: destinatariosPrincipales.join(', '),
+        cc: ccList.join(', '),
+        subject: asuntoFormateado,
+        text: cuerpo || `Cordial saludo se adjunta orden de pedido #${ordenNumero} para ${clienteNombre}
+  Por su colaboración mil gracias
+  Asesor comercial
+  Distribuciones AutoPart's`,
+        attachments: [
+          {
+            filename: path.basename(pdfPath),
+            path: pdfPath
+          }
+        ]
+      };
+  
+      console.log("Enviando correo con las siguientes opciones:");
+      console.log("- De:", mailOptions.from);
+      console.log("- Para:", mailOptions.to);
+      console.log("- CC:", mailOptions.cc);
+      console.log("- Asunto:", mailOptions.subject);
+      
+      try {
+        const info = await transporter.sendMail(mailOptions);
+        console.log("✅ Correo enviado exitosamente:", info.messageId);
+      } catch (emailError) {
+        console.error("❌ Error al enviar correo:", emailError);
+        throw emailError;
+      }
 
     await transporter.sendMail(mailOptions);
     

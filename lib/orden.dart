@@ -18,6 +18,7 @@ class OrdenDePedido extends StatefulWidget {
 class _OrdenDePedidoState extends State<OrdenDePedido> {
   final TextEditingController nitController = TextEditingController();
   final TextEditingController idAsesorController = TextEditingController();
+  
 
   int numeroOrdenActual = 1;
   Map<String, String> clienteData = {};
@@ -434,21 +435,11 @@ void _mostrarAlertaDatosIncompletos() {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          RichText(
-                            text: TextSpan(
-                              style: TextStyle(fontSize: 42, fontWeight: FontWeight.bold),
-                              children: [
-                                TextSpan(
-                                  text: 'DAP\n',
-                                  style: TextStyle(color: Color(0xFF1A4379)),
-                                ),
-                                TextSpan(
-                                  text: 'AutoPart´s',
-                                  style: TextStyle(color: Colors.red[700]),
-                                ),
-                              ],
-                            ),
-                          ),
+                          Image.asset(
+  'assets/images/logo.png',
+  width: 150,
+  fit: BoxFit.contain,
+),
                           SizedBox(height: 10),
                           Text('Distribuciones Autoparts S.A.S', 
                               style: TextStyle(fontSize: 14)),

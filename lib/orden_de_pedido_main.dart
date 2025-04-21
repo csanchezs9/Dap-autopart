@@ -65,27 +65,11 @@ class OrdenDePedidoMain extends StatelessWidget {
                 ),
 
                 // Logo DAP AutoPart's
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'DAP',
-                      style: TextStyle(
-                        fontSize: 54,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blue[900],
-                      ),
-                    ),
-                    Text(
-                      'AutoPart´s',
-                      style: TextStyle(
-                        fontSize: 33,
-                        color: Colors.red[700],
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
+                Image.asset(
+  'assets/images/logo.png',
+  width: 180,
+  fit: BoxFit.contain,
+),
               ],
             ),
           ),

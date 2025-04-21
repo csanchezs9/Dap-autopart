@@ -15,6 +15,7 @@ import 'dart:convert';
 
 
 
+
 class ProductosOrden extends StatefulWidget {
   final Map<String, String> clienteData;
   final Map<String, String> asesorData;
@@ -400,7 +401,9 @@ Future<Uint8List?> _generarPDFMejorado() async {
   try {
     // Crear un documento PDF
     final pdf = pw.Document();
-    
+    final ByteData logoData = await rootBundle.load('assets/images/logo.png');
+  final Uint8List logoBytes = logoData.buffer.asUint8List();
+  final logoImage = pw.MemoryImage(logoBytes);
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
@@ -416,30 +419,19 @@ Future<Uint8List?> _generarPDFMejorado() async {
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
                     // Logo
-                    pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.start,
-                      children: [
-                        pw.Text(
-                          'DAP',
-                          style: pw.TextStyle(
-                            fontSize: 30,
-                            fontWeight: pw.FontWeight.bold,
-                            color: PdfColors.blue900,
-                          ),
-                        ),
-                        pw.Text(
-                          'AutoPart\'s',
-                          style: pw.TextStyle(
-                            fontSize: 24,
-                            fontWeight: pw.FontWeight.bold,
-                            color: PdfColors.red700,
-                          ),
-                        ),
-                        pw.SizedBox(height: 5),
-                        pw.Text('Distribuciones Autoparts S.A.S'),
-                        pw.Text('Nit: 901.110.424-1'),
-                      ],
-                    ),
+                    pw.Row(
+      children: [
+        pw.Image(logoImage, width: 90, height: 60),
+        pw.SizedBox(width: 10),
+        pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Text('Distribuciones Autoparts S.A.S'),
+            pw.Text('Nit: 901.110.424-1'),
+          ],
+        ),
+      ],
+    ),
                     
                     // Información de la orden
                     pw.Column(
@@ -971,21 +963,12 @@ Future<Uint8List?> _generarPDFMejorado() async {
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  RichText(
-                                    text: TextSpan(
-                                      style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
-                                      children: [
-                                        TextSpan(
-                                          text: 'DAP\n',
-                                          style: TextStyle(color: Color(0xFF1A4379)),
-                                        ),
-                                        TextSpan(
-                                          text: 'AutoPart´s',
-                                          style: TextStyle(color: Colors.red[700]),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
+                                  Image.asset(
+  'assets/images/logo.png',
+  width: 120,
+  height: 60,
+  fit: BoxFit.contain,
+),
                                   SizedBox(height: 5),
                                   Text('Distribuciones Autoparts S.A.S'),
                                   Text('Nit: 901.110.424-1', style: TextStyle(decoration: TextDecoration.underline)),

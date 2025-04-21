@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:open_file/open_file.dart';
+import 'package:flutter/services.dart';
 
 class ListaPreciosService {
   // URL base del servidor
@@ -307,6 +308,13 @@ class ListaPreciosService {
   }
 }
 
+Future<pw.MemoryImage> getLogo() async {
+  final ByteData data = await rootBundle.load('assets/images/logo.png');
+  final Uint8List bytes = data.buffer.asUint8List();
+  final pw.MemoryImage image = pw.MemoryImage(bytes);
+  return image;
+}
+
   // Método para generar PDF directamente a un archivo (ahorra memoria)
   static Future<void> _generarPDFDirecto(
     String filePath,
@@ -322,6 +330,9 @@ class ListaPreciosService {
     final formatter = DateFormat('dd/MM/yyyy', 'es_ES');
     final fechaActual = formatter.format(now);
     
+     final ByteData logoData = await rootBundle.load('assets/images/logo.png');
+    final Uint8List logoBytes = logoData.buffer.asUint8List();
+    final logoImage = pw.MemoryImage(logoBytes);
     // Crear documento PDF minimalista
     final pdf = pw.Document(
       compress: true, // Habilitar compresión para reducir tamaño
@@ -342,40 +353,44 @@ class ListaPreciosService {
     
     // Función para crear encabezado minimalista
     pw.Widget Function(pw.Context) buildHeader = (pw.Context context) {
-      if (context.pageNumber > 1) {
-        // Encabezado ultra-minimalista para páginas después de la primera
-        return pw.Container(
-          height: 12,
-          child: pw.Row(
-            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+  if (context.pageNumber > 1) {
+    // Encabezado ultra-minimalista para páginas después de la primera
+    return pw.Container(
+      height: 12,
+      child: pw.Row(
+        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+        children: [
+          pw.Row(
             children: [
-              pw.Text('DAP AutoPart\'s - Lista de Precios',
+              pw.Image(logoImage, width: 10, height: 10),
+              pw.SizedBox(width: 2),
+              pw.Text(' - Lista de Precios',
                 style: pw.TextStyle(fontSize: 5, color: PdfColors.blue900)),
-              pw.Text('Pág. ${context.pageNumber}/${context.pagesCount} • $fechaActual',
-                style: pw.TextStyle(fontSize: 5)),
             ],
           ),
-        );
-      }
-      
-      // Primera página: encabezado completo pero compacto
-      return pw.Container(
-        height: 30,
-        child: pw.Row(
-          children: [
-            // Información empresa e introducción
-            pw.Expanded(
-              flex: 6,
-              child: pw.Column(
+          pw.Text('Pág. ${context.pageNumber}/${context.pagesCount} • $fechaActual',
+            style: pw.TextStyle(fontSize: 5)),
+        ],
+      ),
+    );
+  }
+  
+  // Primera página: encabezado completo pero compacto
+  return pw.Container(
+    height: 30,
+    child: pw.Row(
+      children: [
+        // Logo e información empresa
+        pw.Expanded(
+          flex: 6,
+          child: pw.Row(
+            children: [
+              pw.Image(logoImage, width: 25, height: 25),
+              pw.SizedBox(width: 5),
+              pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
+                mainAxisAlignment: pw.MainAxisAlignment.center,
                 children: [
-                  pw.Text('DAP AutoPart\'s', 
-                    style: pw.TextStyle(
-                      fontSize: 10, 
-                      fontWeight: pw.FontWeight.bold,
-                      color: PdfColors.blue900
-                    )
-                  ),
                   pw.Text('LISTA DE PRECIOS',
                     style: pw.TextStyle(
                       fontSize: 8, 
@@ -387,41 +402,48 @@ class ListaPreciosService {
                   ),
                 ],
               ),
-            ),
-            
-            // Información fecha y asesor
-            pw.Expanded(
-    flex: 4,
-    child: pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.end,
-      children: [
-        pw.Text('Fecha: $fechaActual', 
-          style: pw.TextStyle(fontSize: fuenteEncabezado)),
-        pw.Text('Asesor: $asesorNombre', 
-          style: pw.TextStyle(fontSize: fuenteEncabezado)),
-        // Aquí añadimos el número de teléfono
-        pw.Text('$asesorZona | $asesorCorreo${asesorTelefono.isNotEmpty ? " | Tel: $asesorTelefono" : ""}', 
-          style: pw.TextStyle(fontSize: fuenteEncabezado-1)),
+            ],
+          ),
+        ),
+        
+        // Información fecha y asesor
+        pw.Expanded(
+          flex: 4,
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.end,
+            children: [
+              pw.Text('Fecha: $fechaActual', 
+                style: pw.TextStyle(fontSize: fuenteEncabezado)),
+              pw.Text('Asesor: $asesorNombre', 
+                style: pw.TextStyle(fontSize: fuenteEncabezado)),
+              // Aquí añadimos el número de teléfono
+              pw.Text('$asesorZona | $asesorCorreo${asesorTelefono.isNotEmpty ? " | Tel: $asesorTelefono" : ""}', 
+                style: pw.TextStyle(fontSize: fuenteEncabezado-1)),
+            ],
+          ),
+        ),
       ],
     ),
-  ),
-  
-          ],
-        ),
-      );
-    };
+  );
+};
     
     // Minimalista pie de página
     pw.Widget Function(pw.Context) buildFooter = (pw.Context context) {
-      return pw.Container(
-        height: 10,
-        child: pw.Text(
-          'DAP AutoPart\'s • Precios sin IVA • Sujetos a cambio',
+  return pw.Container(
+    height: 10,
+    child: pw.Row(
+      mainAxisAlignment: pw.MainAxisAlignment.center,
+      children: [
+        pw.Image(logoImage, width: 8, height: 8),
+        pw.SizedBox(width: 2),
+        pw.Text(
+          ' • Precios sin IVA • Sujetos a cambio',
           style: pw.TextStyle(fontSize: fuenteTabla-1, fontStyle: pw.FontStyle.italic),
-          textAlign: pw.TextAlign.center,
         ),
-      );
-    };
+      ],
+    ),
+  );
+};
 
     // Añadir página
     pdf.addPage(
