@@ -622,6 +622,7 @@ app.post('/upload-correos',requireAuth, upload.single('correos'), (req, res) => 
 
 
 // Endpoint para enviar correo
+// Endpoint para enviar correo
 app.post('/send-email', upload.single('pdf'), async (req, res) => {
   try {
     const { clienteEmail, asesorEmail, asunto, cuerpo } = req.body;
@@ -720,6 +721,41 @@ Distribuciones AutoPart's`,
     try {
       const info = await transporter.sendMail(mailOptions);
       console.log("✅ Correo enviado exitosamente:", info.messageId);
+      
+      // NUEVO: Incrementar el contador de órdenes automáticamente
+      if (ordenNumero) {
+        // Extraer el número secuencial de la orden (sin el prefijo "OP-")
+        console.log(`Incrementando contador después de usar orden: ${ordenNumero}`);
+        
+        // Incrementar contador
+        ultimoNumeroOrden++;
+        guardarContador();
+        console.log(`Nuevo valor del contador: ${ultimoNumeroOrden}`);
+        
+        // Guardar registro de la orden
+        const registroPath = path.join(ordenesPath, 'registro.json');
+        let registro = [];
+        
+        if (fs.existsSync(registroPath)) {
+          try {
+            const data = fs.readFileSync(registroPath, 'utf8');
+            registro = JSON.parse(data);
+          } catch (e) {
+            console.error('Error al cargar registro:', e);
+          }
+        }
+        
+        registro.push({
+          numeroOrden: ordenNumero,
+          contador: ultimoNumeroOrden,
+          fecha: new Date().toISOString(),
+          cliente: clienteNombre,
+          asesor: asesorEmail
+        });
+        
+        fs.writeFileSync(registroPath, JSON.stringify(registro, null, 2));
+      }
+      
     } catch (emailError) {
       console.error("❌ Error al enviar correo:", emailError);
       throw emailError;
@@ -727,12 +763,17 @@ Distribuciones AutoPart's`,
     
     fs.unlinkSync(pdfPath);
 
-    res.json({ success: true, message: 'Correo enviado correctamente' });
+    res.json({ 
+      success: true, 
+      message: 'Correo enviado correctamente',
+      contadorIncrementado: ordenNumero ? true : false,
+      nuevoContador: ultimoNumeroOrden
+    });
   } catch (error) {
     console.error('Error al enviar correo:', error);
     res.status(500).json({ success: false, message: error.toString() });
   }
-}); 
+});
 
 
 function procesarCsvClientes(filePath) {
