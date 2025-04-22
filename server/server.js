@@ -141,14 +141,18 @@ const storage = multer.diskStorage({
 const uploadImagenes = multer({ 
   storage: imagenesStorage,
   fileFilter: function(req, file, cb) {
-    // Verificar que sea un archivo JPG o JPEG
     if (!file.originalname.match(/\.jpe?g$/i)) {
       return cb(new Error('Solo se permiten archivos JPG/JPEG'), false);
     }
-    // Aceptar cualquier nombre de archivo que termine en .jpg o .jpeg
     cb(null, true);
+  },
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB por archivo
+    files: 10000 // Permitir hasta 5000 archivos
   }
 });
+app.use(express.json({ limit: '1000mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1000mb' }));
 
 
 // Intentar cargar el contador desde un archivo
