@@ -136,12 +136,14 @@ const storage = multer.diskStorage({
 const uploadImagenes = multer({ 
   storage: imagenesStorage,
   fileFilter: function(req, file, cb) {
-    // Verificar que sea un archivo JPG o JPEG
     if (!file.originalname.match(/\.jpe?g$/i)) {
       return cb(new Error('Solo se permiten archivos JPG/JPEG'), false);
     }
-    // Aceptar cualquier nombre de archivo que termine en .jpg o .jpeg
     cb(null, true);
+  },
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB por archivo
+    files: 100 // Permitir hasta 100 archivos por solicitud
   }
 });
 
@@ -169,8 +171,8 @@ if (canWriteToPath(ordenesPath)) {
 
 app.use(session(sessionConfig));
 app.use('/api/productos/imagenes', express.static(imagenesDir));
-app.use(bodyParser.json()); // Ya deberías tener esto
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 function guardarContador() {
   try {
@@ -389,8 +391,30 @@ app.post('/confirmar-orden', (req, res) => {
 });
 
 
-app.post('/upload-imagenes', requireAuth, uploadImagenes.array('imagenes', 50), (req, res) => {
-  try {
+app.post('/upload-imagenes', requireAuth, (req, res) => {
+  // Usar el middleware de multer directamente en la ruta
+  uploadImagenes.array('imagenes', 100)(req, res, function(err) {
+    if (err) {
+      console.error('Error en la subida de imágenes:', err);
+      if (err instanceof multer.MulterError) {
+        if (err.code === 'LIMIT_FILE_COUNT') {
+          return res.status(400).json({ 
+            success: false, 
+            message: 'Demasiados archivos en un solo lote. Máximo 100 por lote.' 
+          });
+        } else if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+          return res.status(400).json({ 
+            success: false, 
+            message: 'Campo inesperado. Asegúrate de usar "imagenes" como nombre de campo.' 
+          });
+        }
+      }
+      return res.status(500).json({ 
+        success: false, 
+        message: `Error al subir imágenes: ${err.message}` 
+      });
+    }
+    
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ 
         success: false, 
@@ -409,9 +433,9 @@ app.post('/upload-imagenes', requireAuth, uploadImagenes.array('imagenes', 50), 
     
     console.log(`Información detallada de archivos subidos:`, fileInfo);
 
-      // Obtener los nombres de los archivos subidos
-      const filenames = req.files.map(file => file.originalname);
-      
+    // Obtener los nombres de los archivos subidos
+    const filenames = req.files.map(file => file.originalname);
+    
     console.log(`Se han subido ${req.files.length} imágenes: ${filenames.join(', ')}`);
     
     res.json({ 
@@ -420,10 +444,7 @@ app.post('/upload-imagenes', requireAuth, uploadImagenes.array('imagenes', 50), 
       count: req.files.length,
       filenames: filenames
     });
-  } catch (error) {
-    console.error('Error al subir imágenes:', error);
-    res.status(500).json({ success: false, message: error.toString() });
-  }
+  });
 });
 
 // Endpoint para obtener información sobre las imágenes disponibles

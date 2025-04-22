@@ -579,7 +579,7 @@ function uploadImagesInBatches() {
     
     const fileInput = document.getElementById('imagenes');
     const files = fileInput.files;
-    const batchSize = 100; // Configurar aquí el tamaño de cada lote (100 imágenes a la vez)
+    const batchSize = 20; // Configurar aquí el tamaño de cada lote (100 imágenes a la vez)
     
     if (!files || files.length === 0) {
         console.log("No se seleccionaron imágenes");
@@ -626,6 +626,7 @@ function uploadImagesInBatches() {
         // Crear FormData para este lote
         const formData = new FormData();
         for (let i = start; i < end; i++) {
+            // Es crucial usar exactamente 'imagenes' como nombre de campo
             formData.append('imagenes', files[i]);
         }
         
