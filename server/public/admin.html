@@ -353,13 +353,17 @@
     console.log("Iniciando subida de imágenes");
     
     // Mostrar alerta de "Subiendo..." mientras se procesa
-    showAlert('alertInfo', 'Subiendo imágenes, por favor espere...', 'info');
+    // Pero ahora no la ocultaremos automáticamente
+    showAlert('alertInfo', 'Subiendo imágenes, por favor espere...', 'info', false);
     
     const fileInput = document.getElementById('imagenes');
     const files = fileInput.files;
     
     if (!files || files.length === 0) {
         console.log("No se seleccionaron imágenes");
+        
+        // Ocultar la alerta de información y mostrar la de error
+        hideAlert('alertInfo');
         showAlert('alertError', 'Por favor seleccione al menos una imagen.');
         return;
     }
@@ -371,6 +375,9 @@
         const file = files[i];
         if (!file.type.match('image/jpeg')) {
             console.log(`Error: El archivo ${file.name} no es un JPG/JPEG`);
+            
+            // Ocultar la alerta de información y mostrar la de error
+            hideAlert('alertInfo');
             showAlert('alertError', `El archivo ${file.name} no es un JPG/JPEG válido.`);
             return;
         }
@@ -393,6 +400,10 @@
     })
     .then(data => {
         console.log(`Datos de respuesta para upload-imagenes:`, data);
+        
+        // Ocultar la alerta de información primero
+        hideAlert('alertInfo');
+        
         if (data.success) {
             showAlert('alertSuccess', `¡${data.count} imágenes han sido subidas correctamente!`);
             // Mostrar los nombres de las imágenes subidas
@@ -406,6 +417,9 @@
     })
     .catch(error => {
         console.error(`Error en solicitud a upload-imagenes:`, error);
+        
+        // Ocultar la alerta de información y mostrar la de error
+        hideAlert('alertInfo');
         showAlert('alertError', `Error de conexión: No se pudo comunicar con el servidor. Detalles: ${error.message}`);
     });
 }
@@ -480,14 +494,15 @@
 function uploadFile(fileInputId, endpoint) {
     console.log(`Iniciando subida de archivo para ${fileInputId} al endpoint ${endpoint}`);
     
-    // Mostrar alerta de "Subiendo..." mientras se procesa
-    showAlert('alertInfo', 'Subiendo archivo, por favor espere...', 'info');
+    // Mostrar alerta de "Subiendo..." mientras se procesa, sin auto-ocultar
+    showAlert('alertInfo', 'Subiendo archivo, por favor espere...', 'info', false);
     
     const fileInput = document.getElementById(fileInputId);
     const file = fileInput.files[0];
     
     if (!file) {
         console.log("No se seleccionó ningún archivo");
+        hideAlert('alertInfo');
         showAlert('alertError', 'Por favor seleccione un archivo.');
         return;
     }
@@ -497,12 +512,14 @@ function uploadFile(fileInputId, endpoint) {
     // Verificar tipo de archivo según el campo
     if (fileInputId === 'catalogo' && file.type !== 'application/pdf') {
         console.log("Error: El catálogo debe ser PDF");
+        hideAlert('alertInfo');
         showAlert('alertError', 'El catálogo debe ser un archivo PDF.');
         return;
     }
     
     if ((fileInputId === 'productos' || fileInputId === 'asesores' || fileInputId === 'clientes' || fileInputId === 'correos') && !file.name.endsWith('.csv')) {
         console.log(`Error: El archivo de ${fileInputId} debe ser CSV`);
+        hideAlert('alertInfo');
         showAlert('alertError', 'El archivo debe ser un CSV.');
         return;
     }
@@ -522,6 +539,10 @@ function uploadFile(fileInputId, endpoint) {
     })
     .then(data => {
         console.log(`Datos de respuesta para ${endpoint}:`, data);
+        
+        // Ocultar la alerta de información primero
+        hideAlert('alertInfo');
+        
         if (data.success) {
             showAlert('alertSuccess', `¡El archivo ${getFileTypeLabel(fileInputId)} ha sido actualizado correctamente!`);
             // Actualizar la información del último archivo subido
@@ -534,6 +555,9 @@ function uploadFile(fileInputId, endpoint) {
     })
     .catch(error => {
         console.error(`Error en solicitud a ${endpoint}:`, error);
+        
+        // Ocultar la alerta de información y mostrar la de error
+        hideAlert('alertInfo');
         showAlert('alertError', `Error de conexión: No se pudo comunicar con el servidor. Detalles: ${error.message}`);
     });
 }
@@ -552,21 +576,13 @@ function getFileTypeLabel(fileInputId) {
     }
 }
 
-function showAlert(alertId, message, type) {
+function showAlert(alertId, message, type, autoHide = true) {
     console.log(`Mostrando alerta: ${alertId} - ${message}`);
     
-    // Ocultar todas las alertas primero
-    document.getElementById('alertSuccess').classList.add('hidden');
-    document.getElementById('alertError').classList.add('hidden');
-    
-    // Crear alerta de información si no existe
-    if (type === 'info' && !document.getElementById('alertInfo')) {
-        const infoAlert = document.createElement('div');
-        infoAlert.id = 'alertInfo';
-        infoAlert.className = 'alert alert-info';
-        infoAlert.textContent = 'Procesando...';
-        document.querySelector('.card:first-child').appendChild(infoAlert);
-    }
+    // Ocultar todas las alertas primero (excepto la de info si estamos mostrando otra)
+    if (alertId !== 'alertInfo') document.getElementById('alertInfo').classList.add('hidden');
+    if (alertId !== 'alertSuccess') document.getElementById('alertSuccess').classList.add('hidden');
+    if (alertId !== 'alertError') document.getElementById('alertError').classList.add('hidden');
     
     // Mostrar la alerta solicitada
     const alert = document.getElementById(alertId);
@@ -579,10 +595,19 @@ function showAlert(alertId, message, type) {
         // Hacer scroll a la alerta para que sea visible
         alert.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         
-        // Ocultar la alerta después de un tiempo
-        setTimeout(() => {
-            alert.classList.add('hidden');
-        }, 5000);
+        // Ocultar la alerta después de un tiempo solo si autoHide es true
+        if (autoHide) {
+            setTimeout(() => {
+                alert.classList.add('hidden');
+            }, 5000);
+        }
+    }
+}
+
+function hideAlert(alertId) {
+    const alert = document.getElementById(alertId);
+    if (alert) {
+        alert.classList.add('hidden');
     }
 }
     </script>
