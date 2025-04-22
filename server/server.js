@@ -572,9 +572,13 @@ app.get('/correos-info', (req, res) => {
       const stats = fs.statSync(correosPath);
       const fileDate = new Date(stats.mtime);
       
+      // Obtener metadatos si existen
+      const metadata = leerMetadatosArchivo('correos');
+      const nombreOriginal = metadata ? metadata.nombreOriginal : 'correos.csv';
+      
       res.json({
         success: true,
-        filename: 'correos.csv',
+        filename: nombreOriginal,
         size: stats.size,
         lastModified: fileDate.toLocaleString()
       });
@@ -615,7 +619,7 @@ app.get('/correos', (req, res) => {
 });
 
 // Subir un nuevo archivo de correos
-app.post('/upload-correos',requireAuth, upload.single('correos'), (req, res) => {
+app.post('/upload-correos', requireAuth, upload.single('correos'), (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'No se ha subido ningún archivo' });
@@ -623,6 +627,7 @@ app.post('/upload-correos',requireAuth, upload.single('correos'), (req, res) => 
 
     const sourcePath = req.file.path;
     const destPath = path.join(correosDirPath, 'correos.csv');
+    const nombreOriginal = req.file.originalname; // Nombre original del archivo
 
     // Validar el formato CSV antes de guardarlo
     try {
@@ -651,6 +656,9 @@ app.post('/upload-correos',requireAuth, upload.single('correos'), (req, res) => 
 
     fs.copyFileSync(sourcePath, destPath);
     fs.unlinkSync(sourcePath);
+    
+    // Guardar metadatos con el nombre original
+    guardarMetadatosArchivo('correos', nombreOriginal);
 
     res.json({ success: true, message: 'Archivo de correos actualizado correctamente' });
   } catch (error) {
@@ -788,6 +796,36 @@ Distribuciones AutoPart's`,
     }
   });
 
+  function guardarMetadatosArchivo(tipo, nombreOriginal) {
+    try {
+      const metadataPath = path.join(baseStoragePath, `${tipo}_metadata.json`);
+      const metadata = {
+        nombreOriginal: nombreOriginal,
+        fechaSubida: new Date().toISOString()
+      };
+      
+      fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
+      console.log(`Metadatos guardados para ${tipo}: ${nombreOriginal}`);
+      return true;
+    } catch (error) {
+      console.error(`Error al guardar metadatos para ${tipo}:`, error);
+      return false;
+    }
+  }
+
+  function leerMetadatosArchivo(tipo) {
+    try {
+      const metadataPath = path.join(baseStoragePath, `${tipo}_metadata.json`);
+      if (fs.existsSync(metadataPath)) {
+        const data = fs.readFileSync(metadataPath, 'utf8');
+        return JSON.parse(data);
+      }
+      return null;
+    } catch (error) {
+      console.error(`Error al leer metadatos para ${tipo}:`, error);
+      return null;
+    }
+  }
 
 function procesarCsvClientes(filePath) {
   try {
@@ -985,9 +1023,13 @@ app.get('/clientes-info', (req, res) => {
       const stats = fs.statSync(clientesPath);
       const fileDate = new Date(stats.mtime);
       
+      // Obtener metadatos si existen
+      const metadata = leerMetadatosArchivo('clientes');
+      const nombreOriginal = metadata ? metadata.nombreOriginal : 'clientes.csv';
+      
       res.json({
         success: true,
-        filename: 'clientes.csv',
+        filename: nombreOriginal,
         size: stats.size,
         lastModified: fileDate.toLocaleString()
       });
@@ -1060,7 +1102,7 @@ app.get('/clientes/:nit', (req, res) => {
 });
 
 // Subir un nuevo archivo de clientes
-app.post('/upload-clientes', requireAuth,upload.single('clientes'), (req, res) => {
+app.post('/upload-clientes', requireAuth, upload.single('clientes'), (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'No se ha subido ningún archivo' });
@@ -1068,6 +1110,7 @@ app.post('/upload-clientes', requireAuth,upload.single('clientes'), (req, res) =
 
     const sourcePath = req.file.path;
     const destPath = path.join(clientesDirPath, 'clientes.csv');
+    const nombreOriginal = req.file.originalname; // Nombre original del archivo
 
     // Validar el formato CSV antes de guardarlo
     try {
@@ -1096,6 +1139,9 @@ app.post('/upload-clientes', requireAuth,upload.single('clientes'), (req, res) =
 
     fs.copyFileSync(sourcePath, destPath);
     fs.unlinkSync(sourcePath);
+    
+    // Guardar metadatos con el nombre original
+    guardarMetadatosArchivo('clientes', nombreOriginal);
 
     res.json({ success: true, message: 'Archivo de clientes actualizado correctamente' });
   } catch (error) {
@@ -1306,9 +1352,13 @@ app.get('/asesores-info', (req, res) => {
       const stats = fs.statSync(asesoresPath);
       const fileDate = new Date(stats.mtime);
       
+      // Obtener metadatos si existen
+      const metadata = leerMetadatosArchivo('asesores');
+      const nombreOriginal = metadata ? metadata.nombreOriginal : 'asesores.csv';
+      
       res.json({
         success: true,
-        filename: 'asesores.csv',
+        filename: nombreOriginal,
         size: stats.size,
         lastModified: fileDate.toLocaleString()
       });
@@ -1420,7 +1470,7 @@ app.get('/asesores/correo/:email', (req, res) => {
 });
 
 // Subir un nuevo archivo de asesores
-app.post('/upload-asesores',requireAuth, upload.single('asesores'), (req, res) => {
+app.post('/upload-asesores', requireAuth, upload.single('asesores'), (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'No se ha subido ningún archivo' });
@@ -1428,6 +1478,7 @@ app.post('/upload-asesores',requireAuth, upload.single('asesores'), (req, res) =
 
     const sourcePath = req.file.path;
     const destPath = path.join(asesoresDirPath, 'asesores.csv');
+    const nombreOriginal = req.file.originalname; // Nombre original del archivo
 
     // Validar el formato CSV antes de guardarlo
     try {
@@ -1456,6 +1507,9 @@ app.post('/upload-asesores',requireAuth, upload.single('asesores'), (req, res) =
 
     fs.copyFileSync(sourcePath, destPath);
     fs.unlinkSync(sourcePath);
+    
+    // Guardar metadatos con el nombre original
+    guardarMetadatosArchivo('asesores', nombreOriginal);
 
     res.json({ success: true, message: 'Archivo de asesores actualizado correctamente' });
   } catch (error) {
@@ -1763,9 +1817,13 @@ app.get('/catalogo-info', (req, res) => {
       const stats = fs.statSync(catalogoPath);
       const fileDate = new Date(stats.mtime);
       
+      // Obtener metadatos si existen
+      const metadata = leerMetadatosArchivo('catalogo');
+      const nombreOriginal = metadata ? metadata.nombreOriginal : 'catalogo.pdf';
+      
       res.json({
         success: true,
-        filename: 'catalogo.pdf',
+        filename: nombreOriginal,
         size: stats.size,
         lastModified: fileDate.toLocaleString()
       });
@@ -1780,6 +1838,7 @@ app.get('/catalogo-info', (req, res) => {
     res.status(500).json({ success: false, message: error.toString() });
   }
 });
+
 
 app.get('/catalogo', (req, res) => {
   try {
@@ -1813,9 +1872,13 @@ app.get('/productos-info', (req, res) => {
       const stats = fs.statSync(productosPath);
       const fileDate = new Date(stats.mtime);
       
+      // Obtener metadatos si existen
+      const metadata = leerMetadatosArchivo('productos');
+      const nombreOriginal = metadata ? metadata.nombreOriginal : 'productos.csv';
+      
       res.json({
         success: true,
-        filename: 'productos.csv',
+        filename: nombreOriginal,
         size: stats.size,
         lastModified: fileDate.toLocaleString()
       });
@@ -1894,7 +1957,7 @@ app.get('/ping', (req, res) => {
 
 
 // Subir un nuevo catálogo
-app.post('/upload-catalogo',requireAuth, upload.single('catalogo'), (req, res) => {
+app.post('/upload-catalogo', requireAuth, upload.single('catalogo'), (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'No se ha subido ningún archivo' });
@@ -1902,6 +1965,7 @@ app.post('/upload-catalogo',requireAuth, upload.single('catalogo'), (req, res) =
 
     const sourcePath = req.file.path;
     const destPath = path.join(catDirPath, 'catalogo.pdf');
+    const nombreOriginal = req.file.originalname; // Nombre original del archivo
 
     if (fs.existsSync(destPath)) {
       fs.unlinkSync(destPath);
@@ -1909,6 +1973,9 @@ app.post('/upload-catalogo',requireAuth, upload.single('catalogo'), (req, res) =
 
     fs.copyFileSync(sourcePath, destPath);
     fs.unlinkSync(sourcePath);
+    
+    // Guardar metadatos con el nombre original
+    guardarMetadatosArchivo('catalogo', nombreOriginal);
 
     res.json({ success: true, message: 'Catálogo actualizado correctamente' });
   } catch (error) {
@@ -1918,7 +1985,7 @@ app.post('/upload-catalogo',requireAuth, upload.single('catalogo'), (req, res) =
 });
 
 // Subir un nuevo archivo de productos
-app.post('/upload-productos',requireAuth, upload.single('productos'), (req, res) => {
+app.post('/upload-productos', requireAuth, upload.single('productos'), (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'No se ha subido ningún archivo' });
@@ -1926,6 +1993,7 @@ app.post('/upload-productos',requireAuth, upload.single('productos'), (req, res)
 
     const sourcePath = req.file.path;
     const destPath = path.join(productosDirPath, 'productos.csv');
+    const nombreOriginal = req.file.originalname; // Nombre original del archivo
 
     // Validar el formato CSV antes de guardarlo
     try {
@@ -1954,6 +2022,9 @@ app.post('/upload-productos',requireAuth, upload.single('productos'), (req, res)
 
     fs.copyFileSync(sourcePath, destPath);
     fs.unlinkSync(sourcePath);
+    
+    // Guardar metadatos con el nombre original
+    guardarMetadatosArchivo('productos', nombreOriginal);
 
     res.json({ success: true, message: 'Archivo de productos actualizado correctamente' });
   } catch (error) {

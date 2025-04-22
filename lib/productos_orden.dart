@@ -1554,89 +1554,99 @@ Distribuciones AutoPart's
         
         // Mostrar diálogo de éxito mejorado
         showDialog(
-          context: context,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              title: Text('Correo enviado'),
-              content: SingleChildScrollView(
+  context: context,
+  barrierDismissible: false, // No permitir cerrar tocando fuera
+  builder: (BuildContext context) {
+    return AlertDialog(
+      title: Text('Correo enviado'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Icon(Icons.check_circle, color: Colors.green, size: 48),
+            ),
+            SizedBox(height: 16),
+            Center(
+              child: Text('La orden ha sido enviada correctamente'),
+            ),
+            SizedBox(height: 16),
+            
+            // Sección de destinatarios principales
+            if (destinatariosPrincipales.isNotEmpty) ...[
+              Text('Destinatarios principales:',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+              SizedBox(height: 4),
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                ),
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Center(
-                      child: Icon(Icons.check_circle, color: Colors.green, size: 48),
-                    ),
-                    SizedBox(height: 16),
-                    Center(
-                      child: Text('La orden ha sido enviada correctamente'),
-                    ),
-                    SizedBox(height: 16),
-                    
-                    // Sección de destinatarios principales
-                    if (destinatariosPrincipales.isNotEmpty) ...[
-                      Text('Destinatarios principales:',
-                        style: TextStyle(fontWeight: FontWeight.bold)),
-                      SizedBox(height: 4),
-                      Container(
-                        width: double.infinity,
-                        padding: EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: Colors.blue.withOpacity(0.3)),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: destinatariosPrincipales.map((email) => 
-                            Padding(
-                              padding: EdgeInsets.symmetric(vertical: 2),
-                              child: Text(email),
-                            )
-                          ).toList(),
-                        ),
-                      ),
-                      SizedBox(height: 12),
-                    ],
-                    
-                    // Sección de destinatarios en copia (CC)
-                    if (destinatariosCC.isNotEmpty) ...[
-                      Text('Con copia a:',
-                        style: TextStyle(fontWeight: FontWeight.bold)),
-                      SizedBox(height: 4),
-                      Container(
-                        width: double.infinity,
-                        padding: EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: Colors.grey.withOpacity(0.3)),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: destinatariosCC.map((email) => 
-                            Padding(
-                              padding: EdgeInsets.symmetric(vertical: 2),
-                              child: Text(email),
-                            )
-                          ).toList(),
-                        ),
-                      ),
-                    ],
-                  ],
+                  children: destinatariosPrincipales.map((email) => 
+                    Padding(
+                      padding: EdgeInsets.symmetric(vertical: 2),
+                      child: Text(email),
+                    )
+                  ).toList(),
                 ),
               ),
-              actions: [
-                TextButton(
-                  child: Text('Aceptar'),
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    Navigator.of(context).pop(); // Volver a la pantalla anterior
-                  },
+              SizedBox(height: 12),
+            ],
+            
+            // Sección de destinatarios en copia (CC)
+            if (destinatariosCC.isNotEmpty) ...[
+              Text('Con copia a:',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+              SizedBox(height: 4),
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.grey.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: Colors.grey.withOpacity(0.3)),
                 ),
-              ],
-            );
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: destinatariosCC.map((email) => 
+                    Padding(
+                      padding: EdgeInsets.symmetric(vertical: 2),
+                      child: Text(email),
+                    )
+                  ).toList(),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          child: Text('Aceptar'),
+          onPressed: () {
+            Navigator.of(context).pop();
+            
+            // CAMBIO PRINCIPAL: Después de cerrar el diálogo, volver a la pantalla principal
+            Navigator.of(context).popUntil((route) => route.isFirst);
+            
+            // Otra opción sería hacer una navegación directa a OrdenDePedidoMain
+            // Navigator.pushAndRemoveUntil(
+            //   context,
+            //   MaterialPageRoute(builder: (context) => OrdenDePedidoMain()),
+            //   (route) => false,
+            // );
           },
-        );
+        ),
+      ],
+    );
+  },
+);
       } else {
         throw Exception("Error del servidor: ${jsonResponse['message']}");
       }
