@@ -43,7 +43,7 @@ const sessionConfig = {
 
 
 app.use(session(sessionConfig));
-
+app.use('/api/productos/imagenes', express.static(imagenesDir));
 app.use(bodyParser.json()); // Ya deberías tener esto
 app.use(bodyParser.urlencoded({ extended: true }));
 
@@ -961,6 +961,154 @@ function procesarCsvClientes(filePath) {
     console.error('Error al procesar CSV de clientes:', error);
     return [];
   }
+}
+
+app.get('/lista-imagenes', requireAuth, (req, res) => {
+  try {
+    // Verificar que el directorio existe
+    if (!fs.existsSync(imagenesDir)) {
+      return res.json({
+        success: false,
+        message: 'El directorio de imágenes no existe',
+        total: 0,
+        imagenes: []
+      });
+    }
+    
+    // Leer todos los archivos en el directorio
+    const files = fs.readdirSync(imagenesDir);
+    
+    // Filtrar solo archivos JPG/JPEG
+    const imagenes = files.filter(file => 
+      file.toLowerCase().endsWith('.jpg') || 
+      file.toLowerCase().endsWith('.jpeg')
+    );
+    
+    // Obtener información adicional para cada imagen
+    const imagenesInfo = imagenes.map(filename => {
+      try {
+        const filePath = path.join(imagenesDir, filename);
+        const stats = fs.statSync(filePath);
+        return {
+          filename: filename,
+          size: stats.size,
+          // Convertir tamaño a formato legible
+          sizeFormatted: formatFileSize(stats.size),
+          lastModified: stats.mtime.toISOString(),
+          // Fecha formateada más legible
+          lastModifiedFormatted: new Date(stats.mtime).toLocaleString()
+        };
+      } catch (err) {
+        // Si hay un error al obtener información, devolver info básica
+        return {
+          filename: filename,
+          error: 'No se pudo obtener información adicional'
+        };
+      }
+    });
+    
+    // Si se especifica un parámetro de búsqueda, filtrar resultados
+    let resultados = imagenesInfo;
+    const query = req.query.q || '';
+    
+    if (query) {
+      resultados = imagenesInfo.filter(img => 
+        img.filename.toLowerCase().includes(query.toLowerCase())
+      );
+    }
+    
+    // Implementación básica de paginación
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 100;
+    const startIndex = (page - 1) * limit;
+    const endIndex = page * limit;
+    
+    const paginatedResults = resultados.slice(startIndex, endIndex);
+    
+    res.json({
+      success: true,
+      total: imagenes.length,
+      filtered: resultados.length,
+      page: page,
+      limit: limit,
+      totalPages: Math.ceil(resultados.length / limit),
+      query: query,
+      imagenes: paginatedResults
+    });
+  } catch (error) {
+    console.error('Error al listar imágenes:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: `Error al listar imágenes: ${error.toString()}` 
+    });
+  }
+});
+
+// Endpoint para verificar si una imagen existe
+app.get('/imagen-existe/:filename', requireAuth, (req, res) => {
+  try {
+    const filename = req.params.filename;
+    const filePath = path.join(imagenesDir, filename);
+    
+    if (fs.existsSync(filePath)) {
+      const stats = fs.statSync(filePath);
+      res.json({
+        success: true,
+        exists: true,
+        filename: filename,
+        size: stats.size,
+        sizeFormatted: formatFileSize(stats.size),
+        lastModified: stats.mtime.toISOString()
+      });
+    } else {
+      res.json({
+        success: true,
+        exists: false,
+        filename: filename
+      });
+    }
+  } catch (error) {
+    console.error('Error al verificar imagen:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: `Error al verificar imagen: ${error.toString()}` 
+    });
+  }
+});
+
+// Endpoint para eliminar una imagen
+app.delete('/imagen/:filename', requireAuth, (req, res) => {
+  try {
+    const filename = req.params.filename;
+    const filePath = path.join(imagenesDir, filename);
+    
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+      res.json({
+        success: true,
+        message: `Imagen ${filename} eliminada correctamente`
+      });
+    } else {
+      res.status(404).json({
+        success: false,
+        message: `La imagen ${filename} no existe`
+      });
+    }
+  } catch (error) {
+    console.error('Error al eliminar imagen:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: `Error al eliminar imagen: ${error.toString()}` 
+    });
+  }
+});
+
+// Función utilitaria para formatear tamaños de archivo
+function formatFileSize(bytes) {
+  if (bytes < 1024) return bytes + ' bytes';
+  else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+  else if (bytes < 1073741824) return (bytes / 1048576).toFixed(1) + ' MB';
+  else return (bytes / 1073741824).toFixed(1) + ' GB';
 }
 
 app.get('/diagnostico/contador', (req, res) => {
