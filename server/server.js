@@ -320,7 +320,7 @@ app.get('/siguiente-orden', (req, res) => {
 
 // Endpoint para confirmar que un número de orden fue utilizado
 // Endpoint para confirmar e INCREMENTAR el número de orden
-app.post('/confirmar-orden', (req, res) => {
+app.post('/confirmar-orden-mejorado', (req, res) => {
   try {
     const { numeroOrden } = req.body;
     
@@ -328,27 +328,64 @@ app.post('/confirmar-orden', (req, res) => {
       return res.status(400).json({ success: false, message: 'Falta el número de orden' });
     }
     
-    // Reportar el valor actual antes de incrementar
-    console.log(`Valor actual del contador antes de incrementar: ${ultimoNumeroOrden}`);
+    // Leer el valor actual directamente del disco
+    const valorActual = leerContador();
+    console.log(`Valor leído del contador antes de incrementar: ${valorActual}`);
     
     // Incrementar el contador
-    ultimoNumeroOrden++;
+    const nuevoValor = valorActual + 1;
     
-    // Guardar el nuevo valor
-    guardarContador();
+    // Guardar el nuevo valor directamente al disco
+    const guardadoExitoso = guardarContadorDisco(nuevoValor);
     
-    console.log(`Orden confirmada y contador incrementado a: ${ultimoNumeroOrden}`);
-    
-    // El resto del código para guardar el registro...
-    
-    res.json({ 
-      success: true, 
-      message: 'Orden confirmada correctamente',
-      nuevoContador: ultimoNumeroOrden
-    });
+    if (guardadoExitoso) {
+      // Actualizar también la variable en memoria
+      ultimoNumeroOrden = nuevoValor;
+      
+      console.log(`Contador incrementado exitosamente a: ${nuevoValor}`);
+      
+      // Registrar la operación
+      try {
+        const registroPath = path.join(ordenesPath, 'registro.json');
+        let registro = [];
+        
+        if (fs.existsSync(registroPath)) {
+          const data = fs.readFileSync(registroPath, 'utf8');
+          registro = JSON.parse(data);
+        }
+        
+        registro.push({
+          numeroOrden: numeroOrden,
+          valorAnterior: valorActual,
+          valorNuevo: nuevoValor,
+          fecha: new Date().toISOString(),
+          ip: req.ip
+        });
+        
+        fs.writeFileSync(registroPath, JSON.stringify(registro, null, 2));
+      } catch (e) {
+        console.error(`Error al guardar registro: ${e}`);
+      }
+      
+      res.json({
+        success: true,
+        message: 'Orden confirmada y contador incrementado correctamente',
+        valorAnterior: valorActual,
+        nuevoValor: nuevoValor
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: 'No se pudo guardar el nuevo valor del contador',
+        valorActual: valorActual
+      });
+    }
   } catch (error) {
-    console.error('Error al confirmar orden:', error);
-    res.status(500).json({ success: false, message: error.toString() });
+    console.error(`Error en confirmar-orden-mejorado: ${error}`);
+    res.status(500).json({
+      success: false,
+      message: error.toString()
+    });
   }
 });
 
@@ -722,38 +759,52 @@ Distribuciones AutoPart's`,
       const info = await transporter.sendMail(mailOptions);
       console.log("✅ Correo enviado exitosamente:", info.messageId);
       
-      // NUEVO: Incrementar el contador de órdenes automáticamente
+      // Incremento mejorado del contador
       if (ordenNumero) {
-        // Extraer el número secuencial de la orden (sin el prefijo "OP-")
-        console.log(`Incrementando contador después de usar orden: ${ordenNumero}`);
+        console.log(`🔄 Incrementando contador después de enviar orden: ${ordenNumero}`);
         
-        // Incrementar contador
-        ultimoNumeroOrden++;
-        guardarContador();
-        console.log(`Nuevo valor del contador: ${ultimoNumeroOrden}`);
+        // Leer el valor actual directamente del disco
+        const valorActual = leerContador();
+        console.log(`Valor leído del contador: ${valorActual}`);
         
-        // Guardar registro de la orden
-        const registroPath = path.join(ordenesPath, 'registro.json');
-        let registro = [];
+        // Incrementar el contador
+        const nuevoValor = valorActual + 1;
         
-        if (fs.existsSync(registroPath)) {
+        // Guardar el nuevo valor
+        const guardadoExitoso = guardarContadorDisco(nuevoValor);
+        
+        if (guardadoExitoso) {
+          // Actualizar también la variable en memoria
+          ultimoNumeroOrden = nuevoValor;
+          console.log(`✅ Contador actualizado exitosamente a: ${nuevoValor}`);
+          
+          // Registrar la operación
           try {
-            const data = fs.readFileSync(registroPath, 'utf8');
-            registro = JSON.parse(data);
+            const registroPath = path.join(ordenesPath, 'registro.json');
+            let registro = [];
+            
+            if (fs.existsSync(registroPath)) {
+              const data = fs.readFileSync(registroPath, 'utf8');
+              registro = JSON.parse(data);
+            }
+            
+            registro.push({
+              operacion: "send-email",
+              numeroOrden: ordenNumero,
+              valorAnterior: valorActual,
+              valorNuevo: nuevoValor,
+              fecha: new Date().toISOString(),
+              cliente: clienteNombre,
+              asesor: asesorEmail
+            });
+            
+            fs.writeFileSync(registroPath, JSON.stringify(registro, null, 2));
           } catch (e) {
-            console.error('Error al cargar registro:', e);
+            console.error(`Error al guardar registro: ${e}`);
           }
+        } else {
+          console.error(`❌ No se pudo guardar el nuevo valor del contador`);
         }
-        
-        registro.push({
-          numeroOrden: ordenNumero,
-          contador: ultimoNumeroOrden,
-          fecha: new Date().toISOString(),
-          cliente: clienteNombre,
-          asesor: asesorEmail
-        });
-        
-        fs.writeFileSync(registroPath, JSON.stringify(registro, null, 2));
       }
       
     } catch (emailError) {
@@ -763,10 +814,10 @@ Distribuciones AutoPart's`,
     
     fs.unlinkSync(pdfPath);
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       message: 'Correo enviado correctamente',
-      contadorIncrementado: ordenNumero ? true : false,
+      contadorIncrementado: true,
       nuevoContador: ultimoNumeroOrden
     });
   } catch (error) {
@@ -912,6 +963,57 @@ function procesarCsvClientes(filePath) {
   }
 }
 
+app.get('/diagnostico/contador', (req, res) => {
+  try {
+    const contadorPath = path.join(ordenesPath, 'contador.json');
+    const backupPath = path.join(ordenesPath, 'contador.bak.json');
+    
+    let diagnostico = {
+      valorActual: ultimoNumeroOrden,
+      carpetaOrdenes: {
+        ruta: ordenesPath,
+        existe: fs.existsSync(ordenesPath)
+      },
+      archivoContador: {
+        ruta: contadorPath,
+        existe: fs.existsSync(contadorPath),
+        contenido: null
+      },
+      archivoBackup: {
+        existe: fs.existsSync(backupPath),
+        contenido: null
+      },
+      permisos: {
+        escritura: canWriteToPath(ordenesPath)
+      }
+    };
+    
+    if (diagnostico.archivoContador.existe) {
+      try {
+        const data = fs.readFileSync(contadorPath, 'utf8');
+        diagnostico.archivoContador.contenido = data;
+      } catch (e) {
+        diagnostico.archivoContador.error = e.toString();
+      }
+    }
+    
+    if (diagnostico.archivoBackup.existe) {
+      try {
+        const data = fs.readFileSync(backupPath, 'utf8');
+        diagnostico.archivoBackup.contenido = data;
+      } catch (e) {
+        diagnostico.archivoBackup.error = e.toString();
+      }
+    }
+    
+    res.json(diagnostico);
+  } catch (error) {
+    res.status(500).json({
+      error: error.toString(),
+      message: "Error al generar diagnóstico"
+    });
+  }
+});
 // Endpoint para obtener información sobre el CSV de clientes
 app.get('/clientes-info', (req, res) => {
   try {
@@ -1039,6 +1141,89 @@ app.post('/upload-clientes', requireAuth,upload.single('clientes'), (req, res) =
     res.status(500).json({ success: false, message: error.toString() });
   }
 });
+
+function leerContador() {
+  try {
+    const contadorPath = path.join(ordenesPath, 'contador.json');
+    console.log(`Intentando leer contador desde: ${contadorPath}`);
+    
+    if (!fs.existsSync(ordenesPath)) {
+      console.log(`Carpeta de órdenes no existe, creándola...`);
+      fs.mkdirSync(ordenesPath, { recursive: true });
+    }
+    
+    let ultimoNumero = 1;
+    
+    if (fs.existsSync(contadorPath)) {
+      const data = fs.readFileSync(contadorPath, 'utf8');
+      console.log(`Contenido leído del contador: ${data}`);
+      
+      try {
+        const contador = JSON.parse(data);
+        if (contador && typeof contador.ultimoNumero === 'number' && contador.ultimoNumero > 0) {
+          ultimoNumero = contador.ultimoNumero;
+          console.log(`Contador cargado correctamente: ${ultimoNumero}`);
+        } else {
+          console.log(`Formato inválido de contador, usando valor predeterminado: 1`);
+        }
+      } catch (parseError) {
+        console.error(`Error al parsear JSON del contador: ${parseError}`);
+        console.log(`Usando valor predeterminado: 1`);
+      }
+    } else {
+      console.log(`Archivo de contador no existe, se creará con valor inicial: 1`);
+      guardarContadorDisco(1);
+    }
+    
+    return ultimoNumero;
+  } catch (error) {
+    console.error(`Error crítico al leer contador: ${error}`);
+    return 1; // Valor predeterminado en caso de error
+  }
+}
+
+function guardarContadorDisco(valor) {
+  try {
+    // Asegurar que la carpeta existe
+    if (!fs.existsSync(ordenesPath)) {
+      fs.mkdirSync(ordenesPath, { recursive: true });
+    }
+    
+    const contadorPath = path.join(ordenesPath, 'contador.json');
+    const tempPath = path.join(ordenesPath, 'contador.tmp.json');
+    const backupPath = path.join(ordenesPath, 'contador.bak.json');
+    
+    console.log(`Guardando contador con valor: ${valor}`);
+    
+    // Crear contenido del archivo
+    const contenido = JSON.stringify({
+      ultimoNumero: valor,
+      fechaActualizacion: new Date().toISOString()
+    }, null, 2);
+    
+    // Escribir primero a un archivo temporal
+    fs.writeFileSync(tempPath, contenido, 'utf8');
+    
+    // Hacer una copia de respaldo del archivo actual si existe
+    if (fs.existsSync(contadorPath)) {
+      fs.copyFileSync(contadorPath, backupPath);
+    }
+    
+    // Reemplazar el archivo original con el temporal
+    fs.renameSync(tempPath, contadorPath);
+    
+    console.log(`Contador guardado exitosamente: ${valor}`);
+    
+    // Verificar que se guardó correctamente
+    const verificacion = fs.readFileSync(contadorPath, 'utf8');
+    console.log(`Verificación de guardado: ${verificacion}`);
+    
+    return true;
+  } catch (error) {
+    console.error(`ERROR CRÍTICO al guardar contador: ${error}`);
+    return false;
+  }
+}
 
 function procesarCsvAsesores(filePath) {
   try {
@@ -1826,6 +2011,9 @@ const PORT = process.env.PORT;
 app.listen(PORT, () => {
   console.log(`Servidor escuchando en http://0.0.0.0:${PORT}`);
   console.log(`Puedes acceder desde otros dispositivos usando: http://<IP_LOCAL>:${PORT}`);
+
+  ultimoNumeroOrden = leerContador();
+  console.log(`Contador inicializado con valor: ${ultimoNumeroOrden}`);
 
   procesarCsvProductos(path.join(productosDirPath, 'productos.csv'));
 });
