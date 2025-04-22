@@ -503,7 +503,28 @@ function procesarCsvCorreos(filePath) {
     return [];
   }
 }
-// Endpoint para obtener información sobre el CSV de correos
+app.post('/admin/ajustar-contador', requireAuth, (req, res) => {
+  try {
+    const { valor } = req.body;
+    
+    if (!valor || isNaN(parseInt(valor))) {
+      return res.status(400).json({ success: false, message: 'Se requiere un valor numérico válido' });
+    }
+    
+    ultimoNumeroOrden = parseInt(valor);
+    guardarContador();
+    
+    res.json({ 
+      success: true, 
+      message: `Contador ajustado a: ${ultimoNumeroOrden}`,
+      nuevoContador: ultimoNumeroOrden
+    });
+  } catch (error) {
+    console.error('Error al ajustar contador:', error);
+    res.status(500).json({ success: false, message: error.toString() });
+  }
+});
+
 app.get('/correos-info', (req, res) => {
   try {
     const correosPath = path.join(correosDirPath, 'correos.csv');
