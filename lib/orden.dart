@@ -34,11 +34,18 @@ class _OrdenDePedidoState extends State<OrdenDePedido> {
 
   @override
   void initState() {
-    super.initState();
-    // Inicializar la localización antes de usarla
-    initializeDateFormatting('es_ES', null);
-    // Obtener número de orden del servidor
-    _obtenerSiguienteNumeroOrden();
+  super.initState();
+  // Inicializar la localización antes de usarla
+  initializeDateFormatting('es_ES', null);
+  // Limpiar cache y obtener número de orden fresco
+  limpiarCacheOrden();
+}
+
+ @override
+  void dispose() {
+    // Limpiar el número de orden al salir
+    ordenNumeroController.text = '';
+    super.dispose();
   }
 
   String obtenerFechaActual() {
@@ -147,6 +154,13 @@ class _OrdenDePedidoState extends State<OrdenDePedido> {
       isLoading = false;
     });
   }
+}
+
+void limpiarCacheOrden() {
+  setState(() {
+    ordenNumeroController.text = ''; // Limpiar el controlador
+  });
+  _obtenerSiguienteNumeroOrden(); // Solicitar un nuevo número
 }
 
   // Método para buscar cliente por NIT usando el servicio
