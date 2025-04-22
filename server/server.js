@@ -761,57 +761,10 @@ Distribuciones AutoPart's`,
       const info = await transporter.sendMail(mailOptions);
       console.log("✅ Correo enviado exitosamente:", info.messageId);
       
-      // Incremento mejorado del contador usando endpoint /confirmar-orden
+      // NO incrementamos el contador aquí, solo registramos que se envió el correo
       if (ordenNumero) {
-        console.log(`🔄 Incrementando contador después de enviar orden: ${ordenNumero}`);
-        
-        try {
-          // Llamamos directamente a la lógica de confirmar-orden aquí
-          // Leer el valor actual directamente del disco
-          const valorActual = leerContador();
-          console.log(`Valor leído del contador: ${valorActual}`);
-          
-          // Incrementar el contador
-          const nuevoValor = valorActual + 1;
-          
-          // Guardar el nuevo valor
-          const guardadoExitoso = guardarContadorDisco(nuevoValor);
-          
-          if (guardadoExitoso) {
-            // Actualizar también la variable en memoria
-            ultimoNumeroOrden = nuevoValor;
-            console.log(`✅ Contador actualizado exitosamente a: ${nuevoValor}`);
-            
-            // Registrar la operación
-            try {
-              const registroPath = path.join(ordenesPath, 'registro.json');
-              let registro = [];
-              
-              if (fs.existsSync(registroPath)) {
-                const data = fs.readFileSync(registroPath, 'utf8');
-                registro = JSON.parse(data);
-              }
-              
-              registro.push({
-                operacion: "send-email",
-                numeroOrden: ordenNumero,
-                valorAnterior: valorActual,
-                valorNuevo: nuevoValor,
-                fecha: new Date().toISOString(),
-                cliente: clienteNombre,
-                asesor: asesorEmail
-              });
-              
-              fs.writeFileSync(registroPath, JSON.stringify(registro, null, 2));
-            } catch (e) {
-              console.error(`Error al guardar registro: ${e}`);
-            }
-          } else {
-            console.error(`❌ No se pudo guardar el nuevo valor del contador`);
-          }
-        } catch (confirmError) {
-          console.error(`Error al incrementar el contador: ${confirmError}`);
-        }
+        console.log(`Correo enviado para la orden: ${ordenNumero}`);
+        console.log(`El contador NO se incrementará aquí. La app cliente debe llamar a /confirmar-orden`);
       }
       
     } catch (emailError) {
@@ -820,12 +773,11 @@ Distribuciones AutoPart's`,
     }
     
     fs.unlinkSync(pdfPath);
-
+    
     res.json({
       success: true,
       message: 'Correo enviado correctamente',
-      contadorIncrementado: true,
-      nuevoContador: ultimoNumeroOrden
+      contadorActual: ultimoNumeroOrden
     });
     } catch (error) {
       console.error('Error al enviar correo:', error);

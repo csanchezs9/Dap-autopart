@@ -30,7 +30,7 @@ class _OrdenDePedidoState extends State<OrdenDePedido> {
 
   // URL base del servidor - usar la misma que en los servicios
   //static const String baseUrl = 'http://192.168.1.2:3000'; // Para dispositivo real
-  static const String baseUrl = 'https://dapautopart.onrender.com'; 
+  static const String baseUrl ='https://dap-autoparts.onrender.com'; // URL de producción
 
   @override
   void initState() {
