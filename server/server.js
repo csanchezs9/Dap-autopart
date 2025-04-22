@@ -25,6 +25,8 @@ const baseStoragePath = isProduction
       console.log(`Carpeta base de almacenamiento creada: ${baseStoragePath}`);
     } catch (error) {
       console.error(`Error al crear carpeta base de almacenamiento: ${error.message}`);
+      // Continuar aunque haya un error, ya que en desarrollo local esto fallará
+      // pero no es relevante porque no queremos almacenamiento local
     }
   }
 
@@ -69,17 +71,19 @@ if (!fs.existsSync(imagenesDir)) {
   fs.mkdirSync(imagenesDir, { recursive: true });
 }
 
-[uploadDir, catDirPath, tempDir, productosDirPath, asesoresDirPath, 
-  clientesDirPath, correosDirPath, ordenesPath, imagenesDir].forEach(dir => {
-   if (!fs.existsSync(dir)) {
-     try {
-       fs.mkdirSync(dir, { recursive: true });
-       console.log(`Carpeta creada: ${dir}`);
-     } catch (error) {
-       console.error(`Error al crear carpeta ${dir}: ${error.message}`);
-     }
-   }
- });
+if (fs.existsSync(baseStoragePath)) {
+  [uploadDir, catDirPath, tempDir, productosDirPath, asesoresDirPath, 
+   clientesDirPath, correosDirPath, ordenesPath, imagenesDir].forEach(dir => {
+    if (!fs.existsSync(dir)) {
+      try {
+        fs.mkdirSync(dir, { recursive: true });
+        console.log(`Carpeta creada: ${dir}`);
+      } catch (error) {
+        console.error(`Error al crear carpeta ${dir}: ${error.message}`);
+      }
+    }
+  });
+}
 
  console.log('=== Configuración del sistema de archivos ===');
 console.log(`Modo: ${isProduction ? 'Producción' : 'Desarrollo'}`);
@@ -95,11 +99,42 @@ console.log(`Carpeta de imágenes: ${imagenesDir}`);
 
 const imagenesStorage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, imagenesDir);
+    if (canWriteToPath(imagenesDir)) {
+      cb(null, imagenesDir);
+    } else {
+      // Si no podemos escribir, usar /tmp como fallback
+      cb(null, tempDir);
+    }
   },
   filename: function (req, file, cb) {
     // Mantener el nombre original del archivo
     cb(null, file.originalname);
+  }
+});
+
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    if (canWriteToPath(uploadDir)) {
+      cb(null, uploadDir);
+    } else {
+      // Si no podemos escribir, usar /tmp como fallback
+      cb(null, tempDir);
+    }
+  },
+  filename: function (req, file, cb) {
+    if (file.fieldname === 'catalogo') {
+      cb(null, 'catalogo.pdf');
+    } else if (file.fieldname === 'productos') {
+      cb(null, 'productos.csv');
+    } else if (file.fieldname === 'asesores') {
+      cb(null, 'asesores.csv');
+    } else if (file.fieldname === 'clientes') {
+      cb(null, 'clientes.csv');
+    } else if (file.fieldname === 'correos') {
+      cb(null, 'correos.csv');
+    } else {
+      cb(null, file.originalname);
+    }
   }
 });
 
@@ -117,20 +152,24 @@ const uploadImagenes = multer({
 
 
 // Intentar cargar el contador desde un archivo
-try {
-  const contadorPath = path.join(ordenesPath, 'contador.json');
-  if (fs.existsSync(contadorPath)) {
-    const data = fs.readFileSync(contadorPath, 'utf8');
-    const contador = JSON.parse(data);
-    ultimoNumeroOrden = contador.ultimoNumero || 1;
-    console.log(`Contador de órdenes cargado: ${ultimoNumeroOrden}`);
-  } else {
-    // Crear el archivo si no existe
-    fs.writeFileSync(contadorPath, JSON.stringify({ ultimoNumero: ultimoNumeroOrden }));
-    console.log(`Archivo de contador creado con valor inicial: ${ultimoNumeroOrden}`);
+if (canWriteToPath(ordenesPath)) {
+  try {
+    const contadorPath = path.join(ordenesPath, 'contador.json');
+    if (fs.existsSync(contadorPath)) {
+      const data = fs.readFileSync(contadorPath, 'utf8');
+      const contador = JSON.parse(data);
+      ultimoNumeroOrden = contador.ultimoNumero || 1;
+      console.log(`Contador de órdenes cargado: ${ultimoNumeroOrden}`);
+    } else {
+      // Crear el archivo si no existe
+      fs.writeFileSync(contadorPath, JSON.stringify({ ultimoNumero: ultimoNumeroOrden }));
+      console.log(`Archivo de contador creado con valor inicial: ${ultimoNumeroOrden}`);
+    }
+  } catch (error) {
+    console.error('Error al cargar el contador de órdenes:', error);
   }
-} catch (error) {
-  console.error('Error al cargar el contador de órdenes:', error);
+} else {
+  console.log('No se puede acceder a la ruta de órdenes para cargar el contador.');
 }
 
 
@@ -148,6 +187,18 @@ function guardarContador() {
   }
 }
 
+function canWriteToPath(dirPath) {
+  try {
+    // Intenta crear un archivo temporal para ver si tenemos permisos de escritura
+    const testFile = path.join(dirPath, '.write-test');
+    fs.writeFileSync(testFile, 'test');
+    fs.unlinkSync(testFile); // Eliminar el archivo de prueba
+    return true;
+  } catch (err) {
+    console.log(`No se puede escribir en ${dirPath}: ${err.message}`);
+    return false;
+  }
+}
 
 function verificarPassword(password) {
   // Comparación directa con la contraseña en texto plano
@@ -351,27 +402,6 @@ app.get('/imagenes-info', (req, res) => {
   } catch (error) {
     console.error('Error al obtener info de imágenes:', error);
     res.status(500).json({ success: false, message: error.toString() });
-  }
-});
-// Configurar almacenamiento para archivos subidos
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, uploadDir);
-  },
-  filename: function (req, file, cb) {
-    if (file.fieldname === 'catalogo') {
-      cb(null, 'catalogo.pdf');
-    } else if (file.fieldname === 'productos') {
-      cb(null, 'productos.csv');
-    } else if (file.fieldname === 'asesores') {
-      cb(null, 'asesores.csv');
-    } else if (file.fieldname === 'clientes') {
-      cb(null, 'clientes.csv');
-    } else if (file.fieldname === 'correos') {
-      cb(null, 'correos.csv');
-    } else {
-      cb(null, file.originalname);
-    }
   }
 });
 
