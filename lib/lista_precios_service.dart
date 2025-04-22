@@ -11,12 +11,14 @@ import 'package:http/http.dart' as http;
 import 'package:open_file/open_file.dart';
 import 'package:flutter/services.dart';
 
+
 class ListaPreciosService {
   // URL base del servidor
   //static const String baseUrl = 'http://10.0.2.2:3000'; // Para emulador Android
   //static const String baseUrl = 'http://192.168.1.2:3000'; // Para dispositivo real (cambia la IP)
   // Método principal para generar y mostrar la lista de precios
-  static const String baseUrl = 'https://dapautopart.onrender.com'; // URL de producción
+  //https://dap-autoparts.onrender.com
+  static const String baseUrl = 'https://dap-autoparts.onrender.com'; // URL de producción
   static Future<void> generarListaPrecios(BuildContext context) async {
   try {
     // Mostrar diálogo de carga
@@ -317,133 +319,153 @@ Future<pw.MemoryImage> getLogo() async {
 
   // Método para generar PDF directamente a un archivo (ahorra memoria)
   static Future<void> _generarPDFDirecto(
-    String filePath,
-    List<Map<String, dynamic>> productos,
-    String asesorNombre,
-    String asesorZona,
-    String asesorCorreo,
-    String asesorTelefono,
-  ) async {
+  String filePath,
+  List<Map<String, dynamic>> productos,
+  String asesorNombre,
+  String asesorZona,
+  String asesorCorreo,
+  String asesorTelefono,
+) async {
+  try {
     // Inicializar fecha
     await initializeDateFormatting('es_ES', null);
     final now = DateTime.now();
     final formatter = DateFormat('dd/MM/yyyy', 'es_ES');
     final fechaActual = formatter.format(now);
     
-     final ByteData logoData = await rootBundle.load('assets/images/logo.png');
-    final Uint8List logoBytes = logoData.buffer.asUint8List();
-    final logoImage = pw.MemoryImage(logoBytes);
-    // Crear documento PDF minimalista
+    // Cargar logo con manejo de errores
+    ByteData? logoData;
+    Uint8List? logoBytes;
+    pw.MemoryImage? logoImage;
+    
+    try {
+      logoData = await rootBundle.load('assets/images/logo.png');
+      if (logoData != null) {
+        logoBytes = logoData.buffer.asUint8List();
+        logoImage = pw.MemoryImage(logoBytes);
+      }
+    } catch (e) {
+      print("Error al cargar logo: $e");
+      // Continuar sin logo
+    }
+    
+    // Crear documento PDF con mejor formato
     final pdf = pw.Document(
-      compress: true, // Habilitar compresión para reducir tamaño
-      version: PdfVersion.pdf_1_5, // Versión más optimizada
+      compress: true,
+      version: PdfVersion.pdf_1_5,
     );
     
-    // Configuración ultracompacta
-    final fuenteTabla = 4.0; // Fuente extremadamente pequeña
-    final fuenteEncabezado = 6.0;
+    // Aumentar tamaño de fuente para mejor legibilidad
+    final fuenteTabla = 8.0;
+    final fuenteEncabezado = 9.0;
     
-    // Usar A4 horizontal con márgenes mínimos
-    final pageFormat = PdfPageFormat.a4.landscape.copyWith(
-      marginLeft: 5,
-      marginTop: 10,
-      marginRight: 5,
-      marginBottom: 10,
+    // Usar A4 vertical para mejor uso del espacio
+    final pageFormat = PdfPageFormat.a4.copyWith(
+      marginLeft: 20,
+      marginTop: 20,
+      marginRight: 20,
+      marginBottom: 20,
     );
     
-    // Función para crear encabezado minimalista
+    // Función para crear encabezado mejorado
     pw.Widget Function(pw.Context) buildHeader = (pw.Context context) {
-  if (context.pageNumber > 1) {
-    // Encabezado ultra-minimalista para páginas después de la primera
-    return pw.Container(
-      height: 12,
-      child: pw.Row(
-        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-        children: [
-          pw.Row(
-            children: [
-              pw.Image(logoImage, width: 10, height: 10),
-              pw.SizedBox(width: 2),
-              pw.Text(' - Lista de Precios',
-                style: pw.TextStyle(fontSize: 5, color: PdfColors.blue900)),
-            ],
-          ),
-          pw.Text('Pág. ${context.pageNumber}/${context.pagesCount} • $fechaActual',
-            style: pw.TextStyle(fontSize: 5)),
-        ],
-      ),
-    );
-  }
-  
-  // Primera página: encabezado completo pero compacto
-  return pw.Container(
-    height: 30,
-    child: pw.Row(
-      children: [
-        // Logo e información empresa
-        pw.Expanded(
-          flex: 6,
+      if (context.pageNumber > 1) {
+        // Encabezado simplificado para páginas después de la primera
+        return pw.Container(
+          height: 40,
           child: pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
-              pw.Image(logoImage, width: 25, height: 25),
-              pw.SizedBox(width: 5),
-              pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                mainAxisAlignment: pw.MainAxisAlignment.center,
+              pw.Row(
                 children: [
+                  if (logoImage != null) 
+                    pw.Image(logoImage, width: 30, height: 30),
+                  pw.SizedBox(width: 5),
                   pw.Text('LISTA DE PRECIOS',
-                    style: pw.TextStyle(
-                      fontSize: 8, 
-                      fontWeight: pw.FontWeight.bold,
-                    )
-                  ),
-                  pw.Text('PRODUCTOS DISPONIBLES',
-                    style: pw.TextStyle(fontSize: 6)
-                  ),
+                    style: pw.TextStyle(fontSize: 12, color: PdfColors.blue900, fontWeight: pw.FontWeight.bold)),
                 ],
               ),
+              pw.Text('Pág. ${context.pageNumber}/${context.pagesCount} • $fechaActual',
+                style: pw.TextStyle(fontSize: 10)),
             ],
           ),
+        );
+      }
+      
+      // Primera página: encabezado mejorado y centrado
+      return pw.Container(
+        height: 120,
+        child: pw.Column(
+          children: [
+            // Logo centralizado
+            if (logoImage != null)
+              pw.Center(
+                child: pw.Image(logoImage, width: 100, height: 70),
+              ),
+            
+            // Información de la empresa
+            pw.Center(
+              child: pw.Column(
+                children: [
+                  pw.Text('DISTRIBUCIONES AUTOPART\'S S.A.S.', 
+                    style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+                  pw.Text('CR 50A # 46 - 45 Piso 3 • Itagüí, Antioquia • Tel: (57) 3249950610',
+                    style: pw.TextStyle(fontSize: 10)),
+                  pw.Text('IMPORTADOR MAYORISTA DE AUTOPARTES',
+                    style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)),
+                ],
+              ),
+            ),
+            
+            pw.SizedBox(height: 10),
+            
+            // Título y fecha
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text('LISTA DE PRECIOS NACIONAL',
+                  style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
+                pw.Text('Fecha: $fechaActual', 
+                  style: pw.TextStyle(fontSize: 10)),
+              ],
+            ),
+            
+            // Información del asesor en la parte inferior
+            pw.Container(
+              alignment: pw.Alignment.centerRight,
+              child: pw.Text(
+                'Asesor: ${asesorNombre ?? ""}${asesorZona.isNotEmpty ? " | $asesorZona" : ""}${asesorCorreo.isNotEmpty ? " | $asesorCorreo" : ""}${asesorTelefono.isNotEmpty ? " | Tel: $asesorTelefono" : ""}',
+                style: pw.TextStyle(fontSize: 9),
+              ),
+            ),
+          ],
         ),
-        
-        // Información fecha y asesor
-        pw.Expanded(
-          flex: 4,
-          child: pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.end,
-            children: [
-              pw.Text('Fecha: $fechaActual', 
-                style: pw.TextStyle(fontSize: fuenteEncabezado)),
-              pw.Text('Asesor: $asesorNombre', 
-                style: pw.TextStyle(fontSize: fuenteEncabezado)),
-              // Aquí añadimos el número de teléfono
-              pw.Text('$asesorZona | $asesorCorreo${asesorTelefono.isNotEmpty ? " | Tel: $asesorTelefono" : ""}', 
-                style: pw.TextStyle(fontSize: fuenteEncabezado-1)),
-            ],
-          ),
-        ),
-      ],
-    ),
-  );
-};
+      );
+    };
     
-    // Minimalista pie de página
+    // Mejorar el pie de página
     pw.Widget Function(pw.Context) buildFooter = (pw.Context context) {
-  return pw.Container(
-    height: 10,
-    child: pw.Row(
-      mainAxisAlignment: pw.MainAxisAlignment.center,
-      children: [
-        pw.Image(logoImage, width: 8, height: 8),
-        pw.SizedBox(width: 2),
-        pw.Text(
-          ' • Precios sin IVA • Sujetos a cambio',
-          style: pw.TextStyle(fontSize: fuenteTabla-1, fontStyle: pw.FontStyle.italic),
+      return pw.Container(
+        height: 30,
+        child: pw.Column(
+          children: [
+            pw.Divider(),
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.center,
+              children: [
+                if (logoImage != null)
+                  pw.Image(logoImage, width: 15, height: 15),
+                pw.SizedBox(width: 5),
+                pw.Text(
+                  'Precios sin IVA • Sujetos a cambio sin previo aviso',
+                  style: pw.TextStyle(fontSize: 9, fontStyle: pw.FontStyle.italic),
+                ),
+              ],
+            ),
+          ],
         ),
-      ],
-    ),
-  );
-};
+      );
+    };
 
     // Añadir página
     pdf.addPage(
@@ -454,45 +476,42 @@ Future<pw.MemoryImage> getLogo() async {
         build: (pw.Context context) {
           return [
             pw.Table(
-              border: pw.TableBorder.all(width: 0.1),
+              border: pw.TableBorder.all(width: 0.5),
               defaultColumnWidth: pw.FlexColumnWidth(1),
               columnWidths: {
-                0: pw.FixedColumnWidth(20), // #
-                1: pw.FixedColumnWidth(40), // REF
-                2: pw.FixedColumnWidth(30), // ORIGEN
-                3: pw.FlexColumnWidth(3), // DESCRIPCIÓN
-                4: pw.FlexColumnWidth(2), // VEHÍCULO
-                5: pw.FlexColumnWidth(1.5), // MARCA
-                6: pw.FixedColumnWidth(40), // PRECIO
-                7: pw.FixedColumnWidth(25), // DSCTO
+                0: pw.FixedColumnWidth(35), // Ref
+                1: pw.FixedColumnWidth(45), // Origen
+                2: pw.FlexColumnWidth(3), // Descripción
+                3: pw.FlexColumnWidth(2), // Vehículo
+                4: pw.FlexColumnWidth(1.5), // Marca
+                5: pw.FixedColumnWidth(60), // Precio
+                6: pw.FixedColumnWidth(35), // DSCTO
               },
               children: [
                 // Encabezado de la tabla
                 pw.TableRow(
                   decoration: pw.BoxDecoration(color: PdfColors.blue900),
                   children: [
-                    _buildHeaderCell('#'),
-                    _buildHeaderCell('REF'),
-                    _buildHeaderCell('ORIGEN'),
-                    _buildHeaderCell('DESCRIPCIÓN'),
-                    _buildHeaderCell('VEHÍCULO'),
-                    _buildHeaderCell('MARCA'),
-                    _buildHeaderCell('PRECIO'),
-                    _buildHeaderCell('DSCTO'),
+                    _buildHeaderCell('Ref'),
+                    _buildHeaderCell('Origen'),
+                    _buildHeaderCell('Descripción'),
+                    _buildHeaderCell('Vehículo'),
+                    _buildHeaderCell('Marca'),
+                    _buildHeaderCell('Precio'),
+                    _buildHeaderCell('Dscto'),
                   ],
                 ),
                 
                 // Filas de productos
                 ...productos.map((producto) => pw.TableRow(
                   children: [
-                    _buildDataCell(producto['#']?.toString() ?? ''),
                     _buildDataCell(producto['REF']?.toString() ?? ''),
                     _buildDataCell(producto['ORIGEN']?.toString() ?? ''),
                     _buildDataCell(producto['DESCRIPCION']?.toString() ?? ''),
                     _buildDataCell(producto['VEHICULO']?.toString() ?? ''),
                     _buildDataCell(producto['MARCA']?.toString() ?? ''),
                     _buildDataCell(_formatMoneda(producto['PRECIO'])),
-                    _buildDataCell('${producto['DSCTO']}%'),
+                    _buildDataCell('${producto['DSCTO'] ?? 0}%'),
                   ],
                 )),
               ],
@@ -505,32 +524,38 @@ Future<pw.MemoryImage> getLogo() async {
     // Guardar directamente a archivo
     final file = File(filePath);
     await file.writeAsBytes(await pdf.save());
+  } catch (e) {
+    print("Error detallado en generación de PDF: $e");
+    throw e; // Re-lanzar para que se maneje en el nivel superior
   }
-  
+}
   // Métodos auxiliares simplificados para mayor eficiencia
-  static pw.Widget _buildHeaderCell(String text) {
-    return pw.Padding(
-      padding: pw.EdgeInsets.all(2),
-      child: pw.Text(
-        text,
-        style: pw.TextStyle(color: PdfColors.white, fontSize: 4, fontWeight: pw.FontWeight.bold),
-        textAlign: pw.TextAlign.center,
+ static pw.Widget _buildHeaderCell(String text) {
+  return pw.Padding(
+    padding: pw.EdgeInsets.all(6),
+    child: pw.Text(
+      text,
+      style: pw.TextStyle(
+        color: PdfColors.white, 
+        fontSize: 9, 
+        fontWeight: pw.FontWeight.bold
       ),
-    );
-  }
+      textAlign: pw.TextAlign.center,
+    ),
+  );
+}
   
   static pw.Widget _buildDataCell(String text) {
-    return pw.Padding(
-      padding: pw.EdgeInsets.all(1),
-      child: pw.Text(
-        text,
-        style: pw.TextStyle(fontSize: 4),
-        maxLines: 1,
-        overflow: pw.TextOverflow.clip,
-        textAlign: pw.TextAlign.center,
-      ),
-    );
-  }
+  return pw.Padding(
+    padding: pw.EdgeInsets.all(5),
+    child: pw.Text(
+      text,
+      style: pw.TextStyle(fontSize: 8),
+      maxLines: 2,
+      overflow: pw.TextOverflow.clip,
+    ),
+  );
+}
   
   // Formato moneda simplificado
   static String _formatMoneda(dynamic valor) {

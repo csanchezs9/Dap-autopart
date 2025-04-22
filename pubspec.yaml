@@ -38,4 +38,4 @@ flutter:
 
 flutter_launcher_icons:
   android: true
-  image_path: "assets/icon/dapautoparts.png"
+  image_path: "assets/images/LogoParaHome.png"
