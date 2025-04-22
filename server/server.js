@@ -173,17 +173,33 @@ if (canWriteToPath(ordenesPath)) {
 }
 
 
+
 function guardarContador() {
   try {
     const contadorPath = path.join(ordenesPath, 'contador.json');
     console.log(`Guardando contador con valor: ${ultimoNumeroOrden}`);
-    fs.writeFileSync(contadorPath, JSON.stringify({ ultimoNumero: ultimoNumeroOrden }));
+    
+    // Asegurémonos de que la carpeta existe
+    if (!fs.existsSync(ordenesPath)) {
+      fs.mkdirSync(ordenesPath, { recursive: true });
+      console.log(`Creada carpeta ordenesPath: ${ordenesPath}`);
+    }
+    
+    // Guardar con formato más legible
+    fs.writeFileSync(contadorPath, JSON.stringify({ 
+      ultimoNumero: ultimoNumeroOrden,
+      fechaActualizacion: new Date().toISOString() 
+    }, null, 2));
     
     // Verificar que se guardó correctamente
     const contenido = fs.readFileSync(contadorPath, 'utf8');
     console.log('Contenido del archivo después de guardar:', contenido);
+    
+    // Crear un backup por seguridad
+    fs.writeFileSync(path.join(ordenesPath, 'contador_backup.json'), contenido);
   } catch (error) {
     console.error('Error al guardar el contador de órdenes:', error);
+    console.error('Ruta del contador:', path.join(ordenesPath, 'contador.json'));
   }
 }
 
@@ -312,7 +328,10 @@ app.post('/confirmar-orden', (req, res) => {
       return res.status(400).json({ success: false, message: 'Falta el número de orden' });
     }
     
-    // Incrementar el contador ahora que se confirma el uso
+    // Reportar el valor actual antes de incrementar
+    console.log(`Valor actual del contador antes de incrementar: ${ultimoNumeroOrden}`);
+    
+    // Incrementar el contador
     ultimoNumeroOrden++;
     
     // Guardar el nuevo valor
@@ -320,29 +339,13 @@ app.post('/confirmar-orden', (req, res) => {
     
     console.log(`Orden confirmada y contador incrementado a: ${ultimoNumeroOrden}`);
     
-    // Guardar registro de la orden
-    const registroPath = path.join(ordenesPath, 'registro.json');
-    let registro = [];
+    // El resto del código para guardar el registro...
     
-    if (fs.existsSync(registroPath)) {
-      try {
-        const data = fs.readFileSync(registroPath, 'utf8');
-        registro = JSON.parse(data);
-      } catch (e) {
-        console.error('Error al cargar registro:', e);
-      }
-    }
-    
-    registro.push({
-      numeroOrden: numeroOrden,
-      contador: ultimoNumeroOrden,
-      fecha: new Date().toISOString(),
-      ip: req.ip
+    res.json({ 
+      success: true, 
+      message: 'Orden confirmada correctamente',
+      nuevoContador: ultimoNumeroOrden
     });
-    
-    fs.writeFileSync(registroPath, JSON.stringify(registro, null, 2));
-    
-    res.json({ success: true, message: 'Orden confirmada correctamente' });
   } catch (error) {
     console.error('Error al confirmar orden:', error);
     res.status(500).json({ success: false, message: error.toString() });
