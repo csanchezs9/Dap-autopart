@@ -84,6 +84,32 @@
             margin-bottom: 20px;
             border-radius: 4px;
         }
+        .progress-container {
+    width: 100%;
+    background-color: #f1f1f1;
+    border-radius: 4px;
+    margin-top: 10px;
+    height: 20px;
+    position: relative;
+}
+
+.progress-bar {
+    height: 100%;
+    background-color: #4CAF50;
+    width: 0%;
+    border-radius: 4px;
+    transition: width 0.3s;
+}
+
+.progress-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #000;
+    font-weight: bold;
+    text-shadow: 1px 1px 1px rgba(255, 255, 255, 0.5);
+}
         .alert-success {
             background-color: #d4edda;
             color: #155724;
@@ -136,6 +162,10 @@
             </div>
             <div id="alertInfo" class="alert alert-info hidden">
                 Procesando, por favor espere...
+                <div id="progressContainer" class="progress-container" style="display: none; margin-top: 10px;">
+                    <div id="progressBar" class="progress-bar"></div>
+                    <div id="progressText" class="progress-text">0%</div>
+                </div>  
             </div>
         </div>
 
@@ -353,8 +383,13 @@
     console.log("Iniciando subida de imágenes");
     
     // Mostrar alerta de "Subiendo..." mientras se procesa
-    // Pero ahora no la ocultaremos automáticamente
+    // Y preparar la barra de progreso
     showAlert('alertInfo', 'Subiendo imágenes, por favor espere...', 'info', false);
+    
+    // Mostrar la barra de progreso
+    document.getElementById('progressContainer').style.display = 'block';
+    document.getElementById('progressBar').style.width = '0%';
+    document.getElementById('progressText').textContent = '0%';
     
     const fileInput = document.getElementById('imagenes');
     const files = fileInput.files;
@@ -362,8 +397,10 @@
     if (!files || files.length === 0) {
         console.log("No se seleccionaron imágenes");
         
-        // Ocultar la alerta de información y mostrar la de error
+        // Ocultar la alerta y la barra de progreso
         hideAlert('alertInfo');
+        document.getElementById('progressContainer').style.display = 'none';
+        
         showAlert('alertError', 'Por favor seleccione al menos una imagen.');
         return;
     }
@@ -376,8 +413,10 @@
         if (!file.type.match('image/jpeg')) {
             console.log(`Error: El archivo ${file.name} no es un JPG/JPEG`);
             
-            // Ocultar la alerta de información y mostrar la de error
+            // Ocultar la alerta y la barra de progreso
             hideAlert('alertInfo');
+            document.getElementById('progressContainer').style.display = 'none';
+            
             showAlert('alertError', `El archivo ${file.name} no es un JPG/JPEG válido.`);
             return;
         }
@@ -390,38 +429,84 @@
     
     console.log(`Enviando solicitud a /upload-imagenes...`);
     
-    fetch('/upload-imagenes', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => {
-        console.log(`Respuesta recibida de upload-imagenes:`, response);
-        return response.json();
-    })
-    .then(data => {
-        console.log(`Datos de respuesta para upload-imagenes:`, data);
-        
-        // Ocultar la alerta de información primero
-        hideAlert('alertInfo');
-        
-        if (data.success) {
-            showAlert('alertSuccess', `¡${data.count} imágenes han sido subidas correctamente!`);
-            // Mostrar los nombres de las imágenes subidas
-            const imagenesSubidas = data.filenames.join(', ');
-            document.getElementById('imagenesNombre').textContent = `Últimas imágenes subidas: ${imagenesSubidas}`;
-            // Resetear el formulario
-            document.getElementById('imagenes').value = '';
-        } else {
-            showAlert('alertError', data.message || `Error al subir las imágenes.`);
+    // Usar XMLHttpRequest en lugar de fetch para poder mostrar el progreso
+    const xhr = new XMLHttpRequest();
+    
+    // Configurar evento de progreso
+    xhr.upload.addEventListener('progress', function(event) {
+        if (event.lengthComputable) {
+            const percentComplete = Math.round((event.loaded / event.total) * 100);
+            
+            // Actualizar barra de progreso
+            document.getElementById('progressBar').style.width = percentComplete + '%';
+            document.getElementById('progressText').textContent = percentComplete + '%';
+            
+            // Actualizar texto de la alerta
+            document.getElementById('alertInfo').innerHTML = 
+                `Subiendo imágenes, por favor espere... (${percentComplete}%)
+                <div id="progressContainer" class="progress-container" style="display: block; margin-top: 10px;">
+                    <div id="progressBar" class="progress-bar" style="width: ${percentComplete}%"></div>
+                    <div id="progressText" class="progress-text">${percentComplete}%</div>
+                </div>`;
+            
+            console.log(`Progreso: ${percentComplete}%`);
         }
-    })
-    .catch(error => {
-        console.error(`Error en solicitud a upload-imagenes:`, error);
-        
-        // Ocultar la alerta de información y mostrar la de error
-        hideAlert('alertInfo');
-        showAlert('alertError', `Error de conexión: No se pudo comunicar con el servidor. Detalles: ${error.message}`);
     });
+    
+    // Configurar evento de finalización
+    xhr.addEventListener('load', function() {
+        if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+                const data = JSON.parse(xhr.responseText);
+                console.log(`Datos de respuesta para upload-imagenes:`, data);
+                
+                // Ocultar la alerta de información y la barra de progreso
+                hideAlert('alertInfo');
+                document.getElementById('progressContainer').style.display = 'none';
+                
+                if (data.success) {
+                    showAlert('alertSuccess', `¡${data.count} imágenes han sido subidas correctamente!`);
+                    // Mostrar los nombres de las imágenes subidas
+                    const imagenesSubidas = data.filenames.join(', ');
+                    document.getElementById('imagenesNombre').textContent = `Últimas imágenes subidas: ${imagenesSubidas}`;
+                    // Resetear el formulario
+                    document.getElementById('imagenes').value = '';
+                } else {
+                    showAlert('alertError', data.message || `Error al subir las imágenes.`);
+                }
+            } catch (error) {
+                console.error('Error al procesar la respuesta:', error);
+                hideAlert('alertInfo');
+                document.getElementById('progressContainer').style.display = 'none';
+                showAlert('alertError', 'Error al procesar la respuesta del servidor.');
+            }
+        } else {
+            console.error('Error en la solicitud:', xhr.status, xhr.statusText);
+            hideAlert('alertInfo');
+            document.getElementById('progressContainer').style.display = 'none';
+            showAlert('alertError', `Error en la solicitud: ${xhr.status} ${xhr.statusText}`);
+        }
+    });
+    
+    // Configurar evento de error
+    xhr.addEventListener('error', function() {
+        console.error('Error de red al enviar la solicitud');
+        hideAlert('alertInfo');
+        document.getElementById('progressContainer').style.display = 'none';
+        showAlert('alertError', 'Error de red al enviar la solicitud. Compruebe su conexión.');
+    });
+    
+    // Configurar evento de timeout
+    xhr.addEventListener('timeout', function() {
+        console.error('Tiempo de espera agotado');
+        hideAlert('alertInfo');
+        document.getElementById('progressContainer').style.display = 'none';
+        showAlert('alertError', 'Tiempo de espera agotado. El servidor tardó demasiado en responder.');
+    });
+    
+    // Abrir y enviar la solicitud
+    xhr.open('POST', '/upload-imagenes');
+    xhr.send(formData);
 }
 
         function checkExistingFiles() {
@@ -494,8 +579,13 @@
 function uploadFile(fileInputId, endpoint) {
     console.log(`Iniciando subida de archivo para ${fileInputId} al endpoint ${endpoint}`);
     
-    // Mostrar alerta de "Subiendo..." mientras se procesa, sin auto-ocultar
+    // Mostrar alerta de "Subiendo..." mientras se procesa
     showAlert('alertInfo', 'Subiendo archivo, por favor espere...', 'info', false);
+    
+    // Mostrar la barra de progreso
+    document.getElementById('progressContainer').style.display = 'block';
+    document.getElementById('progressBar').style.width = '0%';
+    document.getElementById('progressText').textContent = '0%';
     
     const fileInput = document.getElementById(fileInputId);
     const file = fileInput.files[0];
@@ -503,6 +593,7 @@ function uploadFile(fileInputId, endpoint) {
     if (!file) {
         console.log("No se seleccionó ningún archivo");
         hideAlert('alertInfo');
+        document.getElementById('progressContainer').style.display = 'none';
         showAlert('alertError', 'Por favor seleccione un archivo.');
         return;
     }
@@ -513,6 +604,7 @@ function uploadFile(fileInputId, endpoint) {
     if (fileInputId === 'catalogo' && file.type !== 'application/pdf') {
         console.log("Error: El catálogo debe ser PDF");
         hideAlert('alertInfo');
+        document.getElementById('progressContainer').style.display = 'none';
         showAlert('alertError', 'El catálogo debe ser un archivo PDF.');
         return;
     }
@@ -520,6 +612,7 @@ function uploadFile(fileInputId, endpoint) {
     if ((fileInputId === 'productos' || fileInputId === 'asesores' || fileInputId === 'clientes' || fileInputId === 'correos') && !file.name.endsWith('.csv')) {
         console.log(`Error: El archivo de ${fileInputId} debe ser CSV`);
         hideAlert('alertInfo');
+        document.getElementById('progressContainer').style.display = 'none';
         showAlert('alertError', 'El archivo debe ser un CSV.');
         return;
     }
@@ -529,37 +622,83 @@ function uploadFile(fileInputId, endpoint) {
     
     console.log(`Enviando solicitud a /${endpoint}...`);
     
-    fetch('/' + endpoint, {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => {
-        console.log(`Respuesta recibida de ${endpoint}:`, response);
-        return response.json();
-    })
-    .then(data => {
-        console.log(`Datos de respuesta para ${endpoint}:`, data);
-        
-        // Ocultar la alerta de información primero
-        hideAlert('alertInfo');
-        
-        if (data.success) {
-            showAlert('alertSuccess', `¡El archivo ${getFileTypeLabel(fileInputId)} ha sido actualizado correctamente!`);
-            // Actualizar la información del último archivo subido
-            document.getElementById(fileInputId + 'Nombre').textContent = `Último archivo subido: ${file.name}`;
-            // Resetear el formulario
-            document.getElementById(fileInputId).value = '';
-        } else {
-            showAlert('alertError', data.message || `Error al actualizar el archivo ${getFileTypeLabel(fileInputId)}.`);
+    // Usar XMLHttpRequest en lugar de fetch para poder mostrar el progreso
+    const xhr = new XMLHttpRequest();
+    
+    // Configurar evento de progreso
+    xhr.upload.addEventListener('progress', function(event) {
+        if (event.lengthComputable) {
+            const percentComplete = Math.round((event.loaded / event.total) * 100);
+            
+            // Actualizar barra de progreso
+            document.getElementById('progressBar').style.width = percentComplete + '%';
+            document.getElementById('progressText').textContent = percentComplete + '%';
+            
+            // Actualizar texto de la alerta
+            document.getElementById('alertInfo').innerHTML = 
+                `Subiendo archivo, por favor espere... (${percentComplete}%)
+                <div id="progressContainer" class="progress-container" style="display: block; margin-top: 10px;">
+                    <div id="progressBar" class="progress-bar" style="width: ${percentComplete}%"></div>
+                    <div id="progressText" class="progress-text">${percentComplete}%</div>
+                </div>`;
+            
+            console.log(`Progreso: ${percentComplete}%`);
         }
-    })
-    .catch(error => {
-        console.error(`Error en solicitud a ${endpoint}:`, error);
-        
-        // Ocultar la alerta de información y mostrar la de error
-        hideAlert('alertInfo');
-        showAlert('alertError', `Error de conexión: No se pudo comunicar con el servidor. Detalles: ${error.message}`);
     });
+    
+    // Configurar evento de finalización
+    xhr.addEventListener('load', function() {
+        if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+                const data = JSON.parse(xhr.responseText);
+                console.log(`Datos de respuesta para ${endpoint}:`, data);
+                
+                // Ocultar la alerta de información y la barra de progreso
+                hideAlert('alertInfo');
+                document.getElementById('progressContainer').style.display = 'none';
+                
+                if (data.success) {
+                    showAlert('alertSuccess', `¡El archivo ${getFileTypeLabel(fileInputId)} ha sido actualizado correctamente!`);
+                    // Actualizar la información del último archivo subido
+                    document.getElementById(fileInputId + 'Nombre').textContent = `Último archivo subido: ${file.name}`;
+                    // Resetear el formulario
+                    document.getElementById(fileInputId).value = '';
+                } else {
+                    showAlert('alertError', data.message || `Error al actualizar el archivo ${getFileTypeLabel(fileInputId)}.`);
+                }
+            } catch (error) {
+                console.error('Error al procesar la respuesta:', error);
+                hideAlert('alertInfo');
+                document.getElementById('progressContainer').style.display = 'none';
+                showAlert('alertError', 'Error al procesar la respuesta del servidor.');
+            }
+        } else {
+            console.error('Error en la solicitud:', xhr.status, xhr.statusText);
+            hideAlert('alertInfo');
+            document.getElementById('progressContainer').style.display = 'none';
+            showAlert('alertError', `Error en la solicitud: ${xhr.status} ${xhr.statusText}`);
+        }
+    });
+    
+    // Configurar evento de error
+    xhr.addEventListener('error', function() {
+        console.error('Error de red al enviar la solicitud');
+        hideAlert('alertInfo');
+        document.getElementById('progressContainer').style.display = 'none';
+        showAlert('alertError', 'Error de red al enviar la solicitud. Compruebe su conexión.');
+    });
+    
+    // Configurar evento de timeout
+    xhr.addEventListener('timeout', function() {
+        console.error('Tiempo de espera agotado');
+        hideAlert('alertInfo');
+        document.getElementById('progressContainer').style.display = 'none';
+        showAlert('alertError', 'Tiempo de espera agotado. El servidor tardó demasiado en responder.');
+    });
+    
+    // Abrir y enviar la solicitud
+    xhr.open('POST', '/' + endpoint);
+    xhr.send(formData);
 }
 
 
