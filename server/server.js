@@ -130,7 +130,8 @@ try {
     console.log(`Archivo de contador creado con valor inicial: ${ultimoNumeroOrden}`);
   }
 } catch (error) {
-  con
+  console.error('Error al cargar el contador de órdenes:', error);
+}
 
 
 function guardarContador() {
