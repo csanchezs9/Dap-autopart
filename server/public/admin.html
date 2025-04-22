@@ -726,9 +726,30 @@ function showAlert(alertId, message, type, autoHide = true) {
     // Mostrar la alerta solicitada
     const alert = document.getElementById(alertId);
     if (alert) {
-        if (message) {
-            alert.textContent = message;
+        // Si es la alerta de info, conservar el div de progreso
+        if (alertId === 'alertInfo') {
+            // Obtener el div de progreso primero (si existe)
+            const progressContainer = document.getElementById('progressContainer');
+            
+            // Limpiar el contenido de la alerta
+            alert.innerHTML = '';
+            
+            // Agregar el mensaje
+            const messageNode = document.createTextNode(message);
+            alert.appendChild(messageNode);
+            
+            // Agregar de vuelta el div de progreso
+            if (progressContainer) {
+                alert.appendChild(document.createElement('br'));
+                alert.appendChild(progressContainer);
+            }
+        } else {
+            // Para otras alertas, simplemente establecer el texto
+            if (message) {
+                alert.textContent = message;
+            }
         }
+        
         alert.classList.remove('hidden');
         
         // Hacer scroll a la alerta para que sea visible
