@@ -379,135 +379,269 @@
     uploadImages();
 });
         });
-        function uploadImages() {
-    console.log("Iniciando subida de imágenes");
-    
-    // Mostrar alerta de "Subiendo..." mientras se procesa
-    // Y preparar la barra de progreso
-    showAlert('alertInfo', 'Subiendo imágenes, por favor espere...', 'info', false);
-    
-    // Mostrar la barra de progreso
-    document.getElementById('progressContainer').style.display = 'block';
-    document.getElementById('progressBar').style.width = '0%';
-    document.getElementById('progressText').textContent = '0%';
+        // Reemplaza la función uploadImages con esta implementación por lotes
+function uploadImagesInBatches() {
+    console.log("Iniciando subida de imágenes por lotes");
     
     const fileInput = document.getElementById('imagenes');
     const files = fileInput.files;
+    const batchSize = 100; // Configurar aquí el tamaño de cada lote (100 imágenes a la vez)
     
     if (!files || files.length === 0) {
         console.log("No se seleccionaron imágenes");
-        
-        // Ocultar la alerta y la barra de progreso
-        hideAlert('alertInfo');
-        document.getElementById('progressContainer').style.display = 'none';
-        
         showAlert('alertError', 'Por favor seleccione al menos una imagen.');
         return;
     }
     
-    console.log(`Se seleccionaron ${files.length} imágenes`);
+    console.log(`Se seleccionaron ${files.length} imágenes en total`);
     
     // Verificar que todos son archivos JPG/JPEG
     for (let i = 0; i < files.length; i++) {
         const file = files[i];
         if (!file.type.match('image/jpeg')) {
             console.log(`Error: El archivo ${file.name} no es un JPG/JPEG`);
-            
-            // Ocultar la alerta y la barra de progreso
-            hideAlert('alertInfo');
-            document.getElementById('progressContainer').style.display = 'none';
-            
             showAlert('alertError', `El archivo ${file.name} no es un JPG/JPEG válido.`);
             return;
         }
     }
     
-    const formData = new FormData();
-    for (let i = 0; i < files.length; i++) {
-        formData.append('imagenes', files[i]);
+    // Calcular número total de lotes
+    const totalBatches = Math.ceil(files.length / batchSize);
+    console.log(`Se dividirá la carga en ${totalBatches} lotes de ${batchSize} imágenes como máximo`);
+    
+    // Variables para seguimiento
+    let completedBatches = 0;
+    let totalUploadedFiles = 0;
+    let failedFiles = 0;
+    let uploadedFilenames = [];
+    
+    // Mostrar alerta inicial
+    showAlert('alertInfo', `Preparando subida de ${files.length} imágenes en ${totalBatches} lotes...`, 'info', false);
+    document.getElementById('progressContainer').style.display = 'block';
+    document.getElementById('progressBar').style.width = '0%';
+    document.getElementById('progressText').textContent = '0%';
+    
+    // Función recursiva para subir un lote específico
+    function uploadBatch(batchIndex) {
+        const start = batchIndex * batchSize;
+        const end = Math.min(start + batchSize, files.length);
+        const currentBatchSize = end - start;
+        
+        console.log(`Procesando lote ${batchIndex + 1}/${totalBatches} (archivos ${start+1}-${end})`);
+        
+        // Crear FormData para este lote
+        const formData = new FormData();
+        for (let i = start; i < end; i++) {
+            formData.append('imagenes', files[i]);
+        }
+        
+        // Actualizar mensaje con información del lote actual
+        const overallProgress = Math.round((completedBatches / totalBatches) * 100);
+        document.getElementById('alertInfo').innerHTML = 
+            `Subiendo lote ${batchIndex + 1} de ${totalBatches} (${currentBatchSize} imágenes)...
+            <br>Progreso total: ${overallProgress}% (${totalUploadedFiles} de ${files.length} archivos)
+            <div id="progressContainer" class="progress-container" style="display: block; margin-top: 10px;">
+                <div id="progressBar" class="progress-bar" style="width: 0%"></div>
+                <div id="progressText" class="progress-text">0%</div>
+            </div>`;
+        
+        // Subir este lote usando XMLHttpRequest para tener barra de progreso
+        const xhr = new XMLHttpRequest();
+        
+        // Evento de progreso dentro del lote actual
+        xhr.upload.addEventListener('progress', function(event) {
+            if (event.lengthComputable) {
+                const percentComplete = Math.round((event.loaded / event.total) * 100);
+                
+                // Actualizar barra de progreso para este lote
+                document.getElementById('progressBar').style.width = percentComplete + '%';
+                document.getElementById('progressText').textContent = percentComplete + '%';
+                
+                // Calcular progreso global aproximado
+                const globalPercentComplete = Math.round(
+                    ((completedBatches * batchSize) + (currentBatchSize * (event.loaded / event.total))) 
+                    / files.length * 100
+                );
+                
+                // Actualizar mensaje con progreso global
+                document.getElementById('alertInfo').innerHTML = 
+                    `Subiendo lote ${batchIndex + 1} de ${totalBatches} (${currentBatchSize} imágenes)...
+                    <br>Progreso total: ${globalPercentComplete}% (${totalUploadedFiles} de ${files.length} archivos)
+                    <div id="progressContainer" class="progress-container" style="display: block; margin-top: 10px;">
+                        <div id="progressBar" class="progress-bar" style="width: ${percentComplete}%"></div>
+                        <div id="progressText" class="progress-text">${percentComplete}%</div>
+                    </div>`;
+            }
+        });
+        
+        // Evento de carga completada para este lote
+        xhr.addEventListener('load', function() {
+            completedBatches++;
+            
+            if (xhr.status >= 200 && xhr.status < 300) {
+                try {
+                    const data = JSON.parse(xhr.responseText);
+                    console.log(`Lote ${batchIndex + 1} completado:`, data);
+                    
+                    if (data.success) {
+                        // Incrementar contador de archivos subidos exitosamente
+                        totalUploadedFiles += data.count || 0;
+                        
+                        // Guardar nombres de archivos subidos (para mostrar después)
+                        if (data.filenames && Array.isArray(data.filenames)) {
+                            uploadedFilenames = uploadedFilenames.concat(data.filenames);
+                        }
+                    } else {
+                        // Contar archivos fallidos en este lote
+                        failedFiles += currentBatchSize;
+                        console.error(`Error en lote ${batchIndex + 1}:`, data.message);
+                    }
+                    
+                    // Verificar si hay más lotes por procesar
+                    if (batchIndex + 1 < totalBatches) {
+                        // Continuar con el siguiente lote
+                        uploadBatch(batchIndex + 1);
+                    } else {
+                        // Todos los lotes completados
+                        finalizarProceso();
+                    }
+                } catch (error) {
+                    console.error(`Error al procesar respuesta del lote ${batchIndex + 1}:`, error);
+                    failedFiles += currentBatchSize;
+                    
+                    // Continuar con el siguiente lote a pesar del error
+                    if (batchIndex + 1 < totalBatches) {
+                        uploadBatch(batchIndex + 1);
+                    } else {
+                        finalizarProceso();
+                    }
+                }
+            } else {
+                console.error(`Error HTTP en lote ${batchIndex + 1}:`, xhr.status, xhr.statusText);
+                failedFiles += currentBatchSize;
+                
+                // Continuar con el siguiente lote a pesar del error
+                if (batchIndex + 1 < totalBatches) {
+                    uploadBatch(batchIndex + 1);
+                } else {
+                    finalizarProceso();
+                }
+            }
+        });
+        
+        // Evento de error de red
+        xhr.addEventListener('error', function() {
+            console.error(`Error de red en lote ${batchIndex + 1}`);
+            failedFiles += currentBatchSize;
+            completedBatches++;
+            
+            // Continuar con el siguiente lote a pesar del error
+            if (batchIndex + 1 < totalBatches) {
+                uploadBatch(batchIndex + 1);
+            } else {
+                finalizarProceso();
+            }
+        });
+        
+        // Evento de timeout
+        xhr.addEventListener('timeout', function() {
+            console.error(`Timeout en lote ${batchIndex + 1}`);
+            failedFiles += currentBatchSize;
+            completedBatches++;
+            
+            // Continuar con el siguiente lote a pesar del error
+            if (batchIndex + 1 < totalBatches) {
+                uploadBatch(batchIndex + 1);
+            } else {
+                finalizarProceso();
+            }
+        });
+        
+        // Abrir y enviar la solicitud
+        xhr.open('POST', '/upload-imagenes');
+        xhr.timeout = 300000; // 5 minutos de timeout por lote
+        xhr.send(formData);
     }
     
-    console.log(`Enviando solicitud a /upload-imagenes...`);
-    
-    // Usar XMLHttpRequest en lugar de fetch para poder mostrar el progreso
-    const xhr = new XMLHttpRequest();
-    
-    // Configurar evento de progreso
-    xhr.upload.addEventListener('progress', function(event) {
-        if (event.lengthComputable) {
-            const percentComplete = Math.round((event.loaded / event.total) * 100);
-            
-            // Actualizar barra de progreso
-            document.getElementById('progressBar').style.width = percentComplete + '%';
-            document.getElementById('progressText').textContent = percentComplete + '%';
-            
-            // Actualizar texto de la alerta
-            document.getElementById('alertInfo').innerHTML = 
-                `Subiendo imágenes, por favor espere... (${percentComplete}%)
-                <div id="progressContainer" class="progress-container" style="display: block; margin-top: 10px;">
-                    <div id="progressBar" class="progress-bar" style="width: ${percentComplete}%"></div>
-                    <div id="progressText" class="progress-text">${percentComplete}%</div>
-                </div>`;
-            
-            console.log(`Progreso: ${percentComplete}%`);
-        }
-    });
-    
-    // Configurar evento de finalización
-    xhr.addEventListener('load', function() {
-        if (xhr.status >= 200 && xhr.status < 300) {
-            try {
-                const data = JSON.parse(xhr.responseText);
-                console.log(`Datos de respuesta para upload-imagenes:`, data);
-                
-                // Ocultar la alerta de información y la barra de progreso
-                hideAlert('alertInfo');
-                document.getElementById('progressContainer').style.display = 'none';
-                
-                if (data.success) {
-                    showAlert('alertSuccess', `¡${data.count} imágenes han sido subidas correctamente!`);
-                    // Mostrar los nombres de las imágenes subidas
-                    const imagenesSubidas = data.filenames.join(', ');
-                    document.getElementById('imagenesNombre').textContent = `Últimas imágenes subidas: ${imagenesSubidas}`;
-                    // Resetear el formulario
-                    document.getElementById('imagenes').value = '';
-                } else {
-                    showAlert('alertError', data.message || `Error al subir las imágenes.`);
-                }
-            } catch (error) {
-                console.error('Error al procesar la respuesta:', error);
-                hideAlert('alertInfo');
-                document.getElementById('progressContainer').style.display = 'none';
-                showAlert('alertError', 'Error al procesar la respuesta del servidor.');
-            }
+    // Función para finalizar todo el proceso
+    function finalizarProceso() {
+        // Ocultar alerta de información
+        hideAlert('alertInfo');
+        
+        // Mostrar resumen final
+        if (failedFiles > 0) {
+            // Hubo algunos errores
+            showAlert('alertSuccess', `Subida completada: ${totalUploadedFiles} imágenes subidas correctamente, ${failedFiles} con errores.`);
         } else {
-            console.error('Error en la solicitud:', xhr.status, xhr.statusText);
-            hideAlert('alertInfo');
-            document.getElementById('progressContainer').style.display = 'none';
-            showAlert('alertError', `Error en la solicitud: ${xhr.status} ${xhr.statusText}`);
+            // Todo perfecto
+            showAlert('alertSuccess', `¡${totalUploadedFiles} imágenes han sido subidas correctamente!`);
         }
-    });
+        
+        // Actualizar información en pantalla
+        let nombres = "Múltiples archivos";
+        if (uploadedFilenames.length <= 5) {
+            nombres = uploadedFilenames.join(', ');
+        } else {
+            nombres = `${uploadedFilenames.length} archivos en ${totalBatches} lotes`;
+        }
+        
+        document.getElementById('imagenesNombre').textContent = `Últimas imágenes subidas: ${nombres}`;
+        
+        // Limpiar formulario
+        document.getElementById('imagenes').value = '';
+    }
     
-    // Configurar evento de error
-    xhr.addEventListener('error', function() {
-        console.error('Error de red al enviar la solicitud');
-        hideAlert('alertInfo');
-        document.getElementById('progressContainer').style.display = 'none';
-        showAlert('alertError', 'Error de red al enviar la solicitud. Compruebe su conexión.');
-    });
-    
-    // Configurar evento de timeout
-    xhr.addEventListener('timeout', function() {
-        console.error('Tiempo de espera agotado');
-        hideAlert('alertInfo');
-        document.getElementById('progressContainer').style.display = 'none';
-        showAlert('alertError', 'Tiempo de espera agotado. El servidor tardó demasiado en responder.');
-    });
-    
-    // Abrir y enviar la solicitud
-    xhr.open('POST', '/upload-imagenes');
-    xhr.send(formData);
+    // Iniciar el proceso con el primer lote
+    uploadBatch(0);
 }
+
+// Ahora modifica el event listener para usar la nueva función por lotes:
+document.addEventListener('DOMContentLoaded', function() {
+    console.log("Página cargada - Inicializando controladores de eventos");
+    
+    // Verificar archivos existentes
+    checkExistingFiles();
+    
+    // Manejar formulario de catálogo
+    document.getElementById('catalogoForm').addEventListener('submit', function(e) {
+        console.log("Evento submit de catalogoForm capturado");
+        e.preventDefault();
+        uploadFile('catalogo', 'upload-catalogo');
+    });
+    
+    // Manejar formulario de productos
+    document.getElementById('productosForm').addEventListener('submit', function(e) {
+        console.log("Evento submit de productosForm capturado");
+        e.preventDefault();
+        uploadFile('productos', 'upload-productos');
+    });
+    
+    // Manejar formulario de asesores
+    document.getElementById('asesoresForm').addEventListener('submit', function(e) {
+        console.log("Evento submit de asesoresForm capturado");
+        e.preventDefault();
+        uploadFile('asesores', 'upload-asesores');
+    });
+
+    document.getElementById('clientesForm').addEventListener('submit', function(e) {
+        console.log("Evento submit de clientesForm capturado");
+        e.preventDefault();
+        uploadFile('clientes', 'upload-clientes');
+    });
+
+    document.getElementById('correosForm').addEventListener('submit', function(e) {
+        console.log("Evento submit de correosForm capturado");
+        e.preventDefault();
+        uploadFile('correos', 'upload-correos');
+    });
+
+    // CAMBIO AQUÍ: Usar la versión por lotes para el formulario de imágenes
+    document.getElementById('imagenesForm').addEventListener('submit', function(e) {
+        console.log("Evento submit de imagenesForm capturado");
+        e.preventDefault();
+        uploadImagesInBatches(); // Llamar a la nueva función en lugar de uploadImages
+    });
+});
 
         function checkExistingFiles() {
     console.log("Verificando archivos existentes...");
