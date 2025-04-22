@@ -11,7 +11,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'producto_service.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-
+import 'package:shared_preferences/shared_preferences.dart';
 
 
 
@@ -90,6 +90,8 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
     });
 
   }
+
+  
   
   @override
   void dispose() {
@@ -394,6 +396,8 @@ pw.Widget _buildPDFCompactInfoRow(String label, String value) {
     ),
   );
 }
+
+
 
 Future<Uint8List?> _generarPDFMejorado() async {
   try {
@@ -1470,6 +1474,29 @@ Distribuciones AutoPart's
             }),
           );
           print("Número de orden confirmado en el servidor");
+          
+          // NUEVO: Solicitar el siguiente número para actualizar localmente
+          try {
+            final nextNumResponse = await http.get(
+              Uri.parse('${ProductoService.baseUrl}/siguiente-orden'),
+            ).timeout(
+              Duration(seconds: 5),
+              onTimeout: () => throw Exception('Tiempo de espera agotado'),
+            );
+            
+            if (nextNumResponse.statusCode == 200) {
+              final nextNumData = json.decode(nextNumResponse.body);
+              if (nextNumData['success'] && nextNumData.containsKey('numeroOrden')) {
+                // Guardar este nuevo número en SharedPreferences
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.setString('ultimo_numero_orden', nextNumData['numeroOrden']);
+                print("Nuevo número de orden guardado localmente: ${nextNumData['numeroOrden']}");
+              }
+            }
+          } catch (e) {
+            print("Error al obtener siguiente número de orden: $e");
+            // No detener el flujo por este error
+          }
         } catch (e) {
           print("Error al confirmar número de orden: $e");
           // Continuar aunque falle la confirmación

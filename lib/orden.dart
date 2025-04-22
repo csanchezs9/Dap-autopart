@@ -56,13 +56,34 @@ class _OrdenDePedidoState extends State<OrdenDePedido> {
   }
 
   // Nuevo método para obtener número del servidor
-  Future<void> _obtenerSiguienteNumeroOrden() async {
+ Future<void> _obtenerSiguienteNumeroOrden() async {
   setState(() {
     isLoading = true;
     errorMessage = '';
   });
 
   try {
+    // NUEVO: Primero verificar si tenemos un número guardado en SharedPreferences
+    final prefs = await SharedPreferences.getInstance();
+    final ultimoNumeroGuardado = prefs.getString('ultimo_numero_orden');
+    
+    if (ultimoNumeroGuardado != null && ultimoNumeroGuardado.isNotEmpty) {
+      // Si tenemos un número guardado, usarlo y luego borrarlo
+      setState(() {
+        ordenNumeroController.text = ultimoNumeroGuardado;
+      });
+      
+      // Borrar el número guardado para que no se reutilice
+      await prefs.remove('ultimo_numero_orden');
+      
+      print("Usando número de orden guardado: $ultimoNumeroGuardado");
+      setState(() {
+        isLoading = false;
+      });
+      return;
+    }
+    
+    // Si no hay número guardado, seguir con el proceso normal
     // Intentar obtener el número únicamente del servidor
     final response = await http.get(
       Uri.parse('$baseUrl/siguiente-orden'),

@@ -158,18 +158,18 @@ if (canWriteToPath(ordenesPath)) {
     if (fs.existsSync(contadorPath)) {
       const data = fs.readFileSync(contadorPath, 'utf8');
       const contador = JSON.parse(data);
+      // Solo asignar el valor, NO incrementar
       ultimoNumeroOrden = contador.ultimoNumero || 1;
       console.log(`Contador de órdenes cargado: ${ultimoNumeroOrden}`);
     } else {
-      // Crear el archivo si no existe
-      fs.writeFileSync(contadorPath, JSON.stringify({ ultimoNumero: ultimoNumeroOrden }));
-      console.log(`Archivo de contador creado con valor inicial: ${ultimoNumeroOrden}`);
+      // Crear el archivo si no existe, con el valor 1 (no incrementado)
+      fs.writeFileSync(contadorPath, JSON.stringify({ ultimoNumero: 1, fechaActualizacion: new Date().toISOString() }, null, 2));
+      ultimoNumeroOrden = 1;
+      console.log(`Archivo de contador creado con valor inicial: 1`);
     }
   } catch (error) {
     console.error('Error al cargar el contador de órdenes:', error);
   }
-} else {
-  console.log('No se puede acceder a la ruta de órdenes para cargar el contador.');
 }
 
 
