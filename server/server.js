@@ -13,6 +13,22 @@ const crypto = require('crypto');
 const app = express();
 let ultimoNumeroOrden = 1;
 
+const isProduction = process.env.NODE_ENV === 'production';
+const baseStoragePath = isProduction 
+  ? '/opt/render/project/src/data' // Ruta del disco persistente en Render
+  : path.join(__dirname); // Ruta local para desarrollo
+
+
+  if (!fs.existsSync(baseStoragePath)) {
+    try {
+      fs.mkdirSync(baseStoragePath, { recursive: true });
+      console.log(`Carpeta base de almacenamiento creada: ${baseStoragePath}`);
+    } catch (error) {
+      console.error(`Error al crear carpeta base de almacenamiento: ${error.message}`);
+    }
+  }
+
+
 const sessionConfig = {
   secret: process.env.SESSION_SECRET || 'dap-autoparts-secret-key',
   resave: true,                // Cambiado a true para forzar guardado de sesión
@@ -35,15 +51,15 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD
 
 
 // Crear carpeta de archivos si no existe
-const uploadDir = path.join(__dirname, 'uploads');
-const catDirPath = path.join(__dirname, 'catalogos');
-const tempDir = path.join(__dirname, 'temp');
-const productosDirPath = path.join(__dirname, 'productos');
-const asesoresDirPath = path.join(__dirname, 'asesores');
-const clientesDirPath = path.join(__dirname, 'clientes');
-const correosDirPath = path.join(__dirname, 'correos');
-const ordenesPath = path.join(__dirname, 'ordenes');
-const imagenesDir = path.join(__dirname, '..', 'assets', 'imagenesproductos');
+const uploadDir = path.join(baseStoragePath, 'uploads');
+const catDirPath = path.join(baseStoragePath, 'catalogos');
+const tempDir = path.join(baseStoragePath, 'temp');
+const productosDirPath = path.join(baseStoragePath, 'productos');
+const asesoresDirPath = path.join(baseStoragePath, 'asesores');
+const clientesDirPath = path.join(baseStoragePath, 'clientes');
+const correosDirPath = path.join(baseStoragePath, 'correos');
+const ordenesPath = path.join(baseStoragePath, 'ordenes');
+const imagenesDir = path.join(baseStoragePath, 'imagenesProductos');
 
 if (!fs.existsSync(ordenesPath)) {
   fs.mkdirSync(ordenesPath, { recursive: true });
@@ -53,11 +69,29 @@ if (!fs.existsSync(imagenesDir)) {
   fs.mkdirSync(imagenesDir, { recursive: true });
 }
 
-[uploadDir, catDirPath, tempDir, productosDirPath, asesoresDirPath, clientesDirPath, correosDirPath, ordenesPath, imagenesDir].forEach(dir => {
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-});
+[uploadDir, catDirPath, tempDir, productosDirPath, asesoresDirPath, 
+  clientesDirPath, correosDirPath, ordenesPath, imagenesDir].forEach(dir => {
+   if (!fs.existsSync(dir)) {
+     try {
+       fs.mkdirSync(dir, { recursive: true });
+       console.log(`Carpeta creada: ${dir}`);
+     } catch (error) {
+       console.error(`Error al crear carpeta ${dir}: ${error.message}`);
+     }
+   }
+ });
+
+ console.log('=== Configuración del sistema de archivos ===');
+console.log(`Modo: ${isProduction ? 'Producción' : 'Desarrollo'}`);
+console.log(`Ruta base de almacenamiento: ${baseStoragePath}`);
+console.log(`Carpeta de uploads: ${uploadDir}`);
+console.log(`Carpeta de catálogos: ${catDirPath}`);
+console.log(`Carpeta de productos: ${productosDirPath}`);
+console.log(`Carpeta de asesores: ${asesoresDirPath}`);
+console.log(`Carpeta de clientes: ${clientesDirPath}`);
+console.log(`Carpeta de correos: ${correosDirPath}`);
+console.log(`Carpeta de órdenes: ${ordenesPath}`);
+console.log(`Carpeta de imágenes: ${imagenesDir}`);
 
 const imagenesStorage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -96,8 +130,7 @@ try {
     console.log(`Archivo de contador creado con valor inicial: ${ultimoNumeroOrden}`);
   }
 } catch (error) {
-  console.error('Error al cargar el contador de órdenes:', error);
-}
+  con
 
 
 function guardarContador() {
@@ -644,7 +677,7 @@ Distribuciones AutoPart's`,
     console.error('Error al enviar correo:', error);
     res.status(500).json({ success: false, message: error.toString() });
   }
-});
+}); 
 
 
 function procesarCsvClientes(filePath) {
