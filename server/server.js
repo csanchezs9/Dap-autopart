@@ -318,15 +318,16 @@ app.get('/siguiente-orden', (req, res) => {
   }
 });
 
-// Endpoint para confirmar que un número de orden fue utilizado
-// Endpoint para confirmar e INCREMENTAR el número de orden
-app.post('/confirmar-orden-mejorado', (req, res) => {
+
+app.post('/confirmar-orden', (req, res) => {
   try {
     const { numeroOrden } = req.body;
     
     if (!numeroOrden) {
       return res.status(400).json({ success: false, message: 'Falta el número de orden' });
     }
+    
+    console.log(`Confirmando uso del número de orden: ${numeroOrden}`);
     
     // Leer el valor actual directamente del disco
     const valorActual = leerContador();
@@ -381,13 +382,14 @@ app.post('/confirmar-orden-mejorado', (req, res) => {
       });
     }
   } catch (error) {
-    console.error(`Error en confirmar-orden-mejorado: ${error}`);
+    console.error(`Error en confirmar-orden: ${error}`);
     res.status(500).json({
       success: false,
       message: error.toString()
     });
   }
 });
+
 
 app.post('/upload-imagenes', requireAuth, uploadImagenes.array('imagenes', 50), (req, res) => {
   try {
@@ -759,51 +761,56 @@ Distribuciones AutoPart's`,
       const info = await transporter.sendMail(mailOptions);
       console.log("✅ Correo enviado exitosamente:", info.messageId);
       
-      // Incremento mejorado del contador
+      // Incremento mejorado del contador usando endpoint /confirmar-orden
       if (ordenNumero) {
         console.log(`🔄 Incrementando contador después de enviar orden: ${ordenNumero}`);
         
-        // Leer el valor actual directamente del disco
-        const valorActual = leerContador();
-        console.log(`Valor leído del contador: ${valorActual}`);
-        
-        // Incrementar el contador
-        const nuevoValor = valorActual + 1;
-        
-        // Guardar el nuevo valor
-        const guardadoExitoso = guardarContadorDisco(nuevoValor);
-        
-        if (guardadoExitoso) {
-          // Actualizar también la variable en memoria
-          ultimoNumeroOrden = nuevoValor;
-          console.log(`✅ Contador actualizado exitosamente a: ${nuevoValor}`);
+        try {
+          // Llamamos directamente a la lógica de confirmar-orden aquí
+          // Leer el valor actual directamente del disco
+          const valorActual = leerContador();
+          console.log(`Valor leído del contador: ${valorActual}`);
           
-          // Registrar la operación
-          try {
-            const registroPath = path.join(ordenesPath, 'registro.json');
-            let registro = [];
+          // Incrementar el contador
+          const nuevoValor = valorActual + 1;
+          
+          // Guardar el nuevo valor
+          const guardadoExitoso = guardarContadorDisco(nuevoValor);
+          
+          if (guardadoExitoso) {
+            // Actualizar también la variable en memoria
+            ultimoNumeroOrden = nuevoValor;
+            console.log(`✅ Contador actualizado exitosamente a: ${nuevoValor}`);
             
-            if (fs.existsSync(registroPath)) {
-              const data = fs.readFileSync(registroPath, 'utf8');
-              registro = JSON.parse(data);
+            // Registrar la operación
+            try {
+              const registroPath = path.join(ordenesPath, 'registro.json');
+              let registro = [];
+              
+              if (fs.existsSync(registroPath)) {
+                const data = fs.readFileSync(registroPath, 'utf8');
+                registro = JSON.parse(data);
+              }
+              
+              registro.push({
+                operacion: "send-email",
+                numeroOrden: ordenNumero,
+                valorAnterior: valorActual,
+                valorNuevo: nuevoValor,
+                fecha: new Date().toISOString(),
+                cliente: clienteNombre,
+                asesor: asesorEmail
+              });
+              
+              fs.writeFileSync(registroPath, JSON.stringify(registro, null, 2));
+            } catch (e) {
+              console.error(`Error al guardar registro: ${e}`);
             }
-            
-            registro.push({
-              operacion: "send-email",
-              numeroOrden: ordenNumero,
-              valorAnterior: valorActual,
-              valorNuevo: nuevoValor,
-              fecha: new Date().toISOString(),
-              cliente: clienteNombre,
-              asesor: asesorEmail
-            });
-            
-            fs.writeFileSync(registroPath, JSON.stringify(registro, null, 2));
-          } catch (e) {
-            console.error(`Error al guardar registro: ${e}`);
+          } else {
+            console.error(`❌ No se pudo guardar el nuevo valor del contador`);
           }
-        } else {
-          console.error(`❌ No se pudo guardar el nuevo valor del contador`);
+        } catch (confirmError) {
+          console.error(`Error al incrementar el contador: ${confirmError}`);
         }
       }
       
@@ -820,11 +827,11 @@ Distribuciones AutoPart's`,
       contadorIncrementado: true,
       nuevoContador: ultimoNumeroOrden
     });
-  } catch (error) {
-    console.error('Error al enviar correo:', error);
-    res.status(500).json({ success: false, message: error.toString() });
-  }
-});
+    } catch (error) {
+      console.error('Error al enviar correo:', error);
+      res.status(500).json({ success: false, message: error.toString() });
+    }
+  });
 
 
 function procesarCsvClientes(filePath) {
@@ -1224,7 +1231,6 @@ function guardarContadorDisco(valor) {
     return false;
   }
 }
-
 function procesarCsvAsesores(filePath) {
   try {
     // Leer el archivo completo
