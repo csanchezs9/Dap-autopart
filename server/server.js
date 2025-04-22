@@ -42,11 +42,6 @@ const sessionConfig = {
 };
 
 
-app.use(session(sessionConfig));
-app.use('/api/productos/imagenes', express.static(imagenesDir));
-app.use(bodyParser.json()); // Ya deberías tener esto
-app.use(bodyParser.urlencoded({ extended: true }));
-
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME
 // Contraseña: dap2024
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD
@@ -172,7 +167,10 @@ if (canWriteToPath(ordenesPath)) {
   }
 }
 
-
+app.use(session(sessionConfig));
+app.use('/api/productos/imagenes', express.static(imagenesDir));
+app.use(bodyParser.json()); // Ya deberías tener esto
+app.use(bodyParser.urlencoded({ extended: true }));
 
 function guardarContador() {
   try {
