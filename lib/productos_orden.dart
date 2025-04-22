@@ -334,7 +334,7 @@ String _formatMoneda(dynamic valor) {
     numValor = valor.toDouble();
   } else {
     try {
-      numValor = double.parse(valor.toString());
+      numValor = double.parse(valor.toString().replaceAll('\$', '').replaceAll(',', '').trim());
     } catch (e) {
       return '\$0';
     }
@@ -342,8 +342,6 @@ String _formatMoneda(dynamic valor) {
   
   // Imprimir para depuración
   print("Formateando valor monetario: $numValor");
-  
-  // ¡NO multiplicar por 1000! El valor ya viene correcto desde el servidor
   
   // Usar NumberFormat para formato colombiano sin decimales
   final formatter = NumberFormat("#,###", "es_CO");
@@ -1475,24 +1473,130 @@ Distribuciones AutoPart's
         } catch (e) {
           print("Error al confirmar número de orden: $e");
           // Continuar aunque falle la confirmación
-          
         }
         
-        // Mostrar diálogo de éxito
+        // Obtener listas de destinatarios (a las que el servidor envió el correo)
+        List<String> destinatariosPrincipales = [];
+        List<String> destinatariosCC = [];
+
+        if (jsonResponse.containsKey('destinatarios') && jsonResponse['destinatarios'] != null) {
+          // Si el servidor devuelve esta información como lista
+          try {
+            destinatariosPrincipales = List<String>.from(jsonResponse['destinatarios']);
+            print("Destinatarios principales recibidos del servidor: $destinatariosPrincipales");
+          } catch (e) {
+            print("Error al procesar destinatarios principales: $e");
+            // En caso de error, usar al menos el correo del asesor
+            if (widget.asesorData['MAIL'] != null && widget.asesorData['MAIL']!.isNotEmpty) {
+              destinatariosPrincipales.add(widget.asesorData['MAIL']!);
+            }
+          }
+        } else {
+          // Si el servidor no proporciona esta información
+          print("No se recibieron destinatarios principales del servidor");
+          // Incluir al menos el correo del asesor como destinatario principal
+          if (widget.asesorData['MAIL'] != null && widget.asesorData['MAIL']!.isNotEmpty) {
+            destinatariosPrincipales.add(widget.asesorData['MAIL']!);
+          }
+        }
+
+        if (jsonResponse.containsKey('cc') && jsonResponse['cc'] != null) {
+          // Si el servidor devuelve esta información como lista
+          try {
+            destinatariosCC = List<String>.from(jsonResponse['cc']);
+            print("Destinatarios CC recibidos del servidor: $destinatariosCC");
+          } catch (e) {
+            print("Error al procesar destinatarios CC: $e");
+            // En caso de error, usar al menos el correo del cliente
+            if (emailCliente.isNotEmpty) {
+              destinatariosCC.add(emailCliente);
+            }
+          }
+        } else {
+          // Si el servidor no proporciona esta información
+          print("No se recibieron destinatarios CC del servidor");
+          // Incluir el correo del cliente en copia
+          if (emailCliente.isNotEmpty) {
+            destinatariosCC.add(emailCliente);
+          }
+        }
+
+        // Imprimir diagnóstico
+        print("Total destinatarios principales a mostrar: ${destinatariosPrincipales.length}");
+        print("Total destinatarios CC a mostrar: ${destinatariosCC.length}");
+        
+        // Mostrar diálogo de éxito mejorado
         showDialog(
           context: context,
           builder: (BuildContext context) {
             return AlertDialog(
               title: Text('Correo enviado'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.check_circle, color: Colors.green, size: 48),
-                  SizedBox(height: 16),
-                  Text('La orden ha sido enviada correctamente a:'),
-                  SizedBox(height: 8),
-                  Text(emailCliente, style: TextStyle(fontWeight: FontWeight.bold)),
-                ],
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Icon(Icons.check_circle, color: Colors.green, size: 48),
+                    ),
+                    SizedBox(height: 16),
+                    Center(
+                      child: Text('La orden ha sido enviada correctamente'),
+                    ),
+                    SizedBox(height: 16),
+                    
+                    // Sección de destinatarios principales
+                    if (destinatariosPrincipales.isNotEmpty) ...[
+                      Text('Destinatarios principales:',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                      SizedBox(height: 4),
+                      Container(
+                        width: double.infinity,
+                        padding: EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: destinatariosPrincipales.map((email) => 
+                            Padding(
+                              padding: EdgeInsets.symmetric(vertical: 2),
+                              child: Text(email),
+                            )
+                          ).toList(),
+                        ),
+                      ),
+                      SizedBox(height: 12),
+                    ],
+                    
+                    // Sección de destinatarios en copia (CC)
+                    if (destinatariosCC.isNotEmpty) ...[
+                      Text('Con copia a:',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                      SizedBox(height: 4),
+                      Container(
+                        width: double.infinity,
+                        padding: EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: Colors.grey.withOpacity(0.3)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: destinatariosCC.map((email) => 
+                            Padding(
+                              padding: EdgeInsets.symmetric(vertical: 2),
+                              child: Text(email),
+                            )
+                          ).toList(),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
               actions: [
                 TextButton(
@@ -1555,9 +1659,6 @@ Distribuciones AutoPart's
     });
   }
 }
-
-
-// 2. Ahora, modifica tu método build para envolver todo en un GestureDetector:
 
 @override
 Widget build(BuildContext context) {
@@ -2480,16 +2581,10 @@ String formatCurrency(dynamic value) {
   // Imprimir para depuración
   print("Formateando para PDF: $numValue");
   
-  // ¡NO multiplicar por 1000! El valor ya viene correcto desde el servidor
-  
   try {
-    // Formatear con miles de separación y sin decimales para pesos colombianos
-    final formatter = NumberFormat.currency(
-      symbol: '\$',
-      decimalDigits: 0, // Sin decimales para pesos colombianos
-      locale: 'es_CO',
-    );
-    return formatter.format(numValue);
+    // En lugar de usar NumberFormat.currency, formateamos manualmente
+    final formatter = NumberFormat('#,###', 'es_CO');
+    return '\$${formatter.format(numValue)}';
   } catch (e) {
     // Formato simple en caso de error
     return '\$${numValue.toStringAsFixed(0)}';

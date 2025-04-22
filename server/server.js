@@ -777,7 +777,10 @@ Distribuciones AutoPart's`,
     res.json({
       success: true,
       message: 'Correo enviado correctamente',
-      contadorActual: ultimoNumeroOrden
+      contadorActual: ultimoNumeroOrden,
+      // Incluir todos los destinatarios para que la app los muestre
+      destinatarios: destinatariosPrincipales,
+      cc: ccList
     });
     } catch (error) {
       console.error('Error al enviar correo:', error);
