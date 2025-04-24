@@ -66,6 +66,7 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
   
   // Variable para el producto seleccionado actual
   String? productoCodigoSeleccionado;
+  String? productoNumeroSeleccionado;
   
   // Cache de imágenes disponibles
   final Map<String, bool> _imagenesDisponibles = {};
@@ -172,10 +173,14 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
       cantidad = int.tryParse(cantidadController.text.trim()) ?? 1;
     }
     
-    // Buscar producto por número en el servidor
+    // Buscar producto por número en el servidor con un log más detallado
+    print("Buscando producto con número: $numero");
     final productoEncontrado = await ProductoService.buscarProductoPorNumero(numero);
     
     if (productoEncontrado != null) {
+      // Verificar si el producto encontrado tiene el número correcto
+      print("Producto encontrado: #${productoEncontrado['#']} - ${productoEncontrado['CODIGO']}");
+      
       // Verificar si está agotado 
       bool agotado = false;
       if (productoEncontrado.containsKey('ESTADO')) {
@@ -202,19 +207,19 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
           },
         );
       } else {
-        // Procesar el producto encontrado
-        String codigo = productoEncontrado['CODIGO']?.toString() ?? '';
+        // Verificamos explícitamente que estamos usando el número correcto
+        final numeroProducto = productoEncontrado['#']?.toString() ?? '';
+        final codigoProducto = productoEncontrado['CODIGO']?.toString() ?? '';
+        
+        print("Agregando producto: #$numeroProducto - Código: $codigoProducto");
         
         Map<String, dynamic> producto = {
-          'CODIGO': codigo,
-          'CANT': cantidad,
-          '#': numero
+          '#': numeroProducto,
+          'CODIGO': codigoProducto,
+          'CANT': cantidad
         };
         
-        // Resto del código para procesar el producto encontrado
-        // ...
-        
-        // Mapeo de campos que vienen del servidor
+        // Mapeo de campos que vienen del servidor - con validación adicional
         producto['UB'] = productoEncontrado['UB'] ?? '';
         producto['REF'] = productoEncontrado['REF'] ?? '';
         producto['ORIGEN'] = productoEncontrado['ORIGEN'] ?? '';
@@ -239,7 +244,7 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
         if (productoEncontrado.containsKey('DSCTO')) {
           if (productoEncontrado['DSCTO'] is num) {
             descuentoOriginal = (productoEncontrado['DSCTO'] as num).toDouble();
-             } else {
+          } else {
             descuentoOriginal = double.tryParse(productoEncontrado['DSCTO'].toString().replaceAll('%', '')) ?? 0;
           }
         }
@@ -261,23 +266,71 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
           producto['DSCTO'] = descuentoOriginal;
         }
         
-      
-         double valorBruto = valorUnidad * cantidad;
-        
+        double valorBruto = valorUnidad * cantidad;
         producto['V.BRUTO'] = valorBruto;
         
-        setState(() {
-          productosAgregados.add(producto);
-          numeroController.clear();
-          cantidadController.clear();
-          calcularTotales();
-          
-          productoCodigoSeleccionado = codigo;
-          _checkImageExistence(codigo);
+        // Verificación final antes de agregar
+        print("Agregando producto a la lista:");
+        productoEncontrado.forEach((key, value) {
+          print("  $key: $value");
         });
         
-        // Depuración: mostrar detalles del producto agregado
-        print("⭐ PRODUCTO AGREGADO A LA LISTA: $producto");
+        setState(() {
+          // Verificar si ya existe este producto en la lista
+          final productoExistente = productosAgregados.firstWhere(
+            (p) => p['#'] == numeroProducto,
+            orElse: () => <String, dynamic>{},
+          );
+          
+          if (productoExistente.isNotEmpty) {
+            // Producto ya existe, preguntar si desea actualizar la cantidad
+            showDialog(
+              context: context,
+              builder: (BuildContext context) {
+                return AlertDialog(
+                  title: Text('Producto ya en lista'),
+                  content: Text('El producto #$numeroProducto ya está en la lista. ¿Desea aumentar la cantidad?'),
+                  actions: [
+                    TextButton(
+                      child: Text('Cancelar'),
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                      },
+                    ),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Color(0xFF1A4379),
+                        foregroundColor: Colors.white,
+                      ),
+                      child: Text('Aumentar'),
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        // Actualizar la cantidad
+                        setState(() {
+                          productoExistente['CANT'] = (productoExistente['CANT'] as int) + cantidad;
+                          // Recalcular V.BRUTO
+                          productoExistente['V.BRUTO'] = productoExistente['VLR ANTES DE IVA'] * productoExistente['CANT'];
+                          calcularTotales();
+                        });
+                      },
+                    ),
+                  ],
+                );
+              },
+            );
+          } else {
+            // Producto nuevo, agregarlo a la lista
+            productosAgregados.add(producto);
+            calcularTotales();
+            
+            productoCodigoSeleccionado = codigoProducto;
+            _checkImageExistence(codigoProducto);
+          }
+          
+          // Limpiar campos de entrada
+          numeroController.clear();
+          cantidadController.clear();
+        });
       }
     } else {
       // Si no se encuentra, mostrar mensaje
@@ -886,13 +939,19 @@ Future<Uint8List?> _generarPDFMejorado() async {
   
   // Método para seleccionar un producto de la tabla
   void seleccionarProducto(Map<String, dynamic> producto) {
-    final codigo = producto['CODIGO']?.toString() ?? '';
-    setState(() {
-      productoCodigoSeleccionado = codigo;
-      // Verificar si la imagen existe cuando seleccionamos un producto
-      _checkImageExistence(codigo);
-    });
-  }
+  final codigo = producto['CODIGO']?.toString() ?? '';
+  final numero = producto['#']?.toString() ?? '';
+  
+  print("Seleccionando producto #$numero - código: $codigo");
+  
+  setState(() {
+    productoCodigoSeleccionado = codigo;
+    productoNumeroSeleccionado = numero; // Agregar esta variable de clase si no existe
+    
+    // Verificar si la imagen existe cuando seleccionamos un producto
+    _checkImageExistence(codigo);
+  });
+}
   
   // Verificar si la imagen existe y cachear el resultado
   Future<void> _checkImageExistence(String codigo) async {
@@ -2247,22 +2306,32 @@ Center(
 }
   
   // Widget para mostrar la imagen del producto
-  Widget _buildImagenProducto() {
+  // Modifica la función _buildImagenProducto en lib/productos_orden.dart
+// para mejorar el diseño y eliminar el hueco alrededor de la imagen
+
+Widget _buildImagenProducto() {
   if (productoCodigoSeleccionado == null) {
     // No hay producto seleccionado
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        mainAxisSize: MainAxisSize.min,
-        children: const [
-          Icon(Icons.image, size: 40, color: Colors.grey),
-          SizedBox(height: 4),
-          Text(
-            'Seleccione producto',
-            style: TextStyle(color: Colors.grey, fontSize: 10),
-            textAlign: TextAlign.center,
-          ),
-        ],
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(6),
+        color: Colors.grey.shade100,
+      ),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: const [
+            Icon(Icons.image, size: 40, color: Colors.grey),
+            SizedBox(height: 4),
+            Text(
+              'Seleccione producto',
+              style: TextStyle(color: Colors.grey, fontSize: 10),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -2276,94 +2345,119 @@ Center(
     
     return GestureDetector(
       onTap: () => _mostrarImagenGrande(codigo),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(6),
-        child: Stack(
-          children: [
-            // Indicador de carga
-            Center(child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: Colors.blue.shade200,
-            )),
-            
-            // Imagen desde la red
-            Image.network(
-              imageUrl,
-              fit: BoxFit.contain,
-              loadingBuilder: (context, child, loadingProgress) {
-                if (loadingProgress == null) return child;
-                return Center(
-                  child: CircularProgressIndicator(
-                    value: loadingProgress.expectedTotalBytes != null
-                        ? loadingProgress.cumulativeBytesLoaded / 
-                          loadingProgress.expectedTotalBytes!
-                        : null,
-                  ),
-                );
-              },
-              errorBuilder: (context, error, stackTrace) {
-                print("Error al mostrar imagen: $error");
-                // Intentar con versión en mayúsculas
-                final urlUpper = '${ProductoService.baseUrl}/api/productos/imagenes/${codigo.toUpperCase()}.jpg';
-                return Image.network(
-                  urlUpper,
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) {
-                    _imagenesDisponibles[codigo] = false;
-                    setState(() {});
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.broken_image, size: 30, color: Colors.red.shade300),
-                          Text(
-                            'Error',
-                            style: TextStyle(color: Colors.red.shade300, fontSize: 9),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
-          ],
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(6),
+          color: Colors.white,
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(5),
+          child: Stack(
+            fit: StackFit.expand, // Hacer que el Stack ocupe todo el espacio disponible
+            children: [
+              // Fondo blanco
+              Container(color: Colors.white),
+              
+              // Indicador de carga
+              Center(
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.blue.shade200,
+                ),
+              ),
+              
+              // Imagen desde la red con ajuste para llenar el contenedor
+              Image.network(
+                imageUrl,
+                fit: BoxFit.contain, // Ajusta la imagen para que se vea completa
+                width: double.infinity, // Ocupa todo el ancho disponible
+                height: double.infinity, // Ocupa todo el alto disponible
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Center(
+                    child: CircularProgressIndicator(
+                      value: loadingProgress.expectedTotalBytes != null
+                          ? loadingProgress.cumulativeBytesLoaded / 
+                            loadingProgress.expectedTotalBytes!
+                          : null,
+                    ),
+                  );
+                },
+                errorBuilder: (context, error, stackTrace) {
+                  print("Error al mostrar imagen: $error");
+                  // Intentar con versión en mayúsculas
+                  final urlUpper = '${ProductoService.baseUrl}/api/productos/imagenes/${codigo.toUpperCase()}.jpg';
+                  return Image.network(
+                    urlUpper,
+                    fit: BoxFit.contain,
+                    width: double.infinity,
+                    height: double.infinity,
+                    errorBuilder: (context, error, stackTrace) {
+                      _imagenesDisponibles[codigo] = false;
+                      setState(() {});
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.broken_image, size: 30, color: Colors.red.shade300),
+                            Text(
+                              'Error',
+                              style: TextStyle(color: Colors.red.shade300, fontSize: 9),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );
   } else {
     // No hay imagen disponible
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-            icon: Icon(Icons.refresh, size: 30, color: Colors.blue),
-            onPressed: () {
-              // Recargar y volver a verificar la imagen
-              _imagenesDisponibles.remove(codigo);
-              _checkImageExistence(codigo);
-            },
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'No hay imagen\npara $codigo',
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.grey, fontSize: 10),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Toque para recargar',
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.blue, fontSize: 8),
-          ),
-        ],
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(6),
+        color: Colors.grey.shade100,
+      ),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: Icon(Icons.refresh, size: 30, color: Colors.blue),
+              onPressed: () {
+                // Recargar y volver a verificar la imagen
+                _imagenesDisponibles.remove(codigo);
+                _checkImageExistence(codigo);
+              },
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'No hay imagen\npara $codigo',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.grey, fontSize: 10),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Toque para recargar',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.blue, fontSize: 8),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
+
 
 
 Widget _intentarCargarImagenesAlternativas(String codigo) {
@@ -2631,118 +2725,127 @@ void  _editarCantidad(Map<String, dynamic> producto) {
       return Dialog(
         backgroundColor: Colors.transparent,
         insetPadding: const EdgeInsets.all(20),
-        child: Stack(
-          children: [
-            // Contenedor con la imagen
-            Container(
-              width: MediaQuery.of(context).size.width * 0.7,
-              height: MediaQuery.of(context).size.height * 0.7,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(10),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.5),
-                    spreadRadius: 5,
-                    blurRadius: 7,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
+        child: Container(
+          width: MediaQuery.of(context).size.width * 0.7,
+          height: MediaQuery.of(context).size.height * 0.7,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.5),
+                spreadRadius: 5,
+                blurRadius: 7,
+                offset: const Offset(0, 3),
               ),
-              child: Stack(
-                children: [
-                  // Indicador de carga
-                  Center(child: CircularProgressIndicator()),
-                  
-                  // Imagen con manejo mejorado de errores
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: Image.network(
-                      imageUrl,
+            ],
+          ),
+          child: Stack(
+            fit: StackFit.expand, // Ocupar todo el espacio disponible
+            children: [
+              // Fondo blanco interior
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Container(color: Colors.white),
+              ),
+              
+              // Indicador de carga
+              Center(child: CircularProgressIndicator(
+                color: Colors.blue,
+                strokeWidth: 3,
+              )),
+              
+              // Imagen con manejo mejorado de errores
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Image.network(
+                  imageUrl,
+                  fit: BoxFit.contain,
+                  width: double.infinity,
+                  height: double.infinity,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Center(
+                      child: CircularProgressIndicator(
+                        value: loadingProgress.expectedTotalBytes != null
+                            ? loadingProgress.cumulativeBytesLoaded / 
+                              loadingProgress.expectedTotalBytes!
+                            : null,
+                      ),
+                    );
+                  },
+                  errorBuilder: (context, error, stackTrace) {
+                    // Intentar con versión en mayúsculas
+                    final urlUpper = '${ProductoService.baseUrl}/api/productos/imagenes/${codigo.toUpperCase()}.jpg';
+                    return Image.network(
+                      urlUpper,
                       fit: BoxFit.contain,
-                      loadingBuilder: (context, child, loadingProgress) {
-                        if (loadingProgress == null) return child;
+                      width: double.infinity,
+                      height: double.infinity,
+                      errorBuilder: (context, error, stackTrace) {
                         return Center(
-                          child: CircularProgressIndicator(
-                            value: loadingProgress.expectedTotalBytes != null
-                                ? loadingProgress.cumulativeBytesLoaded / 
-                                  loadingProgress.expectedTotalBytes!
-                                : null,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.broken_image, size: 64, color: Colors.red),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Error al cargar la imagen\n$codigo',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(color: Colors.red, fontSize: 16),
+                              ),
+                            ],
                           ),
                         );
                       },
-                      errorBuilder: (context, error, stackTrace) {
-                        // Intentar con versión en mayúsculas
-                        final urlUpper = '${ProductoService.baseUrl}/api/productos/imagenes/${codigo.toUpperCase()}.jpg';
-                        return Image.network(
-                          urlUpper,
-                          fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Icon(Icons.broken_image, size: 64, color: Colors.red),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    'Error al cargar la imagen\n$codigo',
-                                    textAlign: TextAlign.center,
-                                    style: const TextStyle(color: Colors.red, fontSize: 16),
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
-                        );
-                      },
+                    );
+                  },
+                ),
+              ),
+              
+              // Botón para cerrar
+              Positioned(
+                right: 10,
+                top: 10,
+                child: InkWell(
+                  onTap: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(5),
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.close,
+                      color: Colors.white,
+                      size: 20,
                     ),
                   ),
-                ],
+                ),
               ),
-            ),
-            
-            // Botón para cerrar
-            Positioned(
-              right: 10,
-              top: 10,
-              child: InkWell(
-                onTap: () {
-                  Navigator.of(context).pop();
-                },
+              
+              // Información del producto
+              Positioned(
+                bottom: 10,
+                left: 10,
+                right: 10,
                 child: Container(
-                  padding: const EdgeInsets.all(5),
-                  decoration: const BoxDecoration(
-                    color: Colors.red,
-                    shape: BoxShape.circle,
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.6),
+                    borderRadius: BorderRadius.circular(5),
                   ),
-                  child: const Icon(
-                    Icons.close,
-                    color: Colors.white,
-                    size: 20,
+                  child: Text(
+                    'Código: $codigo',
+                    style: TextStyle(color: Colors.white, fontSize: 14),
+                    textAlign: TextAlign.center,
                   ),
                 ),
               ),
-            ),
-            
-            // Información del producto
-            Positioned(
-              bottom: 10,
-              left: 10,
-              right: 10,
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.6),
-                  borderRadius: BorderRadius.circular(5),
-                ),
-                child: Text(
-                  'Código: $codigo',
-                  style: TextStyle(color: Colors.white, fontSize: 14),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       );
     },
@@ -2897,6 +3000,13 @@ Widget _buildDataCell(String text, {int maxLines = 1, Map<String, dynamic>? prod
     onTap: () {
       if (producto != null) {
         seleccionarProducto(producto);
+        
+        // Imprimir información de depuración
+        print("Seleccionó celda del producto #${producto['#']} - ${producto['CODIGO']}");
+        print("Datos del producto seleccionado:");
+        producto.forEach((key, value) {
+          print("  $key: $value");
+        });
       }
     },
     child: Container(

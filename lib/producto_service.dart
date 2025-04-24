@@ -104,40 +104,43 @@ class ProductoService {
       }
     }
     
-    // Como alternativa, si el servidor no encuentra el producto,
-    // o no está disponible, cargamos todos los productos y buscamos localmente
+    // Como alternativa, cargamos todos los productos y buscamos localmente
     final productos = await obtenerProductos();
     if (productos.isEmpty) {
       print("No se cargaron productos del servidor");
       return null;
     }
     
+    // ⚠️ IMPORTANTE: CORRECCIÓN AQUÍ - Siempre buscar por valor del campo '#', no por índice
+    // Buscar por el valor exacto del campo '#', no por la posición en el array
+    print("Buscando producto con # = '$numero' en la lista local de ${productos.length} productos");
+    
     // Depuración: mostrar algunas filas para ver estructura
-    print("Primeros 3 productos disponibles:");
     for (int i = 0; i < min(3, productos.length); i++) {
       print("Índice $i: #=${productos[i]['#']}, CODIGO=${productos[i]['CODIGO']}");
     }
     
-    // Buscar primero por número exacto
+    // Buscar primero por número exacto, usando comparación de strings
     var producto = productos.firstWhere(
       (p) => p['#'].toString().trim() == numero.trim(),
       orElse: () => <String, dynamic>{},
     );
     
     if (producto.isNotEmpty) {
-      print("¡Producto encontrado por número exacto!: $producto");
+      print("¡Producto encontrado por número exacto!: #=${producto['#']}, CODIGO=${producto['CODIGO']}");
       return producto;
     }
     
+    // ⚠️ ELIMINAR ESTO: Este código es problemático y podría causar el error reportado
     // Si no se encuentra por número exacto, intentar interpretar como índice
-    int numeroInt = int.tryParse(numero) ?? 0;
-    if (numeroInt > 0 && numeroInt <= productos.length) {
-      int indice = numeroInt - 1;
-      print("Buscando producto en el índice: $indice");
-      producto = productos[indice];
-      print("¡Producto encontrado por índice!: $producto");
-      return producto;
-    }
+    // int numeroInt = int.tryParse(numero) ?? 0;
+    // if (numeroInt > 0 && numeroInt <= productos.length) {
+    //   int indice = numeroInt - 1;
+    //   print("Buscando producto en el índice: $indice");
+    //   producto = productos[indice];
+    //   print("¡Producto encontrado por índice!: $producto");
+    //   return producto;
+    // }
     
     print("No se encontró ningún producto con número/índice: $numero");
     return null;
