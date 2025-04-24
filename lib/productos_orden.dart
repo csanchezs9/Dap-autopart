@@ -2460,42 +2460,6 @@ Widget _buildImagenProducto() {
 
 
 
-Widget _intentarCargarImagenesAlternativas(String codigo) {
-  // Intentar variaciones en el nombre del archivo
-  return Image.asset(
-    'assets/imagenesProductos/${codigo.toUpperCase()}.jpg',
-    fit: BoxFit.contain,
-    errorBuilder: (context, error, stackTrace) {
-      return Image.asset(
-        'assets/imagenesProductos/${codigo.toLowerCase()}.jpg',
-        fit: BoxFit.contain,
-        errorBuilder: (context, error, stackTrace) {
-          _imagenesDisponibles[codigo] = false;
-          setState(() {});
-          return Container(
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.broken_image, size: 40, color: Colors.red),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Error al cargar imagen\n$codigo',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.red, fontSize: 10),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      );
-    },
-  );
-}
-
-
 void _eliminarProducto(Map<String, dynamic> producto) {
   showDialog(
     context: context,

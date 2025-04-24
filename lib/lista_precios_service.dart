@@ -311,209 +311,230 @@ class ListaPreciosService {
     if (texto == null || texto.isEmpty) return '';
     
     // Reemplazar caracteres problemáticos con alternativas seguras
-    return texto
-      .replaceAll('…', '...')  // Reemplazar puntos suspensivos Unicode con tres puntos
-      .replaceAll('–', '-')    // Reemplazar guión largo con guión normal
-      .replaceAll('•', '*')    // Reemplazar bullet point con asterisco
-      // Eliminamos la línea problemática y usamos una solución alternativa para comillas
-      .replaceAll('"', '"')    // Reemplazar comillas dobles curvas con comillas rectas
-      .replaceAll('"', '"');   // Reemplazar comillas curvas de cierre con comillas rectas
+    return texto;   // Reemplazar comillas curvas de cierre con comillas rectas
   }
   
   // Método multipage optimizado y simplificado
   static Future<void> _generarPDFMultipage(
-    String filePath,
-    List<Map<String, dynamic>> productos,
-    String asesorNombre,
-    String asesorZona,
-    String asesorCorreo,
-    String asesorTelefono,
-  ) async {
+  String filePath,
+  List<Map<String, dynamic>> productos,
+  String asesorNombre,
+  String asesorZona,
+  String asesorCorreo,
+  String asesorTelefono,
+) async {
+  try {
+    // Inicializar fecha
+    await initializeDateFormatting('es_ES', null);
+    final now = DateTime.now();
+    final formatter = DateFormat('dd/MM/yyyy', 'es_ES');
+    final fechaActual = formatter.format(now);
+    
+    // Cargar logo de forma segura
+    Uint8List? logoBytes;
     try {
-      // Inicializar fecha
-      await initializeDateFormatting('es_ES', null);
-      final now = DateTime.now();
-      final formatter = DateFormat('dd/MM/yyyy', 'es_ES');
-      final fechaActual = formatter.format(now);
-      
-      // Cargar logo de forma segura
-      Uint8List? logoBytes;
-      try {
-        final ByteData data = await rootBundle.load('assets/images/logo.png');
-        logoBytes = data.buffer.asUint8List();
-        print("Logo cargado correctamente: ${logoBytes.length} bytes");
-      } catch (e) {
-        print("Error al cargar logo: $e");
-      }
-      
-      // Crear un único documento PDF
-      final pdf = pw.Document();
-      
-      // Tamaño de página optimizado para maximizar espacio
-      final pageFormat = PdfPageFormat.a4.copyWith(
-        marginLeft: 10.0,
-        marginRight: 10.0,
-        marginTop: 60.0,    // Mayor margen superior para el encabezado
-        marginBottom: 20.0  // Menor margen inferior
-      );
-      
-      // Calcular cuántos productos pueden caber por página
-      // Con estos márgenes y tamaño de fuente, podemos poner más productos por página
-      final int productosPerPage = 50;  // Aumentado de 40 a 50
-      
-      // Crear páginas con encabezado repetido
-      pdf.addPage(
-        pw.MultiPage(
-          pageFormat: pageFormat,
-          maxPages: 200,  // Suficiente para todos los productos
-          header: (pw.Context context) {
-            // Encabezado compacto para cada página
-            return pw.Container(
-              margin: pw.EdgeInsets.only(bottom: 8.0),
-              child: pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  // Logo e información empresa
-                  pw.Row(
-                    children: [
-                      if (logoBytes != null)
-                        pw.Container(
-                          width: 50,  // Reducido para ahorrar espacio
-                          height: 35,
-                          child: pw.Image(pw.MemoryImage(logoBytes)),
-                        ),
-                      pw.SizedBox(width: 5),
-                      pw.Column(
-                        crossAxisAlignment: pw.CrossAxisAlignment.start,
-                        children: [
-                          pw.Text(
-                            'DISTRIBUCIONES AUTOPART\'S S.A.S.',
-                            style: pw.TextStyle(
-                              fontSize: 9,  // Reducido para ahorrar espacio
-                              fontWeight: pw.FontWeight.bold,
-                            ),
-                          ),
-                          pw.Text(
-                            'LISTA DE PRECIOS NACIONAL',
-                            style: pw.TextStyle(
-                              fontSize: 8,
-                              fontWeight: pw.FontWeight.bold,
-                              color: PdfColors.blue800,
-                            ),
-                          ),
-                          pw.Text(
-                            'Fecha: $fechaActual',
-                            style: pw.TextStyle(fontSize: 7),
-                          ),
-                        ],
+      final ByteData data = await rootBundle.load('assets/images/logo.png');
+      logoBytes = data.buffer.asUint8List();
+      print("Logo cargado correctamente: ${logoBytes.length} bytes");
+    } catch (e) {
+      print("Error al cargar logo: $e");
+    }
+    
+    // Crear un único documento PDF
+    final pdf = pw.Document();
+    
+    // Tamaño de página optimizado para maximizar espacio
+    final pageFormat = PdfPageFormat.a4.copyWith(
+      marginLeft: 10.0,
+      marginRight: 10.0,
+      marginTop: 60.0,    // Mayor margen superior para el encabezado
+      marginBottom: 20.0  // Menor margen inferior
+    );
+    
+    // Calcular cuántos productos pueden caber por página
+    // Con estos márgenes y tamaño de fuente, podemos poner más productos por página
+    final int productosPerPage = 50;  // Aumentado de 40 a 50
+    
+    // Crear páginas con encabezado repetido
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: pageFormat,
+        maxPages: 200,  // Suficiente para todos los productos
+        header: (pw.Context context) {
+          // Encabezado compacto para cada página
+          return pw.Container(
+            margin: pw.EdgeInsets.only(bottom: 8.0),
+            child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                // Logo e información empresa
+                pw.Row(
+                  children: [
+                    if (logoBytes != null)
+                      pw.Container(
+                        width: 50,  // Reducido para ahorrar espacio
+                        height: 35,
+                        child: pw.Image(pw.MemoryImage(logoBytes)),
                       ),
-                    ],
-                  ),
-                  
-                  // Información asesor y página
-                  pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.end,
-                    children: [
-                      pw.Text(
-                        'Pág. ${context.pageNumber}',
-                        style: pw.TextStyle(fontSize: 7),
-                      ),
-                      pw.Text(
-                        'Asesor: $asesorNombre${asesorZona.isNotEmpty ? " | $asesorZona" : ""}',
-                        style: pw.TextStyle(fontSize: 7),
-                      ),
-                      if (asesorCorreo.isNotEmpty || asesorTelefono.isNotEmpty)
+                    pw.SizedBox(width: 5),
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
                         pw.Text(
-                          '${asesorCorreo.isNotEmpty ? asesorCorreo : ""}${asesorTelefono.isNotEmpty ? " | Tel: $asesorTelefono" : ""}',
+                          'DISTRIBUCIONES AUTOPART\'S S.A.S.',
+                          style: pw.TextStyle(
+                            fontSize: 9,  // Reducido para ahorrar espacio
+                            fontWeight: pw.FontWeight.bold,
+                          ),
+                        ),
+                        pw.Text(
+                          'LISTA DE PRECIOS NACIONAL',
+                          style: pw.TextStyle(
+                            fontSize: 8,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.blue800,
+                          ),
+                        ),
+                        pw.Text(
+                          'Fecha: $fechaActual',
                           style: pw.TextStyle(fontSize: 7),
                         ),
-                    ],
-                  ),
-                ],
-              ),
-            );
-          },
-          // ¡El footer ha sido eliminado! No hay pie de página
-          build: (pw.Context context) {
-            // Lista de widgets para el documento
-            List<pw.Widget> paginasContent = [];
-            
-            // Estilo para el encabezado de la tabla
-            final headerStyle = pw.TextStyle(
-              color: PdfColors.white,
-              fontWeight: pw.FontWeight.bold,
-              fontSize: 6,  // Reducido para ahorrar espacio
-            );
-            
-            // Estilo para celdas de la tabla
-            final cellStyle = pw.TextStyle(
-              fontSize: 6,  // Reducido para ahorrar espacio
-            );
-            
-            // Crear tabla optimizada con todos los productos
-            final tablaBig = pw.Table(
-              border: pw.TableBorder.all(width: 0.3),  // Borde más delgado
-              columnWidths: {
-                0: pw.FixedColumnWidth(42),    // Ref
-                1: pw.FixedColumnWidth(35),    // Origen
-                2: pw.FlexColumnWidth(3.5),    // Descripción
-                3: pw.FlexColumnWidth(2.2),    // Vehículo
-                4: pw.FlexColumnWidth(1.5),    // Marca
-                5: pw.FixedColumnWidth(45),    // Precio
-                6: pw.FixedColumnWidth(28),    // DSCTO
-              },
-              children: [
-                // Encabezado
-                pw.TableRow(
-                  decoration: pw.BoxDecoration(color: PdfColors.blue900),
-                  repeat: true,  // Se repite en cada página automáticamente
-                  children: [
-                    pw.Padding(padding: pw.EdgeInsets.all(2), child: pw.Text('Ref', style: headerStyle, textAlign: pw.TextAlign.center)),
-                    pw.Padding(padding: pw.EdgeInsets.all(2), child: pw.Text('Origen', style: headerStyle, textAlign: pw.TextAlign.center)),
-                    pw.Padding(padding: pw.EdgeInsets.all(2), child: pw.Text('Descripción', style: headerStyle, textAlign: pw.TextAlign.center)),
-                    pw.Padding(padding: pw.EdgeInsets.all(2), child: pw.Text('Vehículo', style: headerStyle, textAlign: pw.TextAlign.center)),
-                    pw.Padding(padding: pw.EdgeInsets.all(2), child: pw.Text('Marca', style: headerStyle, textAlign: pw.TextAlign.center)),
-                    pw.Padding(padding: pw.EdgeInsets.all(2), child: pw.Text('Precio', style: headerStyle, textAlign: pw.TextAlign.center)),
-                    pw.Padding(padding: pw.EdgeInsets.all(2), child: pw.Text('Dscto', style: headerStyle, textAlign: pw.TextAlign.center)),
+                      ],
+                    ),
                   ],
                 ),
                 
-                // Filas de productos
-                for (var producto in productos)
-                  pw.TableRow(
-                    children: [
-                      pw.Padding(padding: pw.EdgeInsets.all(2), child: pw.Text(limpiarTextoParaPDF(producto['REF']?.toString() ?? ''), style: cellStyle)),
-                      pw.Padding(padding: pw.EdgeInsets.all(2), child: pw.Text(limpiarTextoParaPDF(producto['ORIGEN']?.toString() ?? ''), style: cellStyle)),
-                      pw.Padding(padding: pw.EdgeInsets.all(2), child: pw.Text(limpiarTextoParaPDF(producto['DESCRIPCION']?.toString() ?? ''), style: cellStyle)),
-                      pw.Padding(padding: pw.EdgeInsets.all(2), child: pw.Text(limpiarTextoParaPDF(producto['VEHICULO']?.toString() ?? ''), style: cellStyle)),
-                      pw.Padding(padding: pw.EdgeInsets.all(2), child: pw.Text(limpiarTextoParaPDF(producto['MARCA']?.toString() ?? ''), style: cellStyle)),
-                      pw.Padding(padding: pw.EdgeInsets.all(2), child: pw.Text(_formatoMoneda(producto['PRECIO']), style: cellStyle)),
-                      pw.Padding(padding: pw.EdgeInsets.all(2), child: pw.Text('${producto['DSCTO'] ?? 0}%', style: cellStyle)),
-                    ],
-                  ),
+                // Información asesor y página
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.end,
+                  children: [
+                    pw.Text(
+                      'Pág. ${context.pageNumber}',
+                      style: pw.TextStyle(fontSize: 7),
+                    ),
+                    pw.Text(
+                      'Asesor: $asesorNombre${asesorZona.isNotEmpty ? " | $asesorZona" : ""}',
+                      style: pw.TextStyle(fontSize: 7),
+                    ),
+                    if (asesorCorreo.isNotEmpty || asesorTelefono.isNotEmpty)
+                      pw.Text(
+                        '${asesorCorreo.isNotEmpty ? asesorCorreo : ""}${asesorTelefono.isNotEmpty ? " | Tel: $asesorTelefono" : ""}',
+                        style: pw.TextStyle(fontSize: 7),
+                      ),
+                  ],
+                ),
               ],
-            );
-            
-            // Añadir la tabla como único widget
-            paginasContent.add(tablaBig);
-            
-            return paginasContent;
-          },
-        ),
-      );
-      
-      // Guardar el documento a archivo
-      final file = File(filePath);
-      await file.writeAsBytes(await pdf.save());
-      
-      print("✅ PDF generado correctamente con ${productos.length} productos");
-      
-    } catch (e) {
-      print("❌ Error detallado en generación de PDF: $e");
-      print("Stack trace: ${StackTrace.current}");
-      throw e;
-    }
+            ),
+          );
+        },
+        // ¡El footer ha sido eliminado! No hay pie de página
+        build: (pw.Context context) {
+          // Lista de widgets para el documento
+          List<pw.Widget> paginasContent = [];
+          
+          // Estilo para el encabezado de la tabla
+          final headerStyle = pw.TextStyle(
+            color: PdfColors.white,
+            fontWeight: pw.FontWeight.bold,
+            fontSize: 6,  // Reducido para ahorrar espacio
+          );
+          
+          // Estilo para celdas de la tabla
+          final cellStyle = pw.TextStyle(
+            fontSize: 6,  // Reducido para ahorrar espacio
+          );
+          
+          // Crear tabla optimizada con todos los productos
+          final tablaBig = pw.Table(
+            border: pw.TableBorder.all(width: 0.3),  // Borde más delgado
+            columnWidths: {
+              0: pw.FixedColumnWidth(25),    // # (Número secuencial)
+              1: pw.FixedColumnWidth(42),    // Ref
+              2: pw.FixedColumnWidth(35),    // Origen
+              3: pw.FlexColumnWidth(3.5),    // Descripción
+              4: pw.FlexColumnWidth(2.2),    // Vehículo
+              5: pw.FlexColumnWidth(1.5),    // Marca
+              6: pw.FixedColumnWidth(45),    // Precio
+              7: pw.FixedColumnWidth(28),    // DSCTO
+            },
+            children: [
+              // Encabezado
+              pw.TableRow(
+                decoration: pw.BoxDecoration(color: PdfColors.blue900),
+                repeat: true,  // Se repite en cada página automáticamente
+                children: [
+                  pw.Padding(padding: pw.EdgeInsets.all(2), child: pw.Text('#', style: headerStyle, textAlign: pw.TextAlign.center)),
+                  pw.Padding(padding: pw.EdgeInsets.all(2), child: pw.Text('Ref', style: headerStyle, textAlign: pw.TextAlign.center)),
+                  pw.Padding(padding: pw.EdgeInsets.all(2), child: pw.Text('Origen', style: headerStyle, textAlign: pw.TextAlign.center)),
+                  pw.Padding(padding: pw.EdgeInsets.all(2), child: pw.Text('Descripcion', style: headerStyle, textAlign: pw.TextAlign.center)),
+                  pw.Padding(padding: pw.EdgeInsets.all(2), child: pw.Text('Vehiculo', style: headerStyle, textAlign: pw.TextAlign.center)),
+                  pw.Padding(padding: pw.EdgeInsets.all(2), child: pw.Text('Marca', style: headerStyle, textAlign: pw.TextAlign.center)),
+                  pw.Padding(padding: pw.EdgeInsets.all(2), child: pw.Text('Precio', style: headerStyle, textAlign: pw.TextAlign.center)),
+                  pw.Padding(padding: pw.EdgeInsets.all(2), child: pw.Text('Dscto', style: headerStyle, textAlign: pw.TextAlign.center)),
+                ],
+              ),
+              
+              // Filas de productos
+              for (var producto in productos)
+                pw.TableRow(
+                  children: [
+                    pw.Padding(padding: pw.EdgeInsets.all(2), child: pw.Text(simplificarTexto(producto['#']?.toString() ?? ''), style: cellStyle)),
+                    pw.Padding(padding: pw.EdgeInsets.all(2), child: pw.Text(simplificarTexto(producto['REF']?.toString() ?? ''), style: cellStyle)),
+                    pw.Padding(padding: pw.EdgeInsets.all(2), child: pw.Text(simplificarTexto(producto['ORIGEN']?.toString() ?? ''), style: cellStyle)),
+                    pw.Padding(padding: pw.EdgeInsets.all(2), child: pw.Text(simplificarTexto(producto['DESCRIPCION']?.toString() ?? ''), style: cellStyle)),
+                    pw.Padding(padding: pw.EdgeInsets.all(2), child: pw.Text(simplificarTexto(producto['VEHICULO']?.toString() ?? ''), style: cellStyle)),
+                    pw.Padding(padding: pw.EdgeInsets.all(2), child: pw.Text(simplificarTexto(producto['MARCA']?.toString() ?? ''), style: cellStyle)),
+                    pw.Padding(padding: pw.EdgeInsets.all(2), child: pw.Text(_formatoMoneda(producto['PRECIO']), style: cellStyle)),
+                    pw.Padding(padding: pw.EdgeInsets.all(2), child: pw.Text('${producto['DSCTO'] ?? 0}%', style: cellStyle)),
+                  ],
+                ),
+            ],
+          );
+          
+          // Añadir la tabla como único widget
+          paginasContent.add(tablaBig);
+          
+          return paginasContent;
+        },
+      ),
+    );
+    
+    // Guardar el documento a archivo
+    final file = File(filePath);
+    await file.writeAsBytes(await pdf.save());
+    
+    print("✅ PDF generado correctamente con ${productos.length} productos");
+    
+  } catch (e) {
+    print("❌ Error detallado en generación de PDF: $e");
+    print("Stack trace: ${StackTrace.current}");
+    throw e;
   }
+}
+
+static String simplificarTexto(String texto) {
+  if (texto == null || texto.isEmpty) return '';
+  
+  // Mapa de reemplazos para caracteres especiales
+  final Map<String, String> reemplazos = {
+    'á': 'a', 'é': 'e', 'í': 'i', 'ó': 'o', 'ú': 'u',
+    'Á': 'A', 'É': 'E', 'Í': 'I', 'Ó': 'O', 'Ú': 'U',
+    'ñ': 'n', 'Ñ': 'N',
+    'ü': 'u', 'Ü': 'U',
+    '…': '...', '–': '-', '•': '*',
+    '"': '"', '"': '"',
+  };
+  
+  String resultado = texto;
+  reemplazos.forEach((especial, normal) {
+    resultado = resultado.replaceAll(especial, normal);
+  });
+  
+  // Eliminar otros caracteres potencialmente problemáticos
+  resultado = resultado.replaceAll(RegExp(r'[^\x00-\x7F]'), '');
+  
+  return resultado;
+}
   
   // Método optimizado para formatear precios
   static String _formatoMoneda(dynamic valor) {
