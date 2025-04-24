@@ -901,12 +901,38 @@ Future<Uint8List?> _generarPDFMejorado() async {
   }
   
   try {
-    // Buscamos la imagen directamente con el código (sin 'm')
-    final assetPath = 'assets/imagenesProductos/$codigo.jpg';
-    await rootBundle.load(assetPath);
-    _imagenesDisponibles[codigo] = true;
+    // Construir la URL de la imagen en el servidor
+    // Ajusta esta URL base según la estructura de tu servidor Render
+    final imageUrl = '${ProductoService.baseUrl}/api/productos/imagenes/$codigo.jpg';
+    
+    // Intentar verificar si la imagen existe mediante una solicitud HEAD
+    final response = await http.head(Uri.parse(imageUrl)).timeout(
+      Duration(seconds: 5),
+      onTimeout: () => http.Response('Timeout', 408),
+    );
+    
+    // Si la respuesta es exitosa (código 200), la imagen existe
+    if (response.statusCode == 200) {
+      _imagenesDisponibles[codigo] = true;
+      print("Imagen encontrada en servidor: $imageUrl");
+    } else {
+      // Intentar con variaciones del nombre
+      final urlUpper = '${ProductoService.baseUrl}/api/productos/imagenes/${codigo.toUpperCase()}.jpg';
+      final responseBkp = await http.head(Uri.parse(urlUpper)).timeout(
+        Duration(seconds: 3),
+        onTimeout: () => http.Response('Timeout', 408),
+      );
+      
+      if (responseBkp.statusCode == 200) {
+        _imagenesDisponibles[codigo] = true;
+        print("Imagen encontrada en servidor (versión mayúscula): $urlUpper");
+      } else {
+        _imagenesDisponibles[codigo] = false;
+        print("Imagen no encontrada para $codigo");
+      }
+    }
   } catch (e) {
-    print("Imagen no encontrada para $codigo: $e");
+    print("Error al verificar imagen para $codigo: $e");
     _imagenesDisponibles[codigo] = false;
   }
   
@@ -2244,18 +2270,116 @@ Center(
   final codigo = productoCodigoSeleccionado!;
   final bool imagenDisponible = _imagenesDisponibles[codigo] ?? false;
   
-  // Solo mostrar la imagen sin botones
+  // Solo mostrar la imagen si está disponible
   if (imagenDisponible) {
+    final imageUrl = '${ProductoService.baseUrl}/api/productos/imagenes/$codigo.jpg';
+    
     return GestureDetector(
       onTap: () => _mostrarImagenGrande(codigo),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(6),
-        child: Image.asset(
-          'assets/imagenesProductos/$codigo.jpg',
-          fit: BoxFit.contain,
-          errorBuilder: (context, error, stackTrace) {
-            _imagenesDisponibles[codigo] = false;
-            return Center(
+        child: Stack(
+          children: [
+            // Indicador de carga
+            Center(child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: Colors.blue.shade200,
+            )),
+            
+            // Imagen desde la red
+            Image.network(
+              imageUrl,
+              fit: BoxFit.contain,
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) return child;
+                return Center(
+                  child: CircularProgressIndicator(
+                    value: loadingProgress.expectedTotalBytes != null
+                        ? loadingProgress.cumulativeBytesLoaded / 
+                          loadingProgress.expectedTotalBytes!
+                        : null,
+                  ),
+                );
+              },
+              errorBuilder: (context, error, stackTrace) {
+                print("Error al mostrar imagen: $error");
+                // Intentar con versión en mayúsculas
+                final urlUpper = '${ProductoService.baseUrl}/api/productos/imagenes/${codigo.toUpperCase()}.jpg';
+                return Image.network(
+                  urlUpper,
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) {
+                    _imagenesDisponibles[codigo] = false;
+                    setState(() {});
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.broken_image, size: 30, color: Colors.red.shade300),
+                          Text(
+                            'Error',
+                            style: TextStyle(color: Colors.red.shade300, fontSize: 9),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  } else {
+    // No hay imagen disponible
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            icon: Icon(Icons.refresh, size: 30, color: Colors.blue),
+            onPressed: () {
+              // Recargar y volver a verificar la imagen
+              _imagenesDisponibles.remove(codigo);
+              _checkImageExistence(codigo);
+            },
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'No hay imagen\npara $codigo',
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Colors.grey, fontSize: 10),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Toque para recargar',
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Colors.blue, fontSize: 8),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+
+Widget _intentarCargarImagenesAlternativas(String codigo) {
+  // Intentar variaciones en el nombre del archivo
+  return Image.asset(
+    'assets/imagenesProductos/${codigo.toUpperCase()}.jpg',
+    fit: BoxFit.contain,
+    errorBuilder: (context, error, stackTrace) {
+      return Image.asset(
+        'assets/imagenesProductos/${codigo.toLowerCase()}.jpg',
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) {
+          _imagenesDisponibles[codigo] = false;
+          setState(() {});
+          return Container(
+            child: Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 mainAxisSize: MainAxisSize.min,
@@ -2269,29 +2393,12 @@ Center(
                   ),
                 ],
               ),
-            );
-          },
-        ),
-      ),
-    );
-  } else {
-    // No hay imagen disponible
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.hide_image, size: 40, color: Colors.grey),
-          const SizedBox(height: 4),
-          Text(
-            'No hay imagen\npara $codigo',
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.grey, fontSize: 10),
-          ),
-        ],
-      ),
-    );
-  }
+            ),
+          );
+        },
+      );
+    },
+  );
 }
 
 
@@ -2516,6 +2623,8 @@ void  _editarCantidad(Map<String, dynamic> producto) {
 
   // Método para mostrar la imagen en tamaño grande
   void _mostrarImagenGrande(String codigo) {
+  final imageUrl = '${ProductoService.baseUrl}/api/productos/imagenes/$codigo.jpg';
+  
   showDialog(
     context: context,
     builder: (BuildContext context) {
@@ -2540,28 +2649,55 @@ void  _editarCantidad(Map<String, dynamic> producto) {
                   ),
                 ],
               ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Image.asset(
-                  'assets/imagenesProductos/$codigo.jpg',
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.broken_image, size: 64, color: Colors.red),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Error al cargar la imagen\n$codigo',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(color: Colors.red, fontSize: 16),
+              child: Stack(
+                children: [
+                  // Indicador de carga
+                  Center(child: CircularProgressIndicator()),
+                  
+                  // Imagen con manejo mejorado de errores
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Image.network(
+                      imageUrl,
+                      fit: BoxFit.contain,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Center(
+                          child: CircularProgressIndicator(
+                            value: loadingProgress.expectedTotalBytes != null
+                                ? loadingProgress.cumulativeBytesLoaded / 
+                                  loadingProgress.expectedTotalBytes!
+                                : null,
                           ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) {
+                        // Intentar con versión en mayúsculas
+                        final urlUpper = '${ProductoService.baseUrl}/api/productos/imagenes/${codigo.toUpperCase()}.jpg';
+                        return Image.network(
+                          urlUpper,
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(Icons.broken_image, size: 64, color: Colors.red),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'Error al cargar la imagen\n$codigo',
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(color: Colors.red, fontSize: 16),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
               ),
             ),
             
@@ -2584,6 +2720,25 @@ void  _editarCantidad(Map<String, dynamic> producto) {
                     color: Colors.white,
                     size: 20,
                   ),
+                ),
+              ),
+            ),
+            
+            // Información del producto
+            Positioned(
+              bottom: 10,
+              left: 10,
+              right: 10,
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.6),
+                  borderRadius: BorderRadius.circular(5),
+                ),
+                child: Text(
+                  'Código: $codigo',
+                  style: TextStyle(color: Colors.white, fontSize: 14),
+                  textAlign: TextAlign.center,
                 ),
               ),
             ),
