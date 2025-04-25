@@ -15,33 +15,6 @@ let ultimoNumeroOrden = 1;
 const UPLOAD_FILE_SIZE_LIMIT = 300 * 1024 * 1024; // 300MB - aumentar si necesitas más
 const UPLOAD_TIMEOUT = 3600000; // 1 hora en milisegundos 
 
-function limpiarArchivosTemporales() {
-  try {
-    console.log('Limpiando archivos temporales...');
-    
-    if (fs.existsSync(tempDir)) {
-      const archivos = fs.readdirSync(tempDir);
-      let eliminados = 0;
-      
-      archivos.forEach(archivo => {
-        try {
-          fs.unlinkSync(path.join(tempDir, archivo));
-          eliminados++;
-        } catch (err) {
-          console.error(`Error al eliminar archivo temporal: ${archivo}`, err);
-        }
-      });
-      
-      console.log(`Limpieza completada: ${eliminados} archivos temporales eliminados`);
-    }
-  } catch (error) {
-    console.error('Error al limpiar temporales:', error);
-  }
-}
-
-// Ejecutar al inicio
-limpiarArchivosTemporales();
-
 
 const isProduction = process.env.NODE_ENV === 'production';
 const baseStoragePath = isProduction 
@@ -109,6 +82,32 @@ if (fs.existsSync(baseStoragePath)) {
     }
   });
 }
+function limpiarArchivosTemporales() {
+  try {
+    console.log('Limpiando archivos temporales...');
+    
+    if (fs.existsSync(tempDir)) {
+      const archivos = fs.readdirSync(tempDir);
+      let eliminados = 0;
+      
+      archivos.forEach(archivo => {
+        try {
+          fs.unlinkSync(path.join(tempDir, archivo));
+          eliminados++;
+        } catch (err) {
+          console.error(`Error al eliminar archivo temporal: ${archivo}`, err);
+        }
+      });
+      
+      console.log(`Limpieza completada: ${eliminados} archivos temporales eliminados`);
+    }
+  } catch (error) {
+    console.error('Error al limpiar temporales:', error);
+  }
+}
+
+// Ejecutar al inicio
+limpiarArchivosTemporales();
 
  console.log('=== Configuración del sistema de archivos ===');
 console.log(`Modo: ${isProduction ? 'Producción' : 'Desarrollo'}`);
@@ -399,23 +398,6 @@ function uploadPdfInChunks() {
   xhr.send(formData);
 }
 
-// Modificar el listener del formulario para usar la nueva función
-document.addEventListener('DOMContentLoaded', function() {
-  // Mantener los event listeners existentes
-  const catalogoForm = document.getElementById('catalogoForm');
-  if (catalogoForm) {
-      // Eliminar event listeners existentes
-      const newCatalogoForm = catalogoForm.cloneNode(true);
-      catalogoForm.parentNode.replaceChild(newCatalogoForm, catalogoForm);
-      
-      // Agregar nuevo event listener optimizado para PDFs grandes
-      newCatalogoForm.addEventListener('submit', function(e) {
-          console.log("Evento submit de catalogoForm capturado (versión optimizada)");
-          e.preventDefault();
-          uploadPdfInChunks();
-      });
-  }
-});
 
 function guardarContador() {
   try {
