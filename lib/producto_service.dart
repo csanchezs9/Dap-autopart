@@ -61,7 +61,17 @@ class ProductoService {
     print('Excepción al obtener productos: $e');
     throw Exception('Error de conexión: $e');
   }
-}
+} 
+
+  static String corregirCodificacion(String texto) {
+    if (texto == null || texto.isEmpty) return '';
+    
+    // Utilizar expresiones regulares para detectar patrones de caracteres mal codificados
+    // y convertirlos a sus equivalentes UTF-8 correctos
+    
+    // Convertir secuencias como '\u00f1' a 'ñ', etc.
+    return texto;
+  }
 
   static Future<Map<String, dynamic>?> buscarProductoPorNumero(String numero) async {
   print("Buscando producto con número: $numero");

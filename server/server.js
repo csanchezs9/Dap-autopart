@@ -1685,11 +1685,13 @@ app.post('/upload-asesores', requireAuth, upload.single('asesores'), (req, res) 
   }
 });
 
-
+const iconv = require('iconv-lite');
 function procesarCsvProductos(filePath) {
   try {
     // Leer el archivo completo
-    const fileContent = fs.readFileSync(filePath, 'utf8');
+    const buffer = fs.readFileSync(filePath);
+    const fileContent = iconv.decode(buffer, 'win1252');
+    
     
     // Dividir por líneas
     const lines = fileContent.split('\n');
