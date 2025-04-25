@@ -614,7 +614,49 @@ void _mostrarAlertaDatosIncompletos() {
                       _buildTableRow('TELEFONO', clienteData['TELEFONO'] ?? ''),
                       _buildTableRow('DESCUENTO', clienteData['DESCTO'] ?? ''),
                       _buildTableRow('CIUDAD', clienteData['CLI_CIUDAD'] ?? ''),
-                      _buildTableRow('CORREO', clienteData['CLI_EMAIL'] ?? ''),
+                      TableRow(
+  decoration: BoxDecoration(
+    color: Color(0xFFCFD5E1),
+  ),
+  children: [
+    Padding(
+      padding: EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+      child: Text(
+        'CORREO',
+        style: TextStyle(
+          fontWeight: FontWeight.normal,
+          color: Colors.black,
+        ),
+      ),
+    ),
+    Padding(
+      padding: EdgeInsets.symmetric(vertical: 5, horizontal: 8),
+      child: (clienteData['CLI_EMAIL'] == null || clienteData['CLI_EMAIL']!.isEmpty) 
+        ? TextField(
+            decoration: InputDecoration(
+              hintText: 'Ingrese correo del cliente',
+              isDense: true,
+              contentPadding: EdgeInsets.all(8),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            onChanged: (value) {
+              setState(() {
+                clienteData['CLI_EMAIL'] = value;
+              });
+            },
+          )
+        : Text(
+            clienteData['CLI_EMAIL']!,
+            style: TextStyle(
+              fontWeight: FontWeight.normal,
+              color: Colors.black,
+            ),
+          ),
+    ),
+  ],
+),
                       _buildTableRow('ID ASESOR', clienteData['ID ASESOR'] ?? asesorData['ID'] ?? '', isHeader: true),
                       _buildTableRow('NOMBRE', asesorData['NOMBRE'] ?? ''),
                       _buildTableRow('ZONA', asesorData['ZONA'] ?? ''),
