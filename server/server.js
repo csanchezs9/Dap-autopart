@@ -164,20 +164,20 @@ const storage = multer.diskStorage({
 
 const catalogoStorage = multer.diskStorage({
   destination: function (req, file, cb) {
-    if (canWriteToPath(catDirPath)) {
-      cb(null, catDirPath);
-    } else {
-      // Si no podemos escribir, usar /tmp como fallback
-      cb(null, tempDir);
+    // Asegurarse de que el directorio existe
+    if (!fs.existsSync(catDirPath)) {
+      fs.mkdirSync(catDirPath, { recursive: true });
+      console.log(`Directorio de catálogos creado: ${catDirPath}`);
     }
+    
+    console.log(`Guardando catálogo en: ${catDirPath}`);
+    cb(null, catDirPath);
   },
   filename: function (req, file, cb) {
-    if (file.fieldname === 'catalogo') {
-      // Usar nombre temporal durante la subida para evitar corrupción
-      cb(null, 'catalogo_temp.pdf');
-    } else {
-      cb(null, file.originalname);
-    }
+    // Usar un nombre único basado en timestamp para evitar conflictos
+    const tempFilename = `catalogo_temp_${Date.now()}.pdf`;
+    console.log(`Nombre temporal para archivo: ${tempFilename}`);
+    cb(null, tempFilename);
   }
 });
 const uploadCatalogo = multer({
@@ -2403,11 +2403,19 @@ app.post('/upload-catalogo', requireAuth, (req, res) => {
         });
       }
       
-      console.log(`Archivo recibido: ${req.file.originalname}, tamaño: ${req.file.size}`);
+      console.log(`Archivo recibido: ${req.file.originalname}, tamaño: ${req.file.size}, guardado como: ${req.file.filename} en ${req.file.path}`);
       
-      const sourcePath = req.file.path; // catalogo_temp.pdf
+      const sourcePath = req.file.path; // Usar la ruta real proporcionada por multer
       const destPath = path.join(catDirPath, 'catalogo.pdf');
       const nombreOriginal = req.file.originalname;
+      
+      // Verificar que el archivo realmente existe
+      if (!fs.existsSync(sourcePath)) {
+        return res.status(500).json({
+          success: false,
+          message: `Error: El archivo temporal no existe en ${sourcePath}`
+        });
+      }
       
       // Verificar que el archivo sea realmente un PDF
       try {
@@ -2437,12 +2445,13 @@ app.post('/upload-catalogo', requireAuth, (req, res) => {
           if (fs.existsSync(backupPath)) {
             fs.unlinkSync(backupPath);
           }
-          fs.renameSync(destPath, backupPath);
+          fs.copyFileSync(destPath, backupPath);
           console.log(`Backup creado: ${backupPath}`);
         }
         
-        // Mover directamente el archivo (más rápido que copiar para archivos grandes)
-        fs.renameSync(sourcePath, destPath);
+        // Usar copyFile en lugar de rename para mayor compatibilidad
+        fs.copyFileSync(sourcePath, destPath);
+        fs.unlinkSync(sourcePath); // Eliminar el archivo temporal
         
         // Guardar metadatos con el nombre original
         guardarMetadatosArchivo('catalogo', nombreOriginal);
@@ -2458,24 +2467,11 @@ app.post('/upload-catalogo', requireAuth, (req, res) => {
       } catch (moveErr) {
         console.error('Error al mover archivo:', moveErr);
         
-        // Intentar método alternativo si falla el renombrado directo
-        try {
-          await moveFile(sourcePath, destPath);
-          guardarMetadatosArchivo('catalogo', nombreOriginal);
-          
-          res.json({ 
-            success: true, 
-            message: 'Catálogo actualizado correctamente (método alternativo)',
-            filename: nombreOriginal,
-            size: req.file.size
-          });
-        } catch (error) {
-          console.error('Error con método alternativo:', error);
-          res.status(500).json({ 
-            success: false, 
-            message: `Error al guardar el catálogo: ${error.message}` 
-          });
-        }
+        // Si el error persiste, informar al cliente
+        res.status(500).json({ 
+          success: false, 
+          message: `Error al guardar el catálogo: ${moveErr.message}` 
+        });
       }
     } catch (error) {
       console.error('Error general en subida de catálogo:', error);
