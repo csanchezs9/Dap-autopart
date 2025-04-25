@@ -12,6 +12,36 @@ const crypto = require('crypto');
 
 const app = express();
 let ultimoNumeroOrden = 1;
+const UPLOAD_FILE_SIZE_LIMIT = 300 * 1024 * 1024; // 300MB - aumentar si necesitas más
+const UPLOAD_TIMEOUT = 3600000; // 1 hora en milisegundos 
+
+function limpiarArchivosTemporales() {
+  try {
+    console.log('Limpiando archivos temporales...');
+    
+    if (fs.existsSync(tempDir)) {
+      const archivos = fs.readdirSync(tempDir);
+      let eliminados = 0;
+      
+      archivos.forEach(archivo => {
+        try {
+          fs.unlinkSync(path.join(tempDir, archivo));
+          eliminados++;
+        } catch (err) {
+          console.error(`Error al eliminar archivo temporal: ${archivo}`, err);
+        }
+      });
+      
+      console.log(`Limpieza completada: ${eliminados} archivos temporales eliminados`);
+    }
+  } catch (error) {
+    console.error('Error al limpiar temporales:', error);
+  }
+}
+
+// Ejecutar al inicio
+limpiarArchivosTemporales();
+
 
 const isProduction = process.env.NODE_ENV === 'production';
 const baseStoragePath = isProduction 
@@ -133,6 +163,31 @@ const storage = multer.diskStorage({
   }
 });
 
+const catalogoStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    if (canWriteToPath(catDirPath)) {
+      cb(null, catDirPath);
+    } else {
+      // Si no podemos escribir, usar /tmp como fallback
+      cb(null, tempDir);
+    }
+  },
+  filename: function (req, file, cb) {
+    if (file.fieldname === 'catalogo') {
+      // Usar nombre temporal durante la subida para evitar corrupción
+      cb(null, 'catalogo_temp.pdf');
+    } else {
+      cb(null, file.originalname);
+    }
+  }
+});
+const uploadCatalogo = multer({
+  storage: catalogoStorage,
+  limits: {
+    fileSize: UPLOAD_FILE_SIZE_LIMIT // Límite de 300MB
+  }
+});
+
 const uploadImagenes = multer({ 
   storage: imagenesStorage,
   fileFilter: function(req, file, cb) {
@@ -169,10 +224,198 @@ if (canWriteToPath(ordenesPath)) {
   }
 }
 
+function moveFile(sourcePath, destPath) {
+  return new Promise((resolve, reject) => {
+    const readStream = fs.createReadStream(sourcePath);
+    const writeStream = fs.createWriteStream(destPath);
+    
+    readStream.on('error', err => {
+      reject(err);
+    });
+    
+    writeStream.on('error', err => {
+      reject(err);
+    });
+    
+    writeStream.on('finish', () => {
+      // Eliminar archivo temporal
+      try {
+        fs.unlinkSync(sourcePath);
+      } catch (err) {
+        console.error('Error al eliminar archivo temporal:', err);
+      }
+      resolve();
+    });
+    
+    readStream.pipe(writeStream);
+  });
+}
+
+
 app.use(session(sessionConfig));
 app.use('/api/productos/imagenes', express.static(imagenesDir));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// Función adaptada para subir archivos PDF grandes
+function uploadPdfInChunks() {
+  console.log("Iniciando subida de PDF por fragmentos");
+  
+  const fileInput = document.getElementById('catalogo');
+  const file = fileInput.files[0];
+  
+  if (!file) {
+      console.log("No se seleccionó ningún archivo");
+      showAlert('alertError', 'Por favor seleccione un archivo PDF.');
+      return;
+  }
+
+  console.log(`Se seleccionó el archivo: ${file.name}, tamaño: ${formatFileSize(file.size)}`);
+  
+  // Verificar que sea un PDF
+  if (file.type !== 'application/pdf') {
+      console.log(`Error: El archivo ${file.name} no es un PDF`);
+      showAlert('alertError', `El archivo ${file.name} no es un PDF válido.`);
+      return;
+  }
+  
+  // Mostrar alerta inicial
+  showAlert('alertInfo', `Preparando subida de archivo grande (${formatFileSize(file.size)})...`, 'info', false);
+  document.getElementById('progressContainer').style.display = 'block';
+  document.getElementById('progressBar').style.width = '0%';
+  document.getElementById('progressText').textContent = '0%';
+
+  // Crear un objeto FormData para la solicitud
+  const formData = new FormData();
+  formData.append('catalogo', file);
+  
+  // Subir usando XMLHttpRequest para tener barra de progreso
+  const xhr = new XMLHttpRequest();
+  
+  // Configurar evento de progreso
+  xhr.upload.addEventListener('progress', function(event) {
+      if (event.lengthComputable) {
+          const percentComplete = Math.round((event.loaded / event.total) * 100);
+          
+          // Actualizar barra de progreso
+          document.getElementById('progressBar').style.width = percentComplete + '%';
+          document.getElementById('progressText').textContent = percentComplete + '%';
+          
+          // Actualizar texto de la alerta
+          document.getElementById('alertInfo').innerHTML = 
+              `Subiendo archivo grande (${formatFileSize(file.size)}), por favor espere... (${percentComplete}%)
+              <div id="progressContainer" class="progress-container" style="display: block; margin-top: 10px;">
+                  <div id="progressBar" class="progress-bar" style="width: ${percentComplete}%"></div>
+                  <div id="progressText" class="progress-text">${percentComplete}%</div>
+              </div>
+              <div style="margin-top: 8px; font-size: 13px; color: #666;">
+                  Esta operación puede tardar varios minutos dependiendo de su conexión.<br>
+                  No cierre esta ventana hasta que la subida se complete.
+              </div>`;
+          
+          // Agregar botón de cancelar si no existe
+          if (!document.getElementById('cancelUploadBtn')) {
+              const cancelButton = document.createElement('button');
+              cancelButton.id = 'cancelUploadBtn';
+              cancelButton.textContent = 'Cancelar';
+              cancelButton.className = 'btn';
+              cancelButton.style.marginTop = '10px';
+              cancelButton.style.backgroundColor = '#dc3545';
+              cancelButton.onclick = function() {
+                  xhr.abort();
+                  hideAlert('alertInfo');
+                  document.getElementById('progressContainer').style.display = 'none';
+                  showAlert('alertError', 'Subida cancelada por el usuario');
+              };
+              document.getElementById('alertInfo').appendChild(document.createElement('br'));
+              document.getElementById('alertInfo').appendChild(cancelButton);
+          }
+          
+          console.log(`Progreso: ${percentComplete}%`);
+      }
+  });
+  
+  // Configurar evento de finalización
+  xhr.addEventListener('load', function() {
+      // Limpiar botón de cancelar si existe
+      const cancelBtn = document.getElementById('cancelUploadBtn');
+      if (cancelBtn) {
+          cancelBtn.parentNode.removeChild(cancelBtn);
+      }
+      
+      if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+              const data = JSON.parse(xhr.responseText);
+              console.log(`Respuesta del servidor:`, data);
+              
+              // Ocultar la alerta de información y la barra de progreso
+              hideAlert('alertInfo');
+              document.getElementById('progressContainer').style.display = 'none';
+              
+              if (data.success) {
+                  showAlert('alertSuccess', `¡El archivo de catálogo ha sido actualizado correctamente!`);
+                  // Actualizar la información del último archivo subido
+                  document.getElementById('catalogoNombre').textContent = `Último archivo subido: ${file.name}`;
+                  // Resetear el formulario
+                  document.getElementById('catalogo').value = '';
+              } else {
+                  showAlert('alertError', data.message || `Error al actualizar el archivo de catálogo.`);
+              }
+          } catch (error) {
+              console.error('Error al procesar la respuesta:', error);
+              hideAlert('alertInfo');
+              document.getElementById('progressContainer').style.display = 'none';
+              showAlert('alertError', 'Error al procesar la respuesta del servidor.');
+          }
+      } else {
+          console.error('Error en la solicitud:', xhr.status, xhr.statusText);
+          hideAlert('alertInfo');
+          document.getElementById('progressContainer').style.display = 'none';
+          showAlert('alertError', `Error en la solicitud: ${xhr.status} ${xhr.statusText}`);
+      }
+  });
+  
+  // Configurar evento de error
+  xhr.addEventListener('error', function() {
+      console.error('Error de red al enviar la solicitud');
+      hideAlert('alertInfo');
+      document.getElementById('progressContainer').style.display = 'none';
+      showAlert('alertError', 'Error de red al enviar la solicitud. Compruebe su conexión.');
+  });
+  
+  // Configurar evento de timeout
+  xhr.addEventListener('timeout', function() {
+      console.error('Tiempo de espera agotado');
+      hideAlert('alertInfo');
+      document.getElementById('progressContainer').style.display = 'none';
+      showAlert('alertError', 'Tiempo de espera agotado. El servidor tardó demasiado en responder.');
+  });
+  
+  // Establecer un timeout largo para archivos grandes
+  xhr.timeout = 3600000; // 1 hora
+  
+  // Abrir y enviar la solicitud
+  xhr.open('POST', '/upload-catalogo');
+  xhr.send(formData);
+}
+
+// Modificar el listener del formulario para usar la nueva función
+document.addEventListener('DOMContentLoaded', function() {
+  // Mantener los event listeners existentes
+  const catalogoForm = document.getElementById('catalogoForm');
+  if (catalogoForm) {
+      // Eliminar event listeners existentes
+      const newCatalogoForm = catalogoForm.cloneNode(true);
+      catalogoForm.parentNode.replaceChild(newCatalogoForm, catalogoForm);
+      
+      // Agregar nuevo event listener optimizado para PDFs grandes
+      newCatalogoForm.addEventListener('submit', function(e) {
+          console.log("Evento submit de catalogoForm capturado (versión optimizada)");
+          e.preventDefault();
+          uploadPdfInChunks();
+      });
+  }
+});
 
 function guardarContador() {
   try {
@@ -2146,32 +2389,128 @@ app.get('/ping', (req, res) => {
 
 
 // Subir un nuevo catálogo
-app.post('/upload-catalogo', requireAuth, upload.single('catalogo'), (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ success: false, message: 'No se ha subido ningún archivo' });
+app.post('/upload-catalogo', requireAuth, (req, res) => {
+  // Establecer un timeout largo para el manejo de la petición
+  req.setTimeout(UPLOAD_TIMEOUT);
+  
+  // Usar el middleware de multer para la subida
+  uploadCatalogo.single('catalogo')(req, res, async function(err) {
+    try {
+      console.log("Procesando solicitud de subida de catálogo");
+      
+      if (err) {
+        console.error('Error en multer:', err);
+        if (err instanceof multer.MulterError) {
+          if (err.code === 'LIMIT_FILE_SIZE') {
+            return res.status(400).json({ 
+              success: false, 
+              message: `El archivo excede el límite de tamaño de ${formatFileSize(UPLOAD_FILE_SIZE_LIMIT)}.` 
+            });
+          }
+        }
+        return res.status(500).json({ 
+          success: false, 
+          message: `Error al subir archivo: ${err.message}` 
+        });
+      }
+      
+      if (!req.file) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'No se ha subido ningún archivo' 
+        });
+      }
+      
+      console.log(`Archivo recibido: ${req.file.originalname}, tamaño: ${req.file.size}`);
+      
+      const sourcePath = req.file.path; // catalogo_temp.pdf
+      const destPath = path.join(catDirPath, 'catalogo.pdf');
+      const nombreOriginal = req.file.originalname;
+      
+      // Verificar que el archivo sea realmente un PDF
+      try {
+        const fileHeader = Buffer.alloc(5);
+        const fd = fs.openSync(sourcePath, 'r');
+        fs.readSync(fd, fileHeader, 0, 5, 0);
+        fs.closeSync(fd);
+        
+        const isPDF = fileHeader.toString().includes('%PDF');
+        if (!isPDF) {
+          fs.unlinkSync(sourcePath);
+          return res.status(400).json({ 
+            success: false, 
+            message: 'El archivo subido no parece ser un PDF válido.' 
+          });
+        }
+      } catch (validationErr) {
+        console.error('Error al validar PDF:', validationErr);
+        // Continuar a pesar de error en validación
+      }
+      
+      // Mover el archivo a su ubicación final
+      try {
+        if (fs.existsSync(destPath)) {
+          // Hacer backup antes de sobrescribir
+          const backupPath = path.join(catDirPath, 'catalogo.bak.pdf');
+          if (fs.existsSync(backupPath)) {
+            fs.unlinkSync(backupPath);
+          }
+          fs.renameSync(destPath, backupPath);
+          console.log(`Backup creado: ${backupPath}`);
+        }
+        
+        // Mover directamente el archivo (más rápido que copiar para archivos grandes)
+        fs.renameSync(sourcePath, destPath);
+        
+        // Guardar metadatos con el nombre original
+        guardarMetadatosArchivo('catalogo', nombreOriginal);
+        
+        console.log(`Catálogo actualizado: ${destPath}`);
+        
+        res.json({ 
+          success: true, 
+          message: 'Catálogo actualizado correctamente',
+          filename: nombreOriginal,
+          size: req.file.size
+        });
+      } catch (moveErr) {
+        console.error('Error al mover archivo:', moveErr);
+        
+        // Intentar método alternativo si falla el renombrado directo
+        try {
+          await moveFile(sourcePath, destPath);
+          guardarMetadatosArchivo('catalogo', nombreOriginal);
+          
+          res.json({ 
+            success: true, 
+            message: 'Catálogo actualizado correctamente (método alternativo)',
+            filename: nombreOriginal,
+            size: req.file.size
+          });
+        } catch (error) {
+          console.error('Error con método alternativo:', error);
+          res.status(500).json({ 
+            success: false, 
+            message: `Error al guardar el catálogo: ${error.message}` 
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error general en subida de catálogo:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: `Error general en la subida: ${error.message}` 
+      });
     }
-
-    const sourcePath = req.file.path;
-    const destPath = path.join(catDirPath, 'catalogo.pdf');
-    const nombreOriginal = req.file.originalname; // Nombre original del archivo
-
-    if (fs.existsSync(destPath)) {
-      fs.unlinkSync(destPath);
-    }
-
-    fs.copyFileSync(sourcePath, destPath);
-    fs.unlinkSync(sourcePath);
-    
-    // Guardar metadatos con el nombre original
-    guardarMetadatosArchivo('catalogo', nombreOriginal);
-
-    res.json({ success: true, message: 'Catálogo actualizado correctamente' });
-  } catch (error) {
-    console.error('Error al subir catálogo:', error);
-    res.status(500).json({ success: false, message: error.toString() });
-  }
+  });
 });
+
+function formatFileSize(bytes) {
+  if (bytes < 1024) return bytes + ' bytes';
+  else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+  else if (bytes < 1073741824) return (bytes / 1048576).toFixed(1) + ' MB';
+  else return (bytes / 1073741824).toFixed(1) + ' GB';
+}
 
 // Subir un nuevo archivo de productos
 app.post('/upload-productos', requireAuth, upload.single('productos'), (req, res) => {
