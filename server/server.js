@@ -848,143 +848,156 @@ Distribuciones AutoPart's`,
     }
   }
 
-function procesarCsvClientes(filePath) {
-  try {
-    // Leer el archivo completo
-    const buffer = fs.readFileSync(filePath);
-    // Convertir de Latin1/Windows-1252 a UTF-8
-    const fileContent = iconv.decode(buffer, 'win1252');
-    
-    // Dividir por líneas
-    const lines = fileContent.split('\n');
-    
-    // Buscar la línea de encabezados en las primeras 10 filas
-    let headerRowIndex = -1;
-    for (let i = 0; i < Math.min(10, lines.length); i++) {
-      const line = lines[i].toUpperCase();
-      // Buscar una línea que contenga "NIT" que probablemente sea la fila de encabezados
-      if (line.includes('NIT')) {
-        headerRowIndex = i;
-        break;
-      }
-    }
-    
-    // Si no se encuentra, usar la primera fila como predeterminada
-    if (headerRowIndex === -1) {
-      headerRowIndex = 0;
-    }
-    
-    // Extraer encabezados
-    const headerLine = lines[headerRowIndex];
-    
-    // Dividir encabezados considerando comillas
-    const headers = dividirCSV(headerLine);
-    
-    // Buscar posiciones de las columnas clave
-    const NIT_INDEX = encontrarIndice(headers, ['NIT', 'NIT CLIENTE', 'NITCLIENTE', 'ID']);
-    const NOMBRE_INDEX = encontrarIndice(headers, ['NOMBRE', 'RAZON SOCIAL', 'RAZONSOCIAL', 'CLIENTE']);
-    const ESTABLECIMIENTO_INDEX = encontrarIndice(headers, ['ESTABLECIMIENTO', 'NEGOCIO', 'LOCAL']);
-    const DIRECCION_INDEX = encontrarIndice(headers, ['DIRECCION', 'DIRECCIÓN', 'DIRECCIÒN', 'DIR']);
-    const TELEFONO_INDEX = encontrarIndice(headers, ['TELEFONO', 'TELÉFONO', 'TEL', 'CELULAR']);
-    const DESCTO_INDEX = encontrarIndice(headers, ['DESCTO', 'DESCUENTO', 'DCTO', 'DESC']);
-    const CIUDAD_INDEX = encontrarIndice(headers, ['CIUDAD', 'CLI_CIUDAD', 'CITY']);
-    const EMAIL_INDEX = encontrarIndice(headers, ['EMAIL', 'CORREO', 'CLI_EMAIL', 'MAIL']);
-    const ID_ASESOR_INDEX = encontrarIndice(headers, ['ID ASESOR', 'IDASESOR', 'ASESOR ID', 'ASESOR']);
-    
-    // Procesar las líneas de datos 
-    const clientes = [];
-    
-    for (let i = headerRowIndex + 1; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (!line) continue; // Saltar líneas vacías
+  function procesarCsvClientes(filePath) {
+    try {
+      // Leer el archivo como buffer binario
+      const buffer = fs.readFileSync(filePath);
       
-      try {
-        // Dividir la línea considerando comillas
-        const campos = dividirCSV(line);
-        
-        // Saltar la línea si no hay suficientes columnas
-        if (campos.length < 2) {
-          continue;
-        }
-        
-        // Crear objeto cliente con los campos básicos
-        const cliente = {};
-        
-        // NIT - requerido
-        if (NIT_INDEX >= 0 && NIT_INDEX < campos.length) {
-          cliente['NIT CLIENTE'] = campos[NIT_INDEX].trim();
-          // Si está vacío, saltar esta línea
-          if (!cliente['NIT CLIENTE']) {
-            continue;
+      // Probar diferentes encodings para encontrar el mejor
+      const encodingsToTry = ['utf8', 'win1252', 'latin1', 'iso-8859-1'];
+      let fileContent = '';
+      let bestEncoding = '';
+      let minErrorCount = Infinity;
+      
+      for (const encoding of encodingsToTry) {
+        try {
+          const testContent = iconv.decode(buffer, encoding);
+          // Contar caracteres problemáticos
+          const errorCount = (testContent.match(/�/g) || []).length;
+          
+          if (errorCount < minErrorCount) {
+            minErrorCount = errorCount;
+            fileContent = testContent;
+            bestEncoding = encoding;
+            
+            // Si no hay errores, usar este encoding inmediatamente
+            if (errorCount === 0) break;
           }
-        } else {
-          continue; // Sin NIT válido no procesamos
+        } catch (e) {
+          console.log(`Error al decodificar con ${encoding}`);
         }
-        
-        // NOMBRE - requerido
-        if (NOMBRE_INDEX >= 0 && NOMBRE_INDEX < campos.length) {
-          cliente['NOMBRE'] = campos[NOMBRE_INDEX].trim();
-        } else {
-          cliente['NOMBRE'] = `Cliente ${cliente['NIT CLIENTE']}`;
-        }
-        
-        // Restantes campos
-        if (ESTABLECIMIENTO_INDEX >= 0 && ESTABLECIMIENTO_INDEX < campos.length) {
-          cliente['ESTABLECIMIENTO'] = campos[ESTABLECIMIENTO_INDEX].trim();
-        } else {
-          cliente['ESTABLECIMIENTO'] = '';
-        }
-        
-        if (DIRECCION_INDEX >= 0 && DIRECCION_INDEX < campos.length) {
-          cliente['DIRECCION'] = campos[DIRECCION_INDEX].trim();
-        } else {
-          cliente['DIRECCION'] = '';
-        }
-        
-        if (TELEFONO_INDEX >= 0 && TELEFONO_INDEX < campos.length) {
-          cliente['TELEFONO'] = campos[TELEFONO_INDEX].trim();
-        } else {
-          cliente['TELEFONO'] = '';
-        }
-        
-        if (DESCTO_INDEX >= 0 && DESCTO_INDEX < campos.length) {
-          cliente['DESCTO'] = campos[DESCTO_INDEX].trim();
-        } else {
-          cliente['DESCTO'] = '';
-        }
-        
-        if (CIUDAD_INDEX >= 0 && CIUDAD_INDEX < campos.length) {
-          cliente['CLI_CIUDAD'] = campos[CIUDAD_INDEX].trim();
-        } else {
-          cliente['CLI_CIUDAD'] = '';
-        }
-        
-        if (EMAIL_INDEX >= 0 && EMAIL_INDEX < campos.length) {
-          cliente['CLI_EMAIL'] = campos[EMAIL_INDEX].trim();
-        } else {
-          cliente['CLI_EMAIL'] = '';
-        }
-        
-        if (ID_ASESOR_INDEX >= 0 && ID_ASESOR_INDEX < campos.length) {
-          cliente['ID ASESOR'] = campos[ID_ASESOR_INDEX].trim();
-        } else {
-          cliente['ID ASESOR'] = '';
-        }
-        
-        // Añadir el cliente a la lista
-        clientes.push(cliente);
-        
-      } catch (parseError) {
-        console.error(`Error al procesar línea ${i+1}:`, parseError);
       }
+      
+      console.log(`Usando encoding ${bestEncoding} para CSV de clientes`);
+      
+      // Dividir por líneas
+      const lines = fileContent.split('\n');
+      
+      // Buscar la línea de encabezados en las primeras 10 filas
+      let headerRowIndex = -1;
+      for (let i = 0; i < Math.min(10, lines.length); i++) {
+        const line = lines[i].toUpperCase();
+        if (line.includes('NIT')) {
+          headerRowIndex = i;
+          break;
+        }
+      }
+      
+      if (headerRowIndex === -1) headerRowIndex = 0;
+      
+      // Extraer encabezados
+      const headerLine = lines[headerRowIndex];
+      const headers = dividirCSV(headerLine);
+      
+      // Buscar posiciones de las columnas clave
+      const NIT_INDEX = encontrarIndice(headers, ['NIT', 'NIT CLIENTE', 'NITCLIENTE', 'ID']);
+      const NOMBRE_INDEX = encontrarIndice(headers, ['NOMBRE', 'RAZON SOCIAL', 'RAZONSOCIAL', 'CLIENTE']);
+      const ESTABLECIMIENTO_INDEX = encontrarIndice(headers, ['ESTABLECIMIENTO', 'NEGOCIO', 'LOCAL']);
+      const DIRECCION_INDEX = encontrarIndice(headers, ['DIRECCION', 'DIRECCIÓN', 'DIRECCIÒN', 'DIR']);
+      const TELEFONO_INDEX = encontrarIndice(headers, ['TELEFONO', 'TELÉFONO', 'TEL', 'CELULAR']);
+      const DESCTO_INDEX = encontrarIndice(headers, ['DESCTO', 'DESCUENTO', 'DCTO', 'DESC']);
+      const CIUDAD_INDEX = encontrarIndice(headers, ['CIUDAD', 'CLI_CIUDAD', 'CITY']);
+      const EMAIL_INDEX = encontrarIndice(headers, ['EMAIL', 'CORREO', 'CLI_EMAIL', 'MAIL']);
+      const ID_ASESOR_INDEX = encontrarIndice(headers, ['ID ASESOR', 'IDASESOR', 'ASESOR ID', 'ASESOR']);
+      
+      // Procesar las líneas de datos 
+      const clientes = [];
+      
+      for (let i = headerRowIndex + 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue; // Saltar líneas vacías
+        
+        try {
+          // Dividir la línea considerando comillas
+          const campos = dividirCSV(line);
+          
+          // Saltar la línea si no hay suficientes columnas
+          if (campos.length < 2) continue;
+          
+          // Crear objeto cliente con los campos básicos
+          const cliente = {};
+          
+          // NIT - requerido
+          if (NIT_INDEX >= 0 && NIT_INDEX < campos.length) {
+            cliente['NIT CLIENTE'] = campos[NIT_INDEX].trim();
+            if (!cliente['NIT CLIENTE']) continue;
+          } else {
+            continue; // Sin NIT válido no procesamos
+          }
+          
+          // Resto de campos
+          if (NOMBRE_INDEX >= 0 && NOMBRE_INDEX < campos.length) {
+            cliente['NOMBRE'] = campos[NOMBRE_INDEX].trim();
+          } else {
+            cliente['NOMBRE'] = `Cliente ${cliente['NIT CLIENTE']}`;
+          }
+          
+          if (ESTABLECIMIENTO_INDEX >= 0 && ESTABLECIMIENTO_INDEX < campos.length) {
+            cliente['ESTABLECIMIENTO'] = campos[ESTABLECIMIENTO_INDEX].trim();
+          } else {
+            cliente['ESTABLECIMIENTO'] = '';
+          }
+          
+          if (DIRECCION_INDEX >= 0 && DIRECCION_INDEX < campos.length) {
+            cliente['DIRECCION'] = campos[DIRECCION_INDEX].trim();
+          } else {
+            cliente['DIRECCION'] = '';
+          }
+          
+          if (TELEFONO_INDEX >= 0 && TELEFONO_INDEX < campos.length) {
+            cliente['TELEFONO'] = campos[TELEFONO_INDEX].trim();
+          } else {
+            cliente['TELEFONO'] = '';
+          }
+          
+          if (DESCTO_INDEX >= 0 && DESCTO_INDEX < campos.length) {
+            cliente['DESCTO'] = campos[DESCTO_INDEX].trim();
+          } else {
+            cliente['DESCTO'] = '';
+          }
+          
+          if (CIUDAD_INDEX >= 0 && CIUDAD_INDEX < campos.length) {
+            cliente['CLI_CIUDAD'] = campos[CIUDAD_INDEX].trim();
+          } else {
+            cliente['CLI_CIUDAD'] = '';
+          }
+          
+          if (EMAIL_INDEX >= 0 && EMAIL_INDEX < campos.length) {
+            cliente['CLI_EMAIL'] = campos[EMAIL_INDEX].trim();
+          } else {
+            cliente['CLI_EMAIL'] = '';
+          }
+          
+          if (ID_ASESOR_INDEX >= 0 && ID_ASESOR_INDEX < campos.length) {
+            cliente['ID ASESOR'] = campos[ID_ASESOR_INDEX].trim();
+          } else {
+            cliente['ID ASESOR'] = '';
+          }
+          
+          // Añadir el cliente a la lista
+          clientes.push(cliente);
+          
+        } catch (parseError) {
+          console.error(`Error al procesar línea ${i+1}:`, parseError);
+        }
+      }
+  
+      return clientes;
+    } catch (error) {
+      console.error('Error al procesar CSV de clientes:', error);
+      return [];
     }
-
-    return clientes;
-  } catch (error) {
-    console.error('Error al procesar CSV de clientes:', error);
-    return [];
   }
-}
 
 app.get('/lista-imagenes', requireAuth, (req, res) => {
   try {
