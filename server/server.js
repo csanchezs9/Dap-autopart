@@ -484,7 +484,9 @@ const transporter = nodemailer.createTransport({
 function procesarCsvCorreos(filePath) {
   try {
     // Leer el archivo completo
-    const fileContent = fs.readFileSync(filePath, 'utf8');
+    const buffer = fs.readFileSync(filePath);
+    // Convertir de Latin1/Windows-1252 a UTF-8
+    const fileContent = iconv.decode(buffer, 'win1252');
     
     // Dividir por líneas
     const lines = fileContent.split('\n');
@@ -849,7 +851,9 @@ Distribuciones AutoPart's`,
 function procesarCsvClientes(filePath) {
   try {
     // Leer el archivo completo
-    const fileContent = fs.readFileSync(filePath, 'utf8');
+    const buffer = fs.readFileSync(filePath);
+    // Convertir de Latin1/Windows-1252 a UTF-8
+    const fileContent = iconv.decode(buffer, 'win1252');
     
     // Dividir por líneas
     const lines = fileContent.split('\n');
@@ -1399,117 +1403,120 @@ function guardarContadorDisco(valor) {
     return false;
   }
 }
-function procesarCsvAsesores(filePath) {
-  try {
-    // Leer el archivo completo
-    const fileContent = fs.readFileSync(filePath, 'utf8');
-    
-    // Dividir por líneas
-    const lines = fileContent.split('\n');
-    
-    // Buscar la línea de encabezados en las primeras 10 filas
-    let headerRowIndex = -1;
-    for (let i = 0; i < Math.min(10, lines.length); i++) {
-      const line = lines[i].toUpperCase();
-      // Buscar una línea que contenga "ID" y "NOMBRE" que probablemente sea la fila de encabezados
-      if (line.includes('ID') && line.includes('NOMBRE')) {
-        headerRowIndex = i;
-        break;
-      }
-    }
-    
-    // Si no se encuentra, usar la primera fila como predeterminada
-    if (headerRowIndex === -1) {
-      headerRowIndex = 0;
-    }
-    
-    // Extraer encabezados
-    const headerLine = lines[headerRowIndex];
-    
-    // Dividir encabezados considerando comillas
-    const headers = dividirCSV(headerLine);
-    
-    // Buscar posiciones de las columnas clave - más flexibilidad en la búsqueda
-    const ID_INDEX = encontrarIndice(headers, ['ID', 'IDENTIFICACION', 'CEDULA']);
-    const NOMBRE_INDEX = encontrarIndice(headers, ['NOMBRE', 'NAME', 'ASESOR']);
-    const ZONA_INDEX = encontrarIndice(headers, ['ZONA', 'ZONE', 'AREA', 'TERRITORIO']);
-    const MAIL_INDEX = encontrarIndice(headers, ['MAIL', 'EMAIL', 'CORREO']);
-    const CEL_INDEX = encontrarIndice(headers, ['CEL', 'CELULAR', 'TELEFONO', 'PHONE']);
-    
-    // Procesar las líneas de datos 
-    const asesores = [];
-    
-    for (let i = headerRowIndex + 1; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (!line) continue; // Saltar líneas vacías
+  function procesarCsvAsesores(filePath) {
+    try {
+      // Leer el archivo como buffer binario
+      const buffer = fs.readFileSync(filePath);
+      // Convertir de Latin1/Windows-1252 a UTF-8
+      const fileContent = iconv.decode(buffer, 'win1252');
       
-      try {
-        // Dividir la línea considerando comillas
-        const campos = dividirCSV(line);
-        
-        // Saltar la línea si no hay suficientes columnas
-        if (campos.length < 2) {
-          continue;
+      // Resto del código igual...
+      // Dividir por líneas
+      const lines = fileContent.split('\n');
+      
+      // Buscar la línea de encabezados en las primeras 10 filas
+      let headerRowIndex = -1;
+      for (let i = 0; i < Math.min(10, lines.length); i++) {
+        const line = lines[i].toUpperCase();
+        // Buscar una línea que contenga "ID" y "NOMBRE" que probablemente sea la fila de encabezados
+        if (line.includes('ID') && line.includes('NOMBRE')) {
+          headerRowIndex = i;
+          break;
         }
+      }
+      
+      // Si no se encuentra, usar la primera fila como predeterminada
+      if (headerRowIndex === -1) {
+        headerRowIndex = 0;
+      }
+      
+      // Extraer encabezados
+      const headerLine = lines[headerRowIndex];
+      
+      // Dividir encabezados considerando comillas
+      const headers = dividirCSV(headerLine);
+      
+      // Buscar posiciones de las columnas clave - más flexibilidad en la búsqueda
+      const ID_INDEX = encontrarIndice(headers, ['ID', 'IDENTIFICACION', 'CEDULA']);
+      const NOMBRE_INDEX = encontrarIndice(headers, ['NOMBRE', 'NAME', 'ASESOR']);
+      const ZONA_INDEX = encontrarIndice(headers, ['ZONA', 'ZONE', 'AREA', 'TERRITORIO']);
+      const MAIL_INDEX = encontrarIndice(headers, ['MAIL', 'EMAIL', 'CORREO']);
+      const CEL_INDEX = encontrarIndice(headers, ['CEL', 'CELULAR', 'TELEFONO', 'PHONE']);
+      
+      // Procesar las líneas de datos 
+      const asesores = [];
+      
+      for (let i = headerRowIndex + 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue; // Saltar líneas vacías
         
-        // Crear objeto asesor con los campos básicos
-        const asesor = {};
-        
-        // ID - requerido
-        if (ID_INDEX >= 0 && ID_INDEX < campos.length) {
-          asesor.ID = campos[ID_INDEX].trim();
-          // Si está vacío, saltar esta línea
-          if (!asesor.ID) {
+        try {
+          // Dividir la línea considerando comillas
+          const campos = dividirCSV(line);
+          
+          // Saltar la línea si no hay suficientes columnas
+          if (campos.length < 2) {
             continue;
           }
-        } else {
-          continue; // Sin ID válido no procesamos
-        }
-        
-        // NOMBRE - requerido
-        if (NOMBRE_INDEX >= 0 && NOMBRE_INDEX < campos.length) {
-          asesor.NOMBRE = campos[NOMBRE_INDEX].trim();
-          // Si está vacío, usar un nombre genérico
-          if (!asesor.NOMBRE) {
+          
+          // Crear objeto asesor con los campos básicos
+          const asesor = {};
+          
+          // ID - requerido
+          if (ID_INDEX >= 0 && ID_INDEX < campos.length) {
+            asesor.ID = campos[ID_INDEX].trim();
+            // Si está vacío, saltar esta línea
+            if (!asesor.ID) {
+              continue;
+            }
+          } else {
+            continue; // Sin ID válido no procesamos
+          }
+          
+          // NOMBRE - requerido
+          if (NOMBRE_INDEX >= 0 && NOMBRE_INDEX < campos.length) {
+            asesor.NOMBRE = campos[NOMBRE_INDEX].trim();
+            // Si está vacío, usar un nombre genérico
+            if (!asesor.NOMBRE) {
+              asesor.NOMBRE = `Asesor ${asesor.ID}`;
+            }
+          } else {
             asesor.NOMBRE = `Asesor ${asesor.ID}`;
           }
-        } else {
-          asesor.NOMBRE = `Asesor ${asesor.ID}`;
+          
+          // Restantes campos
+          if (ZONA_INDEX >= 0 && ZONA_INDEX < campos.length) {
+            asesor.ZONA = campos[ZONA_INDEX].trim();
+          } else {
+            asesor.ZONA = '';
+          }
+          
+          if (MAIL_INDEX >= 0 && MAIL_INDEX < campos.length) {
+            asesor.MAIL = campos[MAIL_INDEX].trim();
+          } else {
+            asesor.MAIL = '';
+          }
+          
+          if (CEL_INDEX >= 0 && CEL_INDEX < campos.length) {
+            asesor.CEL = campos[CEL_INDEX].trim();
+          } else {
+            asesor.CEL = '';
+          }
+          
+          // Añadir el asesor a la lista
+          asesores.push(asesor);
+          
+        } catch (parseError) {
+          console.error(`Error al procesar línea ${i+1}:`, parseError);
         }
-        
-        // Restantes campos
-        if (ZONA_INDEX >= 0 && ZONA_INDEX < campos.length) {
-          asesor.ZONA = campos[ZONA_INDEX].trim();
-        } else {
-          asesor.ZONA = '';
-        }
-        
-        if (MAIL_INDEX >= 0 && MAIL_INDEX < campos.length) {
-          asesor.MAIL = campos[MAIL_INDEX].trim();
-        } else {
-          asesor.MAIL = '';
-        }
-        
-        if (CEL_INDEX >= 0 && CEL_INDEX < campos.length) {
-          asesor.CEL = campos[CEL_INDEX].trim();
-        } else {
-          asesor.CEL = '';
-        }
-        
-        // Añadir el asesor a la lista
-        asesores.push(asesor);
-        
-      } catch (parseError) {
-        console.error(`Error al procesar línea ${i+1}:`, parseError);
       }
-    }
 
-    return asesores;
-  } catch (error) {
-    console.error('Error al procesar CSV de asesores:', error);
-    return [];
+      return asesores;
+    } catch (error) {
+      console.error('Error al procesar CSV de asesores:', error);
+      return [];
+    }
   }
-}
 
 app.get('/asesores-info', (req, res) => {
   try {

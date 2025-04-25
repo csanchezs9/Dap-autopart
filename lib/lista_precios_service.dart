@@ -343,6 +343,10 @@ class ListaPreciosService {
     // Crear un único documento PDF
     final pdf = pw.Document();
     
+    // Registrar la fuente Roboto para soporte de caracteres especiales
+    final fontData = await rootBundle.load("assets/fonts/Roboto-Regular.ttf");
+    final ttf = pw.Font.ttf(fontData.buffer.asByteData());
+    
     // Tamaño de página optimizado para maximizar espacio
     final pageFormat = PdfPageFormat.a4.copyWith(
       marginLeft: 10.0,
@@ -383,6 +387,7 @@ class ListaPreciosService {
                         pw.Text(
                           'DISTRIBUCIONES AUTOPART\'S S.A.S.',
                           style: pw.TextStyle(
+                            font: ttf,
                             fontSize: 9,  // Reducido para ahorrar espacio
                             fontWeight: pw.FontWeight.bold,
                           ),
@@ -390,6 +395,7 @@ class ListaPreciosService {
                         pw.Text(
                           'LISTA DE PRECIOS NACIONAL',
                           style: pw.TextStyle(
+                            font: ttf,
                             fontSize: 8,
                             fontWeight: pw.FontWeight.bold,
                             color: PdfColors.blue800,
@@ -397,7 +403,7 @@ class ListaPreciosService {
                         ),
                         pw.Text(
                           'Fecha: $fechaActual',
-                          style: pw.TextStyle(fontSize: 7),
+                          style: pw.TextStyle(font: ttf, fontSize: 7),
                         ),
                       ],
                     ),
@@ -410,16 +416,16 @@ class ListaPreciosService {
                   children: [
                     pw.Text(
                       'Pág. ${context.pageNumber}',
-                      style: pw.TextStyle(fontSize: 7),
+                      style: pw.TextStyle(font: ttf, fontSize: 7),
                     ),
                     pw.Text(
                       'Asesor: $asesorNombre${asesorZona.isNotEmpty ? " | $asesorZona" : ""}',
-                      style: pw.TextStyle(fontSize: 7),
+                      style: pw.TextStyle(font: ttf, fontSize: 7),
                     ),
                     if (asesorCorreo.isNotEmpty || asesorTelefono.isNotEmpty)
                       pw.Text(
                         '${asesorCorreo.isNotEmpty ? asesorCorreo : ""}${asesorTelefono.isNotEmpty ? " | Tel: $asesorTelefono" : ""}',
-                        style: pw.TextStyle(fontSize: 7),
+                        style: pw.TextStyle(font: ttf, fontSize: 7),
                       ),
                   ],
                 ),
@@ -434,6 +440,7 @@ class ListaPreciosService {
           
           // Estilo para el encabezado de la tabla
           final headerStyle = pw.TextStyle(
+            font: ttf,
             color: PdfColors.white,
             fontWeight: pw.FontWeight.bold,
             fontSize: 6,  // Reducido para ahorrar espacio
@@ -441,6 +448,7 @@ class ListaPreciosService {
           
           // Estilo para celdas de la tabla
           final cellStyle = pw.TextStyle(
+            font: ttf,
             fontSize: 6,  // Reducido para ahorrar espacio
           );
           
@@ -478,12 +486,12 @@ class ListaPreciosService {
               for (var producto in productos)
                 pw.TableRow(
                   children: [
-                    pw.Padding(padding: pw.EdgeInsets.all(2), child: pw.Text(simplificarTexto(producto['#']?.toString() ?? ''), style: cellStyle)),
-                    pw.Padding(padding: pw.EdgeInsets.all(2), child: pw.Text(simplificarTexto(producto['REF']?.toString() ?? ''), style: cellStyle)),
-                    pw.Padding(padding: pw.EdgeInsets.all(2), child: pw.Text(simplificarTexto(producto['ORIGEN']?.toString() ?? ''), style: cellStyle)),
-                    pw.Padding(padding: pw.EdgeInsets.all(2), child: pw.Text(simplificarTexto(producto['DESCRIPCION']?.toString() ?? ''), style: cellStyle)),
-                    pw.Padding(padding: pw.EdgeInsets.all(2), child: pw.Text(simplificarTexto(producto['VEHICULO']?.toString() ?? ''), style: cellStyle)),
-                    pw.Padding(padding: pw.EdgeInsets.all(2), child: pw.Text(simplificarTexto(producto['MARCA']?.toString() ?? ''), style: cellStyle)),
+                    pw.Padding(padding: pw.EdgeInsets.all(2), child: pw.Text(producto['#']?.toString() ?? '', style: cellStyle)),
+                    pw.Padding(padding: pw.EdgeInsets.all(2), child: pw.Text(producto['REF']?.toString() ?? '', style: cellStyle)),
+                    pw.Padding(padding: pw.EdgeInsets.all(2), child: pw.Text(producto['ORIGEN']?.toString() ?? '', style: cellStyle)),
+                    pw.Padding(padding: pw.EdgeInsets.all(2), child: pw.Text(producto['DESCRIPCION']?.toString() ?? '', style: cellStyle)),
+                    pw.Padding(padding: pw.EdgeInsets.all(2), child: pw.Text(producto['VEHICULO']?.toString() ?? '', style: cellStyle)),
+                    pw.Padding(padding: pw.EdgeInsets.all(2), child: pw.Text(producto['MARCA']?.toString() ?? '', style: cellStyle)),
                     pw.Padding(padding: pw.EdgeInsets.all(2), child: pw.Text(_formatoMoneda(producto['PRECIO']), style: cellStyle)),
                     pw.Padding(padding: pw.EdgeInsets.all(2), child: pw.Text('${producto['DSCTO'] ?? 0}%', style: cellStyle)),
                   ],
@@ -515,23 +523,11 @@ class ListaPreciosService {
 static String simplificarTexto(String texto) {
   if (texto == null || texto.isEmpty) return '';
   
-  // Mapa de reemplazos para caracteres especiales
-  final Map<String, String> reemplazos = {
-    'á': 'a', 'é': 'e', 'í': 'i', 'ó': 'o', 'ú': 'u',
-    'Á': 'A', 'É': 'E', 'Í': 'I', 'Ó': 'O', 'Ú': 'U',
-    'ñ': 'n', 'Ñ': 'N',
-    'ü': 'u', 'Ü': 'U',
-    '…': '...', '–': '-', '•': '*',
-    '"': '"', '"': '"',
-  };
+  // Ya no reemplazamos caracteres especiales, solo eliminamos caracteres potencialmente problemáticos
+  // que no se muestran bien en el PDF
   
-  String resultado = texto;
-  reemplazos.forEach((especial, normal) {
-    resultado = resultado.replaceAll(especial, normal);
-  });
-  
-  // Eliminar otros caracteres potencialmente problemáticos
-  resultado = resultado.replaceAll(RegExp(r'[^\x00-\x7F]'), '');
+  // Filtrar solo caracteres realmente problemáticos
+  String resultado = texto.replaceAll(RegExp(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]'), '');
   
   return resultado;
 }
