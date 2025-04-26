@@ -570,7 +570,7 @@
             document.getElementById('imagenesForm').addEventListener('submit', function(e) {
     console.log("Evento submit de imagenesForm capturado");
     e.preventDefault();
-    uploadImagesInBatches;
+    uploadImages();
 });
         });
         // Reemplaza la función uploadImages con esta implementación por lotes
@@ -757,6 +757,11 @@ function uploadImagesInBatches() {
         xhr.timeout = 300000; // 5 minutos de timeout por lote
         xhr.send(formData);
     }
+
+    function uploadImages() {
+    // Simplemente llamar a la función de lotes existente
+    uploadImagesInBatches();
+}
     
     // Función para finalizar todo el proceso
     function finalizarProceso() {
