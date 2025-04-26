@@ -790,53 +790,6 @@ function uploadImagesInBatches() {
     uploadBatch(0);
 }
 
-// Ahora modifica el event listener para usar la nueva función por lotes:
-document.addEventListener('DOMContentLoaded', function() {
-    console.log("Página cargada - Inicializando controladores de eventos");
-    
-    // Verificar archivos existentes
-    checkExistingFiles();
-    
-    // Manejar formulario de catálogo
-    document.getElementById('catalogoForm').addEventListener('submit', function(e) {
-        console.log("Evento submit de catalogoForm capturado");
-        e.preventDefault();
-        uploadFile('catalogo', 'upload-catalogo');
-    });
-    
-    // Manejar formulario de productos
-    document.getElementById('productosForm').addEventListener('submit', function(e) {
-        console.log("Evento submit de productosForm capturado");
-        e.preventDefault();
-        uploadFile('productos', 'upload-productos');
-    });
-    
-    // Manejar formulario de asesores
-    document.getElementById('asesoresForm').addEventListener('submit', function(e) {
-        console.log("Evento submit de asesoresForm capturado");
-        e.preventDefault();
-        uploadFile('asesores', 'upload-asesores');
-    });
-
-    document.getElementById('clientesForm').addEventListener('submit', function(e) {
-        console.log("Evento submit de clientesForm capturado");
-        e.preventDefault();
-        uploadFile('clientes', 'upload-clientes');
-    });
-
-    document.getElementById('correosForm').addEventListener('submit', function(e) {
-        console.log("Evento submit de correosForm capturado");
-        e.preventDefault();
-        uploadFile('correos', 'upload-correos');
-    });
-
-    // CAMBIO AQUÍ: Usar la versión por lotes para el formulario de imágenes
-    document.getElementById('imagenesForm').addEventListener('submit', function(e) {
-        console.log("Evento submit de imagenesForm capturado");
-        e.preventDefault();
-        uploadImagesInBatches(); // Llamar a la nueva función en lugar de uploadImages
-    });
-});
 
         function checkExistingFiles() {
     console.log("Verificando archivos existentes...");
