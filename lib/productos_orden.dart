@@ -1514,13 +1514,17 @@ Future<Uint8List?> _generarPDFMejorado() async {
     request.fields['ordenNumero'] = widget.ordenNumero; // Nuevo: número de orden
     
     // Formato original del asunto (el servidor lo reformateará)
-    request.fields['asunto'] = 'Orden de Pedido #${widget.ordenNumero} - $nombreCliente';
-    
-request.fields['cuerpo'] = '''Cordial saludo se adjunta orden de pedido #${widget.ordenNumero} para ${nombreCliente}
-Por su colaboración mil gracias
+    request.fields['cuerpo'] = '''Cordial saludo.
+
+Se adjunta orden de pedido #${widget.ordenNumero} del cliente ${nombreCliente}.
+
+Por su colaboración mil gracias.
+
+Cordialmente,
+
 ${widget.asesorData['NOMBRE'] ?? 'Su asesor'}
-Asesor comercial
-Distribuciones AutoPart's
+Asesor comercial 
+Distribuciones AutoPart's SAS
 ''';
     
     // Agregar el archivo PDF

@@ -986,22 +986,29 @@ app.post('/send-email', upload.single('pdf'), async (req, res) => {
       `Orden de pedido ${ordenNumero}${clienteNombre ? `, ${clienteNombre}` : ''}` : 
       (asunto || 'Orden de Pedido - DAP AutoPart\'s');
 
-    const mailOptions = {
-      from: '"DAP AutoPart\'s" <' + process.env.EMAIL_USER + '>',
-      to: destinatariosPrincipales.join(', '),
-      cc: ccList.join(', '),
-      subject: asuntoFormateado,
-      text: cuerpo || `Cordial saludo se adjunta orden de pedido #${ordenNumero} para ${clienteNombre}
-Por su colaboración mil gracias
-Asesor comercial
-Distribuciones AutoPart's`,
-      attachments: [
-        {
-          filename: path.basename(pdfPath),
-          path: pdfPath
-        }
-      ]
-    };
+      const mailOptions = {
+        from: '"DAP AutoPart\'s" <' + process.env.EMAIL_USER + '>',
+        to: destinatariosPrincipales.join(', '),
+        cc: ccList.join(', '),
+        subject: asuntoFormateado,
+        text: cuerpo || `Cordial saludo.
+      
+      Se adjunta orden de pedido #${ordenNumero} del cliente ${clienteNombre}.
+      
+      Por su colaboración mil gracias.
+      
+      Cordialmente,
+      
+      ${asesorEmail ? asesorEmail.split('@')[0] : 'Asesor'}
+      Asesor comercial 
+      Distribuciones AutoPart's SAS`,
+        attachments: [
+          {
+            filename: path.basename(pdfPath),
+            path: pdfPath
+          }
+        ]
+      };
 
     console.log("Enviando correo con las siguientes opciones:");
     console.log("- De:", mailOptions.from);
