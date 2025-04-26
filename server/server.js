@@ -28,8 +28,6 @@ const baseStoragePath = isProduction
       console.log(`Carpeta base de almacenamiento creada: ${baseStoragePath}`);
     } catch (error) {
       console.error(`Error al crear carpeta base de almacenamiento: ${error.message}`);
-      // Continuar aunque haya un error, ya que en desarrollo local esto fallará
-      // pero no es relevante porque no queremos almacenamiento local
     }
   }
 
@@ -1933,11 +1931,17 @@ app.post('/upload-asesores', requireAuth, upload.single('asesores'), (req, res) 
 const iconv = require('iconv-lite');
 function procesarCsvProductos(filePath) {
   try {
-    // Leer el archivo completo
+    console.log(`Procesando CSV desde: ${filePath}`);
+    
+    // Verificar que el archivo existe
+    if (!fs.existsSync(filePath)) {
+      console.error(`El archivo no existe: ${filePath}`);
+      return [];
+    }
     const buffer = fs.readFileSync(filePath);
     const fileContent = iconv.decode(buffer, 'win1252');
     
-    
+    console.log(`Archivo leído correctamente, tamaño: ${buffer.length} bytes`);
     // Dividir por líneas
     const lines = fileContent.split('\n');
     
@@ -2499,10 +2503,19 @@ app.post('/upload-productos', requireAuth, upload.single('productos'), (req, res
 
     const sourcePath = req.file.path;
     const destPath = path.join(productosDirPath, 'productos.csv');
-    const nombreOriginal = req.file.originalname; // Nombre original del archivo
+    const nombreOriginal = req.file.originalname;
 
-    // Validar el formato CSV antes de guardarlo
+    // Validar el formato CSV directamente desde la ruta temporal
     try {
+      console.log(`Validando CSV desde la ruta temporal: ${sourcePath}`);
+      // Verificar que el archivo existe
+      if (!fs.existsSync(sourcePath)) {
+        return res.status(400).json({
+          success: false,
+          message: `El archivo temporal no existe: ${sourcePath}`
+        });
+      }
+      
       // Verificar que podemos procesar el archivo
       const productos = procesarCsvProductos(sourcePath);
       
@@ -2515,19 +2528,48 @@ app.post('/upload-productos', requireAuth, upload.single('productos'), (req, res
       
       console.log(`CSV validado correctamente con ${productos.length} productos`);
     } catch (error) {
+      console.error('Error al validar CSV:', error);
       return res.status(400).json({ 
         success: false, 
         message: `Error al validar CSV: ${error.message}` 
       });
     }
 
-    // Si el archivo es válido, guardarlo
-    if (fs.existsSync(destPath)) {
-      fs.unlinkSync(destPath);
+    // Asegurarse de que el directorio de productos existe
+    if (!fs.existsSync(productosDirPath)) {
+      console.log(`Creando directorio de productos: ${productosDirPath}`);
+      fs.mkdirSync(productosDirPath, { recursive: true });
     }
 
-    fs.copyFileSync(sourcePath, destPath);
-    fs.unlinkSync(sourcePath);
+    // Si el archivo es válido, guardarlo
+    if (fs.existsSync(destPath)) {
+      try {
+        fs.unlinkSync(destPath);
+        console.log(`Archivo existente eliminado: ${destPath}`);
+      } catch (deleteErr) {
+        console.error(`Error al eliminar archivo existente: ${deleteErr}`);
+      }
+    }
+
+    try {
+      console.log(`Copiando de ${sourcePath} a ${destPath}`);
+      fs.copyFileSync(sourcePath, destPath);
+      console.log(`Archivo copiado exitosamente`);
+      
+      // Eliminar el archivo temporal
+      try {
+        fs.unlinkSync(sourcePath);
+        console.log(`Archivo temporal eliminado: ${sourcePath}`);
+      } catch (deleteErr) {
+        console.error(`Error al eliminar archivo temporal: ${deleteErr}`);
+      }
+    } catch (copyErr) {
+      console.error(`Error al copiar archivo: ${copyErr}`);
+      return res.status(500).json({
+        success: false,
+        message: `Error al copiar archivo: ${copyErr.message}`
+      });
+    }
     
     // Guardar metadatos con el nombre original
     guardarMetadatosArchivo('productos', nombreOriginal);
