@@ -451,7 +451,6 @@ pw.Widget _buildPDFCompactInfoRow(String label, String value) {
 }
 
 
-
 Future<Uint8List?> _generarPDFMejorado() async {
   try {
     // Crear un documento PDF
@@ -648,60 +647,67 @@ Future<Uint8List?> _generarPDFMejorado() async {
             
             // Tabla de productos completa
             pw.Table(
-              border: pw.TableBorder.all(),
-              columnWidths: {
-                0: pw.FixedColumnWidth(25), // #
-                1: pw.FixedColumnWidth(50), // CÓDIGO
-                2: pw.FixedColumnWidth(30), // UB
-                3: pw.FixedColumnWidth(60), // REF
-                4: pw.FixedColumnWidth(50), // ORIGEN
-                5: pw.FixedColumnWidth(100), // DESCRIPCIÓN
-                6: pw.FixedColumnWidth(110), // VEHÍCULO
-                7: pw.FixedColumnWidth(50), // MARCA
-                8: pw.FixedColumnWidth(50), // ANTES IVA
-                9: pw.FixedColumnWidth(40), // DSCTO
-                10: pw.FixedColumnWidth(30), // CANT
-                11: pw.FixedColumnWidth(50), // V.BRUTO
-              },
-              children: [
-                // Encabezado
-                pw.TableRow(
-                  decoration: pw.BoxDecoration(color: PdfColors.blue900),
-                  children: [
-                    _buildPDFHeaderCell('#'),
-                    _buildPDFHeaderCell('CÓDIGO'),
-                    _buildPDFHeaderCell('UB'),
-                    _buildPDFHeaderCell('REF'),
-                    _buildPDFHeaderCell('ORIGEN'),
-                    _buildPDFHeaderCell('DESCRIPCIÓN'),
-                    _buildPDFHeaderCell('VEHÍCULO'),
-                    _buildPDFHeaderCell('MARCA'),
-                    _buildPDFHeaderCell('V. ANTES IVA'),
-                    _buildPDFHeaderCell('DSCTO'),
-                    _buildPDFHeaderCell('CANT'),
-                    _buildPDFHeaderCell('V.BRUTO'),
-                  ],
-                ),
-                
-                // Filas de productos
-                ...productosAgregados.map((producto) => pw.TableRow(
-                  children: [
-                    _buildPDFDataCell(producto['#']?.toString() ?? ''),
-                    _buildPDFDataCell(producto['CODIGO']?.toString() ?? ''),
-                    _buildPDFDataCell(producto['UB']?.toString() ?? ''),
-                    _buildPDFDataCell(producto['REF']?.toString() ?? ''),
-                    _buildPDFDataCell(producto['ORIGEN']?.toString() ?? ''),
-                    _buildPDFDataCell(producto['DESCRIPCION']?.toString() ?? ''),
-                    _buildPDFDataCell(producto['VEHICULO']?.toString() ?? ''),
-                    _buildPDFDataCell(producto['MARCA']?.toString() ?? ''),
-                    _buildPDFDataCell(formatCurrency(producto['VLR ANTES DE IVA'])),
-                    _buildPDFDataCell('${producto['DSCTO']}%'),
-                    _buildPDFDataCell(producto['CANT']?.toString() ?? ''),
-                    _buildPDFDataCell(formatCurrency(producto['V.BRUTO'])),
-                  ],
-                )).toList(),
-              ],
-            ),
+  border: pw.TableBorder.all(),
+  columnWidths: {
+    0: pw.FixedColumnWidth(25),  // #
+    1: pw.FixedColumnWidth(50),  // CÓDIGO
+    2: pw.FixedColumnWidth(30),  // UB
+    3: pw.FixedColumnWidth(60),  // REF
+    4: pw.FixedColumnWidth(50),  // ORIGEN
+    5: pw.FixedColumnWidth(100), // DESCRIPCIÓN
+    6: pw.FixedColumnWidth(110), // VEHÍCULO
+    7: pw.FixedColumnWidth(50),  // MARCA
+    8: pw.FixedColumnWidth(55),  // ANTES IVA (aumentado ligeramente)
+    9: pw.FixedColumnWidth(40),  // DSCTO
+    10: pw.FixedColumnWidth(30), // CANT
+    11: pw.FixedColumnWidth(55), // V.BRUTO (aumentado ligeramente)
+  },
+  children: [
+    // Encabezado
+    pw.TableRow(
+      decoration: pw.BoxDecoration(color: PdfColors.blue900),
+      children: [
+        _buildPDFHeaderCell('#'),
+        _buildPDFHeaderCell('CÓDIGO'),
+        _buildPDFHeaderCell('UB'),
+        _buildPDFHeaderCell('REF'),
+        _buildPDFHeaderCell('ORIGEN'),
+        _buildPDFHeaderCell('DESCRIPCIÓN'),
+        _buildPDFHeaderCell('VEHÍCULO'),
+        _buildPDFHeaderCell('MARCA'),
+        _buildPDFHeaderCell('V. ANTES IVA'),
+        _buildPDFHeaderCell('DSCTO'),
+        _buildPDFHeaderCell('CANT'),
+        _buildPDFHeaderCell('V.BRUTO'),
+      ],
+    ),
+    
+    // Filas de productos
+    ...productosAgregados.map((producto) => pw.TableRow(
+      children: [
+        _buildPDFDataCell(producto['#']?.toString() ?? ''),
+        _buildPDFDataCell(producto['CODIGO']?.toString() ?? ''),
+        _buildPDFDataCell(producto['UB']?.toString() ?? ''),
+        _buildPDFDataCell(producto['REF']?.toString() ?? ''),
+        _buildPDFDataCell(producto['ORIGEN']?.toString() ?? ''),
+        _buildPDFDataCell(producto['DESCRIPCION']?.toString() ?? ''),
+        _buildPDFDataCell(producto['VEHICULO']?.toString() ?? ''),
+        _buildPDFDataCell(producto['MARCA']?.toString() ?? ''),
+        _buildPDFDataCell(
+          formatCurrency(producto['VLR ANTES DE IVA']),
+          style: pw.TextStyle(fontSize: 7)
+        ),
+        _buildPDFDataCell('${producto['DSCTO']}%'),
+        _buildPDFDataCell(producto['CANT']?.toString() ?? ''),
+        _buildPDFDataCell(
+          formatCurrency(producto['V.BRUTO']),
+          style: pw.TextStyle(fontSize: 7)
+        ),
+      ],
+    )).toList(),
+  ],
+),
+
             
             pw.SizedBox(height: 20),
             
@@ -863,15 +869,15 @@ Future<Uint8List?> _generarPDFMejorado() async {
 }
 
 
-  pw.Widget _buildPDFHeaderCell(String text, {pw.TextStyle? style}) {
+  pw.Widget _buildPDFHeaderCell(String text) {
   return pw.Padding(
-    padding: pw.EdgeInsets.all(3),
+    padding: pw.EdgeInsets.all(2), // Reducir padding
     child: pw.Text(
       text,
-      style: style ?? pw.TextStyle(
+      style: pw.TextStyle(
         fontWeight: pw.FontWeight.bold,
         color: PdfColors.white,
-        fontSize: 8,
+        fontSize: 7, // Reducir tamaño de fuente
       ),
       textAlign: pw.TextAlign.center,
     ),
@@ -879,13 +885,13 @@ Future<Uint8List?> _generarPDFMejorado() async {
 }
   pw.Widget _buildPDFDataCell(String text, {pw.TextStyle? style}) {
   return pw.Padding(
-    padding: pw.EdgeInsets.all(3),
+    padding: pw.EdgeInsets.all(2), // Reducir padding
     child: pw.Text(
       text,
-      style: style ?? pw.TextStyle(fontSize: 8),
+      style: style ?? pw.TextStyle(fontSize: 7), // Reducir tamaño de fuente
       textAlign: pw.TextAlign.center,
-      maxLines: 2,
-      overflow: pw.TextOverflow.clip,
+      maxLines: 1, // Forzar a una sola línea (importante)
+      overflow: pw.TextOverflow.clip, // Recortar texto si es necesario
     ),
   );
 }
@@ -2830,7 +2836,6 @@ String formatCurrency(dynamic value) {
     numValue = value.toDouble();
   } else {
     try {
-      // Limpia el valor de cualquier formato no numérico
       String cleanValue = value.toString()
           .replaceAll('\$', '')
           .replaceAll(',', '')
@@ -2841,11 +2846,8 @@ String formatCurrency(dynamic value) {
     }
   }
   
-  // Imprimir para depuración
-  print("Formateando para PDF: $numValue");
-  
+  // Usar un formato más compacto sin decimales
   try {
-    // En lugar de usar NumberFormat.currency, formateamos manualmente
     final formatter = NumberFormat('#,###', 'es_CO');
     return '\$${formatter.format(numValue)}';
   } catch (e) {
@@ -2853,6 +2855,7 @@ String formatCurrency(dynamic value) {
     return '\$${numValue.toStringAsFixed(0)}';
   }
 }
+
 
 
 
