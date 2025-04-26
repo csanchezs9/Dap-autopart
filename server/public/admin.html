@@ -460,9 +460,10 @@
                     <span id="imagenesNombre">Últimas imágenes subidas: Ninguna</span>
                 </div>
                 
-                <button type="submit" class="btn">Subir Imágenes</button>
+                <button type="submit" class="btn" id="submitImagenes">Subir Imágenes</button>
             </form>
         </div>
+        
         
         <div class="card">
             <h2>Actualizar Lista de Correos por Área</h2>
@@ -574,12 +575,12 @@
 });
         });
         // Reemplaza la función uploadImages con esta implementación por lotes
-function uploadImagesInBatches() {
+        function uploadImagesInBatches() {
     console.log("Iniciando subida de imágenes por lotes");
     
     const fileInput = document.getElementById('imagenes');
     const files = fileInput.files;
-    const batchSize = 20; // Configurar aquí el tamaño de cada lote (100 imágenes a la vez)
+    const batchSize = 20; // Configurar aquí el tamaño de cada lote
     
     if (!files || files.length === 0) {
         console.log("No se seleccionaron imágenes");
@@ -757,11 +758,6 @@ function uploadImagesInBatches() {
         xhr.timeout = 300000; // 5 minutos de timeout por lote
         xhr.send(formData);
     }
-
-    function uploadImages() {
-    // Simplemente llamar a la función de lotes existente
-    uploadImagesInBatches();
-}
     
     // Función para finalizar todo el proceso
     function finalizarProceso() {
@@ -789,6 +785,11 @@ function uploadImagesInBatches() {
         
         // Limpiar formulario
         document.getElementById('imagenes').value = '';
+        
+        // Actualizar la visualización de imágenes si estamos en esa sección
+        if (typeof cargarImagenes === 'function') {
+            cargarImagenes();
+        }
     }
     
     // Iniciar el proceso con el primer lote
@@ -1249,13 +1250,30 @@ let currentPage = 1;
     
     // Cargar imágenes cuando se carga la página
     document.addEventListener('DOMContentLoaded', function() {
-        // Añadir esta llamada a la función ya existente
-        const existingOnLoad = window.onload;
-        window.onload = function() {
-            if (existingOnLoad) existingOnLoad();
-            cargarImagenes();
-        };
-    });
+    // Añadir un manejador de eventos específico
+    var imagenesForm = document.getElementById('imagenesForm');
+    if (imagenesForm) {
+        console.log("Formulario de imágenes encontrado, añadiendo listener");
+        imagenesForm.addEventListener('submit', function(e) {
+            console.log("Evento submit de imagenesForm capturado");
+            e.preventDefault();
+            uploadImagesInBatches();
+        });
+    } else {
+        console.error("Formulario de imágenes no encontrado en el DOM");
+    }
+    
+    // También añadir un listener al botón directamente
+    var submitBtn = document.getElementById('submitImagenes');
+    if (submitBtn) {
+        console.log("Botón de subida encontrado, añadiendo listener");
+        submitBtn.addEventListener('click', function(e) {
+            console.log("Clic en botón de subida detectado");
+            e.preventDefault();
+            uploadImagesInBatches();
+        });
+    }
+});
     </script>
 </body>
 </html>
