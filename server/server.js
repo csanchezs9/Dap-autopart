@@ -1935,8 +1935,8 @@ function procesarCsvProductos(filePath) {
     
     // Verificar que el archivo existe
     if (!fs.existsSync(filePath)) {
-      console.error(`El archivo no existe: ${filePath}`);
-      return [];
+      console.log(`El archivo no existe o ya fue procesado: ${filePath}`);
+      return []; // Devolver array vacío sin mostrar error en consola
     }
     const buffer = fs.readFileSync(filePath);
     
@@ -2531,9 +2531,13 @@ app.post('/upload-productos', requireAuth, upload.single('productos'), (req, res
     const destPath = path.join(productosDirPath, 'productos.csv');
     const nombreOriginal = req.file.originalname;
 
+    // Añadir bandera para evitar validaciones duplicadas
+    let archivoYaProcesado = false;
+
     // Validar el formato CSV directamente desde la ruta temporal
     try {
       console.log(`Validando CSV desde la ruta temporal: ${sourcePath}`);
+      
       // Verificar que el archivo existe
       if (!fs.existsSync(sourcePath)) {
         return res.status(400).json({
@@ -2554,11 +2558,14 @@ app.post('/upload-productos', requireAuth, upload.single('productos'), (req, res
       
       console.log(`CSV validado correctamente con ${productos.length} productos`);
     } catch (error) {
-      console.error('Error al validar CSV:', error);
-      return res.status(400).json({ 
-        success: false, 
-        message: `Error al validar CSV: ${error.message}` 
-      });
+      // Solo mostrar el error si el archivo no ha sido procesado
+      if (!archivoYaProcesado) {
+        console.error('Error al validar CSV:', error);
+        return res.status(400).json({ 
+          success: false, 
+          message: `Error al validar CSV: ${error.message}` 
+        });
+      }
     }
 
     // Asegurarse de que el directorio de productos existe
@@ -2582,6 +2589,9 @@ app.post('/upload-productos', requireAuth, upload.single('productos'), (req, res
       fs.copyFileSync(sourcePath, destPath);
       console.log(`Archivo copiado exitosamente`);
       
+      // Marcar como procesado después de copiar exitosamente
+      archivoYaProcesado = true;
+      
       // Eliminar el archivo temporal
       try {
         fs.unlinkSync(sourcePath);
@@ -2600,7 +2610,9 @@ app.post('/upload-productos', requireAuth, upload.single('productos'), (req, res
     // Guardar metadatos con el nombre original
     guardarMetadatosArchivo('productos', nombreOriginal);
 
+    // Responder al cliente solo una vez y salir de la función
     res.json({ success: true, message: 'Archivo de productos actualizado correctamente' });
+    return;
   } catch (error) {
     console.error('Error al subir archivo de productos:', error);
     res.status(500).json({ success: false, message: error.toString() });
