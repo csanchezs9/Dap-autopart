@@ -1939,7 +1939,33 @@ function procesarCsvProductos(filePath) {
       return [];
     }
     const buffer = fs.readFileSync(filePath);
-    const fileContent = iconv.decode(buffer, 'win1252');
+    
+    // Probar diferentes encodings para encontrar el mejor
+    const encodingsToTry = ['utf8', 'win1252', 'latin1', 'iso-8859-1'];
+    let fileContent = '';
+    let bestEncoding = '';
+    let minErrorCount = Infinity;
+    
+    for (const encoding of encodingsToTry) {
+      try {
+        const testContent = iconv.decode(buffer, encoding);
+        // Contar caracteres problemáticos
+        const errorCount = (testContent.match(/�/g) || []).length;
+        
+        if (errorCount < minErrorCount) {
+          minErrorCount = errorCount;
+          fileContent = testContent;
+          bestEncoding = encoding;
+          
+          // Si no hay errores, usar este encoding inmediatamente
+          if (errorCount === 0) break;
+        }
+      } catch (e) {
+        console.log(`Error al decodificar con ${encoding}`);
+      }
+    }
+    
+    console.log(`Usando encoding ${bestEncoding} para CSV de productos`);
     
     console.log(`Archivo leído correctamente, tamaño: ${buffer.length} bytes`);
     // Dividir por líneas
