@@ -452,12 +452,17 @@ pw.Widget _buildPDFCompactInfoRow(String label, String value) {
 
 
 Future<Uint8List?> _generarPDFMejorado() async {
-  try {
-    // Crear un documento PDF
+   try {
+    // Crear un documento PDF con mejor manejo de textos largos
     final pdf = pw.Document();
     final ByteData logoData = await rootBundle.load('assets/images/logo.png');
-  final Uint8List logoBytes = logoData.buffer.asUint8List();
-  final logoImage = pw.MemoryImage(logoBytes);
+    final Uint8List logoBytes = logoData.buffer.asUint8List();
+    final logoImage = pw.MemoryImage(logoBytes);
+    
+    // Registrar la fuente Roboto para soporte de caracteres especiales
+    final fontData = await rootBundle.load("assets/fonts/Roboto-Regular.ttf");
+    final ttf = pw.Font.ttf(fontData.buffer.asByteData());
+    
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
@@ -647,20 +652,20 @@ Future<Uint8List?> _generarPDFMejorado() async {
             
             // Tabla de productos completa
             pw.Table(
-  border: pw.TableBorder.all(),
+  border: pw.TableBorder.all(width: 0.5), // Borde más delgado
   columnWidths: {
-    0: pw.FixedColumnWidth(25),  // #
-    1: pw.FixedColumnWidth(50),  // CÓDIGO
-    2: pw.FixedColumnWidth(30),  // UB
-    3: pw.FixedColumnWidth(60),  // REF
-    4: pw.FixedColumnWidth(50),  // ORIGEN
-    5: pw.FixedColumnWidth(100), // DESCRIPCIÓN
-    6: pw.FixedColumnWidth(110), // VEHÍCULO
-    7: pw.FixedColumnWidth(50),  // MARCA
-    8: pw.FixedColumnWidth(55),  // ANTES IVA (aumentado ligeramente)
-    9: pw.FixedColumnWidth(40),  // DSCTO
-    10: pw.FixedColumnWidth(30), // CANT
-    11: pw.FixedColumnWidth(55), // V.BRUTO (aumentado ligeramente)
+    0: pw.FixedColumnWidth(18),  // # - más compacto
+    1: pw.FixedColumnWidth(40),  // CÓDIGO
+    2: pw.FixedColumnWidth(25),  // UB - más compacto
+    3: pw.FixedColumnWidth(45),  // REF
+    4: pw.FixedColumnWidth(40),  // ORIGEN - ajustado
+    5: pw.FlexColumnWidth(5.0),  // DESCRIPCIÓN
+    6: pw.FlexColumnWidth(4.0),  // VEHÍCULO
+    7: pw.FixedColumnWidth(35),  // MARCA - más compacto
+    8: pw.FixedColumnWidth(45),  // ANTES IVA - ajustado al contenido
+    9: pw.FixedColumnWidth(30),  // DSCTO - más compacto
+    10: pw.FixedColumnWidth(25), // CANT - más compacto
+    11: pw.FixedColumnWidth(45), // V.BRUTO - ajustado al contenido
   },
   children: [
     // Encabezado
@@ -684,27 +689,25 @@ Future<Uint8List?> _generarPDFMejorado() async {
     
     // Filas de productos
     ...productosAgregados.map((producto) => pw.TableRow(
-      children: [
-        _buildPDFDataCell(producto['#']?.toString() ?? ''),
-        _buildPDFDataCell(producto['CODIGO']?.toString() ?? ''),
-        _buildPDFDataCell(producto['UB']?.toString() ?? ''),
-        _buildPDFDataCell(producto['REF']?.toString() ?? ''),
-        _buildPDFDataCell(producto['ORIGEN']?.toString() ?? ''),
-        _buildPDFDataCell(producto['DESCRIPCION']?.toString() ?? ''),
-        _buildPDFDataCell(producto['VEHICULO']?.toString() ?? ''),
-        _buildPDFDataCell(producto['MARCA']?.toString() ?? ''),
-        _buildPDFDataCell(
-          formatCurrency(producto['VLR ANTES DE IVA']),
-          style: pw.TextStyle(fontSize: 7)
-        ),
-        _buildPDFDataCell('${producto['DSCTO']}%'),
-        _buildPDFDataCell(producto['CANT']?.toString() ?? ''),
-        _buildPDFDataCell(
-          formatCurrency(producto['V.BRUTO']),
-          style: pw.TextStyle(fontSize: 7)
-        ),
-      ],
-    )).toList(),
+  children: [
+    _buildPDFDataCell(producto['#']?.toString() ?? '', columnIndex: 0),
+    _buildPDFDataCell(producto['CODIGO']?.toString() ?? '', columnIndex: 1),
+    _buildPDFDataCell(producto['UB']?.toString() ?? '', columnIndex: 2),
+    _buildPDFDataCell(producto['REF']?.toString() ?? '', columnIndex: 3),
+    _buildPDFDataCell(producto['ORIGEN']?.toString() ?? '', columnIndex: 4),
+    _buildPDFDataCell(producto['DESCRIPCION']?.toString() ?? '', 
+                     style: pw.TextStyle(fontSize: 6, font: ttf), columnIndex: 5),
+    _buildPDFDataCell(producto['VEHICULO']?.toString() ?? '', 
+                     style: pw.TextStyle(fontSize: 6, font: ttf), columnIndex: 6),
+    _buildPDFDataCell(producto['MARCA']?.toString() ?? '', columnIndex: 7),
+    _buildPDFDataCell(formatCurrency(producto['VLR ANTES DE IVA']),
+                     style: pw.TextStyle(fontSize: 6), columnIndex: 8),
+    _buildPDFDataCell(formatearPorcentaje(producto['DSCTO']), columnIndex: 9),
+    _buildPDFDataCell(producto['CANT']?.toString() ?? '', columnIndex: 10),
+    _buildPDFDataCell(formatCurrency(producto['V.BRUTO']),
+                     style: pw.TextStyle(fontSize: 6), columnIndex: 11),
+  ],
+)).toList(),
   ],
 ),
 
@@ -868,6 +871,30 @@ Future<Uint8List?> _generarPDFMejorado() async {
   }
 }
 
+String formatearPorcentaje(dynamic valor) {
+  if (valor == null) return '0%';
+  
+  double porcentaje;
+  if (valor is num) {
+    porcentaje = valor.toDouble();
+  } else {
+    try {
+      porcentaje = double.parse(valor.toString().replaceAll('%', '').trim());
+    } catch (e) {
+      return '0%';
+    }
+  }
+  
+  // Verificar si es entero
+  if (porcentaje == porcentaje.roundToDouble()) {
+    // Si es entero, mostrar sin decimales
+    return '${porcentaje.toInt()}%';
+  } else {
+    // Si tiene decimales, mostrar con un decimal
+    return '${porcentaje.toStringAsFixed(1)}%';
+  }
+}
+
 
   pw.Widget _buildPDFHeaderCell(String text) {
   return pw.Padding(
@@ -883,15 +910,31 @@ Future<Uint8List?> _generarPDFMejorado() async {
     ),
   );
 }
-  pw.Widget _buildPDFDataCell(String text, {pw.TextStyle? style}) {
+pw.Widget _buildPDFDataCell(String text, {pw.TextStyle? style, int? columnIndex}) {
+  // Definir alineación basada en el índice de columna
+  pw.TextAlign alignment;
+  
+  switch (columnIndex) {
+    case 5: // DESCRIPCIÓN
+    case 6: // VEHÍCULO
+      alignment = pw.TextAlign.left; // Solo estas columnas van alineadas a la izquierda
+      break;
+    default:
+      alignment = pw.TextAlign.center; // TODO lo demás centrado (incluye VALORES MONETARIOS)
+      break;
+  }
+  
+  // Determinar si es texto que puede requerir múltiples líneas
+  bool needsMultiLine = (columnIndex == 5 || columnIndex == 6);
+  
   return pw.Padding(
-    padding: pw.EdgeInsets.all(2), // Reducir padding
+    padding: pw.EdgeInsets.all(1),
     child: pw.Text(
       text,
-      style: style ?? pw.TextStyle(fontSize: 7), // Reducir tamaño de fuente
-      textAlign: pw.TextAlign.center,
-      maxLines: 1, // Forzar a una sola línea (importante)
-      overflow: pw.TextOverflow.clip, // Recortar texto si es necesario
+      style: style ?? pw.TextStyle(fontSize: 6),
+      textAlign: alignment,
+      maxLines: needsMultiLine ? null : 1,
+      overflow: needsMultiLine ? pw.TextOverflow.visible : pw.TextOverflow.clip,
     ),
   );
 }
@@ -1272,7 +1315,7 @@ Future<Uint8List?> _generarPDFMejorado() async {
                                   _buildDataCell(producto['VEHICULO']?.toString() ?? '', producto: producto),
                                   _buildDataCell(producto['MARCA']?.toString() ?? '', producto: producto),
                                   _buildDataCell(_formatMoneda(producto['VLR ANTES DE IVA']), producto: producto),
-                                  _buildDataCell('${producto['DSCTO']}%', producto: producto),
+                                  _buildDataCell(formatearPorcentaje(producto['DSCTO']), producto: producto),
                                   _buildDataCell(producto['CANT']?.toString() ?? '', producto: producto),
                                   _buildDataCell(_formatMoneda(producto['V.BRUTO']), producto: producto),
                                     ],
@@ -1404,6 +1447,37 @@ Future<Uint8List?> _generarPDFMejorado() async {
   });
 
   try {
+    // IMPORTANTE: Primero confirmar el número de orden para incrementar el contador
+    // ANTES de cualquier operación de envío
+    print("Confirmando número de orden ${widget.ordenNumero} antes del envío...");
+    try {
+      final confirmarResponse = await http.post(
+        Uri.parse('${ProductoService.baseUrl}/confirmar-orden'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'numeroOrden': widget.ordenNumero,
+        }),
+      ).timeout(
+        Duration(seconds: 10),
+        onTimeout: () => throw Exception('Tiempo de espera agotado al confirmar número'),
+      );
+      
+      if (confirmarResponse.statusCode == 200) {
+        final data = json.decode(confirmarResponse.body);
+        if (data['success']) {
+          print("✅ Número de orden confirmado e incrementado correctamente");
+        } else {
+          print("⚠️ Error al confirmar número: ${data['message']}");
+          // Continuar a pesar del error, no bloquear proceso
+        }
+      } else {
+        print("⚠️ Error HTTP al confirmar número: ${confirmarResponse.statusCode}");
+      }
+    } catch (e) {
+      print("⚠️ Excepción al confirmar número: $e");
+      // Continuar a pesar del error, no bloquear proceso
+    }
+
     // Verificar conectividad con un ping rápido
     try {
       final pingResponse = await http.get(
@@ -1512,12 +1586,12 @@ Future<Uint8List?> _generarPDFMejorado() async {
       Uri.parse('${ProductoService.baseUrl}/send-email'),    
     );
     
-     final nombreCliente = widget.clienteData['NOMBRE'] ?? '';
+    final nombreCliente = widget.clienteData['NOMBRE'] ?? '';
     // Agregar los campos
     request.fields['clienteEmail'] = emailCliente;
     request.fields['asesorEmail'] = widget.asesorData['MAIL'] ?? '';
-    request.fields['clienteNombre'] = nombreCliente; // Nuevo: nombre del cliente
-    request.fields['ordenNumero'] = widget.ordenNumero; // Nuevo: número de orden
+    request.fields['clienteNombre'] = nombreCliente; // Nombre del cliente
+    request.fields['ordenNumero'] = widget.ordenNumero; // Número de orden
     
     // Formato original del asunto (el servidor lo reformateará)
     request.fields['cuerpo'] = '''Cordial saludo.
@@ -1558,43 +1632,29 @@ Distribuciones AutoPart's SAS
       final jsonResponse = json.decode(response.body);
       
       if (jsonResponse['success']) {
-        // ✨ NUEVO: Confirmar el uso del número de orden para sincronizar con otros dispositivos
+        // Ya no necesitamos llamar a confirmar-orden aquí, porque lo hicimos al inicio
+        
+        // NUEVO: Solicitar el siguiente número para actualizar localmente
         try {
-          // Enviar confirmación al servidor
-          await http.post(
-            Uri.parse('${ProductoService.baseUrl}/confirmar-orden'),
-            headers: {'Content-Type': 'application/json'},
-            body: json.encode({
-              'numeroOrden': widget.ordenNumero,
-            }),
+          final nextNumResponse = await http.get(
+            Uri.parse('${ProductoService.baseUrl}/siguiente-orden'),
+          ).timeout(
+            Duration(seconds: 5),
+            onTimeout: () => throw Exception('Tiempo de espera agotado'),
           );
-          print("Número de orden confirmado en el servidor");
           
-          // NUEVO: Solicitar el siguiente número para actualizar localmente
-          try {
-            final nextNumResponse = await http.get(
-              Uri.parse('${ProductoService.baseUrl}/siguiente-orden'),
-            ).timeout(
-              Duration(seconds: 5),
-              onTimeout: () => throw Exception('Tiempo de espera agotado'),
-            );
-            
-            if (nextNumResponse.statusCode == 200) {
-              final nextNumData = json.decode(nextNumResponse.body);
-              if (nextNumData['success'] && nextNumData.containsKey('numeroOrden')) {
-                // Guardar este nuevo número en SharedPreferences
-                final prefs = await SharedPreferences.getInstance();
-                await prefs.setString('ultimo_numero_orden', nextNumData['numeroOrden']);
-                print("Nuevo número de orden guardado localmente: ${nextNumData['numeroOrden']}");
-              }
+          if (nextNumResponse.statusCode == 200) {
+            final nextNumData = json.decode(nextNumResponse.body);
+            if (nextNumData['success'] && nextNumData.containsKey('numeroOrden')) {
+              // Guardar este nuevo número en SharedPreferences
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setString('ultimo_numero_orden', nextNumData['numeroOrden']);
+              print("Nuevo número de orden guardado localmente: ${nextNumData['numeroOrden']}");
             }
-          } catch (e) {
-            print("Error al obtener siguiente número de orden: $e");
-            // No detener el flujo por este error
           }
         } catch (e) {
-          print("Error al confirmar número de orden: $e");
-          // Continuar aunque falle la confirmación
+          print("Error al obtener siguiente número de orden: $e");
+          // No detener el flujo por este error
         }
         
         // Obtener listas de destinatarios (a las que el servidor envió el correo)
@@ -1649,106 +1709,136 @@ Distribuciones AutoPart's SAS
         
         // Mostrar diálogo de éxito mejorado
         showDialog(
-  context: context,
-  barrierDismissible: false, // No permitir cerrar tocando fuera
-  builder: (BuildContext context) {
-    return AlertDialog(
-      title: Text('Correo enviado'),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Icon(Icons.check_circle, color: Colors.green, size: 48),
-            ),
-            SizedBox(height: 16),
-            Center(
-              child: Text('La orden ha sido enviada correctamente'),
-            ),
-            SizedBox(height: 16),
-            
-            // Sección de destinatarios principales
-            if (destinatariosPrincipales.isNotEmpty) ...[
-              Text('Destinatarios principales:',
-                style: TextStyle(fontWeight: FontWeight.bold)),
-              SizedBox(height: 4),
-              Container(
-                width: double.infinity,
-                padding: EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.blue.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: Colors.blue.withOpacity(0.3)),
-                ),
+          context: context,
+          barrierDismissible: false, // No permitir cerrar tocando fuera
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: Text('Correo enviado'),
+              content: SingleChildScrollView(
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: destinatariosPrincipales.map((email) => 
-                    Padding(
-                      padding: EdgeInsets.symmetric(vertical: 2),
-                      child: Text(email),
-                    )
-                  ).toList(),
+                  children: [
+                    Center(
+                      child: Icon(Icons.check_circle, color: Colors.green, size: 48),
+                    ),
+                    SizedBox(height: 16),
+                    Center(
+                      child: Text('La orden ha sido enviada correctamente'),
+                    ),
+                    SizedBox(height: 16),
+                    
+                    // Sección de destinatarios principales
+                    if (destinatariosPrincipales.isNotEmpty) ...[
+                      Text('Destinatarios principales:',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                      SizedBox(height: 4),
+                      Container(
+                        width: double.infinity,
+                        padding: EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: destinatariosPrincipales.map((email) => 
+                            Padding(
+                              padding: EdgeInsets.symmetric(vertical: 2),
+                              child: Text(email),
+                            )
+                          ).toList(),
+                        ),
+                      ),
+                      SizedBox(height: 12),
+                    ],
+                    
+                    // Sección de destinatarios en copia (CC)
+                    if (destinatariosCC.isNotEmpty) ...[
+                      Text('Con copia a:',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                      SizedBox(height: 4),
+                      Container(
+                        width: double.infinity,
+                        padding: EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: Colors.grey.withOpacity(0.3)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: destinatariosCC.map((email) => 
+                            Padding(
+                              padding: EdgeInsets.symmetric(vertical: 2),
+                              child: Text(email),
+                            )
+                          ).toList(),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
-              SizedBox(height: 12),
-            ],
-            
-            // Sección de destinatarios en copia (CC)
-            if (destinatariosCC.isNotEmpty) ...[
-              Text('Con copia a:',
-                style: TextStyle(fontWeight: FontWeight.bold)),
-              SizedBox(height: 4),
-              Container(
-                width: double.infinity,
-                padding: EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.grey.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: Colors.grey.withOpacity(0.3)),
+              actions: [
+                TextButton(
+                  child: Text('Aceptar'),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    
+                    // CAMBIO PRINCIPAL: Después de cerrar el diálogo, volver a la pantalla principal
+                    Navigator.of(context).popUntil((route) => route.isFirst);
+                  },
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: destinatariosCC.map((email) => 
-                    Padding(
-                      padding: EdgeInsets.symmetric(vertical: 2),
-                      child: Text(email),
-                    )
-                  ).toList(),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          child: Text('Aceptar'),
-          onPressed: () {
-            Navigator.of(context).pop();
-            
-            // CAMBIO PRINCIPAL: Después de cerrar el diálogo, volver a la pantalla principal
-            Navigator.of(context).popUntil((route) => route.isFirst);
-            
-            // Otra opción sería hacer una navegación directa a OrdenDePedidoMain
-            // Navigator.pushAndRemoveUntil(
-            //   context,
-            //   MaterialPageRoute(builder: (context) => OrdenDePedidoMain()),
-            //   (route) => false,
-            // );
+              ],
+            );
           },
-        ),
-      ],
-    );
-  },
-);
+        );
       } else {
         throw Exception("Error del servidor: ${jsonResponse['message']}");
+      }
+    } else if (response.statusCode == 409) {
+      // Código especial para número duplicado
+      try {
+        final jsonResponse = json.decode(response.body);
+        final nuevoNumero = jsonResponse['nuevoNumero'];
+        
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: Text('Número de orden duplicado'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.warning, color: Colors.orange, size: 48),
+                  SizedBox(height: 16),
+                  Text('El número de orden ${widget.ordenNumero} ya ha sido utilizado.'),
+                  Text('Se ha generado un nuevo número: $nuevoNumero'),
+                  SizedBox(height: 16),
+                  Text('Por favor, vuelva a intentar con el nuevo número.'),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  child: Text('Entendido'),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    Navigator.of(context).popUntil((route) => route.isFirst);
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      } catch (e) {
+        throw Exception("Error con número duplicado: ${response.body}");
       }
     } else {
       throw Exception("Error de conexión: ${response.statusCode}");
     }
-    
   } catch (e) {
     print("Error detallado: ${e.toString()}");
     

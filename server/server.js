@@ -547,7 +547,10 @@ app.post('/confirmar-orden', (req, res) => {
     const { numeroOrden } = req.body;
     
     if (!numeroOrden) {
-      return res.status(400).json({ success: false, message: 'Falta el número de orden' });
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Falta el número de orden' 
+      });
     }
     
     console.log(`Confirmando uso del número de orden: ${numeroOrden}`);
@@ -559,7 +562,7 @@ app.post('/confirmar-orden', (req, res) => {
     // Incrementar el contador
     const nuevoValor = valorActual + 1;
     
-    // Guardar el nuevo valor directamente al disco
+    // ❗ IMPORTANTE: Guardar de inmediato para evitar condiciones de carrera
     const guardadoExitoso = guardarContadorDisco(nuevoValor);
     
     if (guardadoExitoso) {
@@ -568,9 +571,9 @@ app.post('/confirmar-orden', (req, res) => {
       
       console.log(`Contador incrementado exitosamente a: ${nuevoValor}`);
       
-      // Registrar la operación
+      // Registrar la operación para tener constancia del incremento
       try {
-        const registroPath = path.join(ordenesPath, 'registro.json');
+        const registroPath = path.join(ordenesPath, 'registro_operaciones.json');
         let registro = [];
         
         if (fs.existsSync(registroPath)) {
@@ -579,6 +582,7 @@ app.post('/confirmar-orden', (req, res) => {
         }
         
         registro.push({
+          operacion: 'confirmar_orden',
           numeroOrden: numeroOrden,
           valorAnterior: valorActual,
           valorNuevo: nuevoValor,
@@ -613,6 +617,57 @@ app.post('/confirmar-orden', (req, res) => {
   }
 });
 
+function registrarOrdenEnviada(numeroOrden, clienteNombre, clienteEmail, asesorEmail) {
+  try {
+    const ordenesRegistroPath = path.join(ordenesPath, 'ordenes_enviadas.json');
+    let ordenesEnviadas = [];
+    
+    // Cargar registro existente si existe
+    if (fs.existsSync(ordenesRegistroPath)) {
+      try {
+        const data = fs.readFileSync(ordenesRegistroPath, 'utf8');
+        ordenesEnviadas = JSON.parse(data);
+      } catch (e) {
+        console.error("Error al leer registro de órdenes enviadas:", e);
+        // Continuar con array vacío si hay error
+      }
+    }
+    
+    // Agregar la nueva orden al registro
+    ordenesEnviadas.push({
+      numeroOrden: numeroOrden,
+      fecha: new Date().toISOString(),
+      cliente: clienteNombre || clienteEmail,
+      asesor: asesorEmail
+    });
+    
+    // Guardar el registro actualizado
+    fs.writeFileSync(ordenesRegistroPath, JSON.stringify(ordenesEnviadas, null, 2));
+    console.log(`✅ Orden ${numeroOrden} registrada exitosamente en historial`);
+    return true;
+  } catch (error) {
+    console.error("❌ Error al registrar orden enviada:", error);
+    return false;
+  }
+}
+function verificarOrdenDuplicada(numeroOrden) {
+  try {
+    const ordenesRegistroPath = path.join(ordenesPath, 'ordenes_enviadas.json');
+    
+    if (!fs.existsSync(ordenesRegistroPath)) {
+      return false; // No hay registro, no puede estar duplicada
+    }
+    
+    const data = fs.readFileSync(ordenesRegistroPath, 'utf8');
+    const ordenesEnviadas = JSON.parse(data);
+    
+    // Verificar si este número ya fue usado
+    return ordenesEnviadas.some(o => o.numeroOrden === numeroOrden);
+  } catch (error) {
+    console.error("Error al verificar orden duplicada:", error);
+    return false; // En caso de error, permitir continuar
+  }
+}
 
 app.post('/upload-imagenes', requireAuth, (req, res) => {
   // Usar el middleware de multer directamente en la ruta
@@ -915,14 +970,32 @@ app.post('/upload-correos', requireAuth, upload.single('correos'), (req, res) =>
 // Endpoint para enviar correo
 // Endpoint para enviar correo
 app.post('/send-email', upload.single('pdf'), async (req, res) => {
+  let pdfPath = null;
+
   try {
     const { clienteEmail, asesorEmail, asunto, cuerpo } = req.body;
-    const pdfPath = req.file.path;
     const clienteNombre = req.body.clienteNombre || ''; // Nombre del cliente
     const ordenNumero = req.body.ordenNumero || ''; // Número de orden
+    pdfPath = req.file.path;
 
     if (!clienteEmail) {
       return res.status(400).json({ success: false, message: 'Falta el correo del cliente' });
+    }
+    
+    // NUEVO: Verificar si este número de orden ya se usó antes
+    if (ordenNumero && verificarOrdenDuplicada(ordenNumero)) {
+      console.warn(`⚠️ ALERTA: Intento de envío con número de orden duplicado: ${ordenNumero}`);
+      
+      // Generar un nuevo número para evitar duplicados
+      const nuevoNumero = leerContador() + 1;
+      const nuevoNumeroFormateado = `OP-${nuevoNumero.toString().padStart(5, '0')}`;
+      guardarContadorDisco(nuevoNumero);
+      
+      return res.status(409).json({
+        success: false,
+        message: `El número de orden ${ordenNumero} ya fue utilizado previamente.`,
+        nuevoNumero: nuevoNumeroFormateado
+      });
     }
 
     // Obtener la lista de correos por área 
@@ -986,29 +1059,29 @@ app.post('/send-email', upload.single('pdf'), async (req, res) => {
       `Orden de pedido ${ordenNumero}${clienteNombre ? `, ${clienteNombre}` : ''}` : 
       (asunto || 'Orden de Pedido - DAP AutoPart\'s');
 
-      const mailOptions = {
-        from: '"DAP AutoPart\'s" <' + process.env.EMAIL_USER + '>',
-        to: destinatariosPrincipales.join(', '),
-        cc: ccList.join(', '),
-        subject: asuntoFormateado,
-        text: cuerpo || `Cordial saludo.
-      
-      Se adjunta orden de pedido #${ordenNumero} del cliente ${clienteNombre}.
-      
-      Por su colaboración mil gracias.
-      
-      Cordialmente,
-      
-      ${asesorEmail ? asesorEmail.split('@')[0] : 'Asesor'}
-      Asesor comercial 
-      Distribuciones AutoPart's SAS`,
-        attachments: [
-          {
-            filename: path.basename(pdfPath),
-            path: pdfPath
-          }
-        ]
-      };
+    const mailOptions = {
+      from: '"DAP AutoPart\'s" <' + process.env.EMAIL_USER + '>',
+      to: destinatariosPrincipales.join(', '),
+      cc: ccList.join(', '),
+      subject: asuntoFormateado,
+      text: cuerpo || `Cordial saludo.
+    
+    Se adjunta orden de pedido #${ordenNumero} del cliente ${clienteNombre}.
+    
+    Por su colaboración mil gracias.
+    
+    Cordialmente,
+    
+    ${asesorEmail ? asesorEmail.split('@')[0] : 'Asesor'}
+    Asesor comercial 
+    Distribuciones AutoPart's SAS`,
+      attachments: [
+        {
+          filename: path.basename(pdfPath),
+          path: pdfPath
+        }
+      ]
+    };
 
     console.log("Enviando correo con las siguientes opciones:");
     console.log("- De:", mailOptions.from);
@@ -1020,10 +1093,9 @@ app.post('/send-email', upload.single('pdf'), async (req, res) => {
       const info = await transporter.sendMail(mailOptions);
       console.log("✅ Correo enviado exitosamente:", info.messageId);
       
-      // NO incrementamos el contador aquí, solo registramos que se envió el correo
+      // Registrar la orden como enviada
       if (ordenNumero) {
-        console.log(`Correo enviado para la orden: ${ordenNumero}`);
-        console.log(`El contador NO se incrementará aquí. La app cliente debe llamar a /confirmar-orden`);
+        registrarOrdenEnviada(ordenNumero, clienteNombre, clienteEmail, asesorEmail);
       }
       
     } catch (emailError) {
@@ -1041,11 +1113,11 @@ app.post('/send-email', upload.single('pdf'), async (req, res) => {
       destinatarios: destinatariosPrincipales,
       cc: ccList
     });
-    } catch (error) {
-      console.error('Error al enviar correo:', error);
-      res.status(500).json({ success: false, message: error.toString() });
-    }
-  });
+  } catch (error) {
+    console.error('Error al enviar correo:', error);
+    res.status(500).json({ success: false, message: error.toString() });
+  }
+});
 
   function guardarMetadatosArchivo(tipo, nombreOriginal) {
     try {
