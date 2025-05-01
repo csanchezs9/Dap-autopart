@@ -43,7 +43,7 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
   final TextEditingController observacionesController = TextEditingController();
    final FocusNode observacionesFocusNode = FocusNode();
   
-  
+  late String numeroOrdenActual;
   bool isLoading = false;
   String errorMessage = '';
   
@@ -85,6 +85,7 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
       vsync: this,
     )..repeat();
 
+    numeroOrdenActual = widget.ordenNumero;
 
     observacionesFocusNode.addListener(() {
       print("Cambio de foco en observaciones: ${observacionesFocusNode.hasFocus}");
@@ -92,7 +93,11 @@ class _ProductosOrdenState extends State<ProductosOrden> with TickerProviderStat
 
   }
 
-  
+  void actualizarNumeroOrden(String nuevoNumero) {
+    setState(() {
+      numeroOrdenActual = nuevoNumero;
+    });
+  }
   
   @override
   void dispose() {
@@ -498,7 +503,7 @@ Future<Uint8List?> _generarPDFMejorado() async {
                       children: [
                         pw.Text('FECHA: ${obtenerFechaActual()}', 
                               style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                        pw.Text('ORDEN DE PEDIDO #: ${widget.ordenNumero}', 
+                        pw.Text('ORDEN DE PEDIDO #: ${numeroOrdenActual}', 
                               style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
                       ],
                     ),
@@ -616,7 +621,7 @@ Future<Uint8List?> _generarPDFMejorado() async {
                       ),
                     ),
                     pw.Text(
-                      'ORDEN DE PEDIDO #: ${widget.ordenNumero} - Página ${context.pageNumber}',
+                      'ORDEN DE PEDIDO #: ${numeroOrdenActual} - Página ${context.pageNumber}',
                       style: pw.TextStyle(
                         fontSize: 10,
                         fontWeight: pw.FontWeight.bold,
@@ -1116,7 +1121,7 @@ pw.Widget _buildPDFDataCell(String text, {pw.TextStyle? style, int? columnIndex}
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
                                   Text('FECHA: ${obtenerFechaActual()}', style: TextStyle(fontWeight: FontWeight.bold)),
-                                  Text('ORDEN DE PEDIDO #: ${widget.ordenNumero}', style: TextStyle(fontWeight: FontWeight.bold)),
+                                  Text('ORDEN DE PEDIDO #: ${numeroOrdenActual}', style: TextStyle(fontWeight: FontWeight.bold)),
                                   SizedBox(height: 10),
                                 ],
                               ),
@@ -1442,161 +1447,161 @@ pw.Widget _buildPDFDataCell(String text, {pw.TextStyle? style, int? columnIndex}
   
 
  Future<void> _enviarCorreoPorServidor() async {
-  setState(() {
-    isLoading = true;
-  });
+    setState(() {
+      isLoading = true;
+    });
 
-  try {
-    // IMPORTANTE: Primero confirmar el número de orden para incrementar el contador
-    // ANTES de cualquier operación de envío
-    print("Confirmando número de orden ${widget.ordenNumero} antes del envío...");
     try {
-      final confirmarResponse = await http.post(
-        Uri.parse('${ProductoService.baseUrl}/confirmar-orden'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'numeroOrden': widget.ordenNumero,
-        }),
-      ).timeout(
-        Duration(seconds: 10),
-        onTimeout: () => throw Exception('Tiempo de espera agotado al confirmar número'),
-      );
-      
-      if (confirmarResponse.statusCode == 200) {
-        final data = json.decode(confirmarResponse.body);
-        if (data['success']) {
-          print("✅ Número de orden confirmado e incrementado correctamente");
+      // IMPORTANTE: Primero confirmar el número de orden para incrementar el contador
+      // ANTES de cualquier operación de envío
+      print("Confirmando número de orden ${numeroOrdenActual} antes del envío...");
+      try {
+        final confirmarResponse = await http.post(
+          Uri.parse('${ProductoService.baseUrl}/confirmar-orden'),
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode({
+            'numeroOrden': numeroOrdenActual,
+          }),
+        ).timeout(
+          Duration(seconds: 10),
+          onTimeout: () => throw Exception('Tiempo de espera agotado al confirmar número'),
+        );
+        
+        if (confirmarResponse.statusCode == 200) {
+          final data = json.decode(confirmarResponse.body);
+          if (data['success']) {
+            print("✅ Número de orden confirmado e incrementado correctamente");
+          } else {
+            print("⚠️ Error al confirmar número: ${data['message']}");
+            // Continuar a pesar del error, no bloquear proceso
+          }
         } else {
-          print("⚠️ Error al confirmar número: ${data['message']}");
-          // Continuar a pesar del error, no bloquear proceso
+          print("⚠️ Error HTTP al confirmar número: ${confirmarResponse.statusCode}");
         }
-      } else {
-        print("⚠️ Error HTTP al confirmar número: ${confirmarResponse.statusCode}");
+      } catch (e) {
+        print("⚠️ Excepción al confirmar número: $e");
+        // Continuar a pesar del error, no bloquear proceso
       }
-    } catch (e) {
-      print("⚠️ Excepción al confirmar número: $e");
-      // Continuar a pesar del error, no bloquear proceso
-    }
 
-    // Verificar conectividad con un ping rápido
-    try {
-      final pingResponse = await http.get(
-        Uri.parse('${ProductoService.baseUrl}/ping'),
-      ).timeout(
-        Duration(seconds: 5),
-        onTimeout: () => throw Exception('Sin conexión a internet'),
-      );
+      // Verificar conectividad con un ping rápido
+      try {
+        final pingResponse = await http.get(
+          Uri.parse('${ProductoService.baseUrl}/ping'),
+        ).timeout(
+          Duration(seconds: 5),
+          onTimeout: () => throw Exception('Sin conexión a internet'),
+        );
+        
+        if (pingResponse.statusCode != 200) {
+          throw Exception('El servidor no está disponible');
+        }
+      } catch (connectionError) {
+        throw Exception('No se puede conectar al servidor. Verifique su conexión a internet.');
+      }
       
-      if (pingResponse.statusCode != 200) {
-        throw Exception('El servidor no está disponible');
+      print("Generando PDF...");
+      final pdf = await _generarPDFMejorado();
+      print("PDF generado correctamente: ${pdf?.length ?? 0} bytes");
+      
+      if (pdf == null) {
+        throw Exception("No se pudo generar el PDF");
       }
-    } catch (connectionError) {
-      throw Exception('No se puede conectar al servidor. Verifique su conexión a internet.');
-    }
-    
-    print("Generando PDF...");
-    final pdf = await _generarPDFMejorado();
-    print("PDF generado correctamente: ${pdf?.length ?? 0} bytes");
-    
-    if (pdf == null) {
-      throw Exception("No se pudo generar el PDF");
-    }
-    
-    // Guardar PDF en almacenamiento temporal
-    final dir = await getTemporaryDirectory();
-    final fileName = 'orden_${widget.ordenNumero}.pdf';
-    final pdfFile = File('${dir.path}/$fileName');
-    await pdfFile.writeAsBytes(pdf);
-    
-    // Buscar el correo del cliente
-    String emailCliente = '';
-    
-    // Buscar en todas las posibles claves
-    final posiblesClaves = ['CLI_EMAIL', 'EMAIL', 'CORREO', 'MAIL'];
-    for (var clave in posiblesClaves) {
-      if (widget.clienteData.containsKey(clave) && 
-          widget.clienteData[clave]!.isNotEmpty) {
-        emailCliente = widget.clienteData[clave]!;
-        break;
+      
+      // Guardar PDF en almacenamiento temporal
+      final dir = await getTemporaryDirectory();
+      final fileName = 'orden_${numeroOrdenActual}.pdf';
+      final pdfFile = File('${dir.path}/$fileName');
+      await pdfFile.writeAsBytes(pdf);
+      
+      // Buscar el correo del cliente
+      String emailCliente = '';
+      
+      // Buscar en todas las posibles claves
+      final posiblesClaves = ['CLI_EMAIL', 'EMAIL', 'CORREO', 'MAIL'];
+      for (var clave in posiblesClaves) {
+        if (widget.clienteData.containsKey(clave) && 
+            widget.clienteData[clave]!.isNotEmpty) {
+          emailCliente = widget.clienteData[clave]!;
+          break;
+        }
       }
-    }
-    
-    // Si no se encuentra, solicitar manualmente
-    if (emailCliente.isEmpty) {
-      final TextEditingController emailController = TextEditingController();
-      await showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) {
-          return AlertDialog(
-            title: Text('Correo electrónico'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('Por favor ingrese el correo del cliente:'),
-                SizedBox(height: 10),
-                TextField(
-                  controller: emailController,
-                  decoration: InputDecoration(
-                    border: OutlineInputBorder(),
-                    hintText: 'correo@ejemplo.com',
+      
+      // Si no se encuentra, solicitar manualmente
+      if (emailCliente.isEmpty) {
+        final TextEditingController emailController = TextEditingController();
+        await showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) {
+            return AlertDialog(
+              title: Text('Correo electrónico'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Por favor ingrese el correo del cliente:'),
+                  SizedBox(height: 10),
+                  TextField(
+                    controller: emailController,
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(),
+                      hintText: 'correo@ejemplo.com',
+                    ),
+                    keyboardType: TextInputType.emailAddress,
                   ),
-                  keyboardType: TextInputType.emailAddress,
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: Text('Cancelar'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: Text('Aceptar'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(0xFF1A4379),
+                    foregroundColor: Colors.white,
+                  ),
                 ),
               ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-                child: Text('Cancelar'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-                child: Text('Aceptar'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Color(0xFF1A4379),
-                  foregroundColor: Colors.white,
-                ),
-              ),
-            ],
+            );
+          },
+        );
+        
+        emailCliente = emailController.text.trim();
+        if (emailCliente.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('No se proporcionó un correo electrónico')),
           );
-        },
+          setState(() {
+            isLoading = false;
+          });
+          return;
+        }
+      }
+      
+      // Crear solicitud al servidor
+      print("Preparando solicitud al servidor...");
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('${ProductoService.baseUrl}/send-email'),    
       );
       
-      emailCliente = emailController.text.trim();
-      if (emailCliente.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('No se proporcionó un correo electrónico')),
-        );
-        setState(() {
-          isLoading = false;
-        });
-        return;
-      }
-    }
-    
-    // Crear solicitud al servidor
-    print("Preparando solicitud al servidor...");
-    final request = http.MultipartRequest(
-      'POST',
-      Uri.parse('${ProductoService.baseUrl}/send-email'),    
-    );
-    
-    final nombreCliente = widget.clienteData['NOMBRE'] ?? '';
-    // Agregar los campos
-    request.fields['clienteEmail'] = emailCliente;
-    request.fields['asesorEmail'] = widget.asesorData['MAIL'] ?? '';
-    request.fields['clienteNombre'] = nombreCliente; // Nombre del cliente
-    request.fields['ordenNumero'] = widget.ordenNumero; // Número de orden
-    
-    // Formato original del asunto (el servidor lo reformateará)
-    request.fields['cuerpo'] = '''Cordial saludo.
+      final nombreCliente = widget.clienteData['NOMBRE'] ?? '';
+      // Agregar los campos
+      request.fields['clienteEmail'] = emailCliente;
+      request.fields['asesorEmail'] = widget.asesorData['MAIL'] ?? '';
+      request.fields['clienteNombre'] = nombreCliente; // Nombre del cliente
+      request.fields['ordenNumero'] = numeroOrdenActual; // Número de orden actualizado
+      
+      // Formato original del asunto (el servidor lo reformateará)
+      request.fields['cuerpo'] = '''Cordial saludo.
 
-Se adjunta orden de pedido #${widget.ordenNumero} del cliente ${nombreCliente}.
+Se adjunta orden de pedido #${numeroOrdenActual} del cliente ${nombreCliente}.
 
 Por su colaboración mil gracias.
 
@@ -1606,281 +1611,379 @@ ${widget.asesorData['NOMBRE'] ?? 'Su asesor'}
 Asesor comercial 
 Distribuciones AutoPart's SAS
 ''';
-    
-    // Agregar el archivo PDF
-    print("Adjuntando archivo PDF...");
-    request.files.add(
-      await http.MultipartFile.fromPath(
-        'pdf',
-        pdfFile.path,
-        filename: fileName,
-      ),
-    );
-    
-    // Enviar la solicitud
-    print("Enviando solicitud al servidor...");
-    final streamedResponse = await request.send().timeout(
-      Duration(seconds: 30),
-      onTimeout: () => throw Exception('Tiempo de espera agotado al enviar el correo. Verifique su conexión.'),
-    );
-    
-    print("Respuesta del servidor recibida: ${streamedResponse.statusCode}");
-    final response = await http.Response.fromStream(streamedResponse);
-    print("Cuerpo de la respuesta: ${response.body}");
-    
-    if (response.statusCode == 200) {
-      final jsonResponse = json.decode(response.body);
       
-      if (jsonResponse['success']) {
-        // Ya no necesitamos llamar a confirmar-orden aquí, porque lo hicimos al inicio
+      // Agregar el archivo PDF
+      print("Adjuntando archivo PDF...");
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'pdf',
+          pdfFile.path,
+          filename: fileName,
+        ),
+      );
+      
+      // Enviar la solicitud
+      print("Enviando solicitud al servidor...");
+      final streamedResponse = await request.send().timeout(
+        Duration(seconds: 30),
+        onTimeout: () => throw Exception('Tiempo de espera agotado al enviar el correo. Verifique su conexión.'),
+      );
+      
+      print("Respuesta del servidor recibida: ${streamedResponse.statusCode}");
+      final response = await http.Response.fromStream(streamedResponse);
+      print("Cuerpo de la respuesta: ${response.body}");
+      
+      if (response.statusCode == 200) {
+        final jsonResponse = json.decode(response.body);
         
-        // NUEVO: Solicitar el siguiente número para actualizar localmente
-        try {
-          final nextNumResponse = await http.get(
-            Uri.parse('${ProductoService.baseUrl}/siguiente-orden'),
-          ).timeout(
-            Duration(seconds: 5),
-            onTimeout: () => throw Exception('Tiempo de espera agotado'),
-          );
+        if (jsonResponse['success']) {
+          // Ya no necesitamos llamar a confirmar-orden aquí, porque lo hicimos al inicio
           
-          if (nextNumResponse.statusCode == 200) {
-            final nextNumData = json.decode(nextNumResponse.body);
-            if (nextNumData['success'] && nextNumData.containsKey('numeroOrden')) {
-              // Guardar este nuevo número en SharedPreferences
-              final prefs = await SharedPreferences.getInstance();
-              await prefs.setString('ultimo_numero_orden', nextNumData['numeroOrden']);
-              print("Nuevo número de orden guardado localmente: ${nextNumData['numeroOrden']}");
-            }
-          }
-        } catch (e) {
-          print("Error al obtener siguiente número de orden: $e");
-          // No detener el flujo por este error
-        }
-        
-        // Obtener listas de destinatarios (a las que el servidor envió el correo)
-        List<String> destinatariosPrincipales = [];
-        List<String> destinatariosCC = [];
-
-        if (jsonResponse.containsKey('destinatarios') && jsonResponse['destinatarios'] != null) {
-          // Si el servidor devuelve esta información como lista
+          // NUEVO: Solicitar el siguiente número para actualizar localmente
           try {
-            destinatariosPrincipales = List<String>.from(jsonResponse['destinatarios']);
-            print("Destinatarios principales recibidos del servidor: $destinatariosPrincipales");
+            final nextNumResponse = await http.get(
+              Uri.parse('${ProductoService.baseUrl}/siguiente-orden'),
+            ).timeout(
+              Duration(seconds: 5),
+              onTimeout: () => throw Exception('Tiempo de espera agotado'),
+            );
+            
+            if (nextNumResponse.statusCode == 200) {
+              final nextNumData = json.decode(nextNumResponse.body);
+              if (nextNumData['success'] && nextNumData.containsKey('numeroOrden')) {
+                // Guardar este nuevo número en SharedPreferences
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.setString('ultimo_numero_orden', nextNumData['numeroOrden']);
+                print("Nuevo número de orden guardado localmente: ${nextNumData['numeroOrden']}");
+              }
+            }
           } catch (e) {
-            print("Error al procesar destinatarios principales: $e");
-            // En caso de error, usar al menos el correo del asesor
+            print("Error al obtener siguiente número de orden: $e");
+            // No detener el flujo por este error
+          }
+          
+          // Obtener listas de destinatarios (a las que el servidor envió el correo)
+          List<String> destinatariosPrincipales = [];
+          List<String> destinatariosCC = [];
+
+          if (jsonResponse.containsKey('destinatarios') && jsonResponse['destinatarios'] != null) {
+            // Si el servidor devuelve esta información como lista
+            try {
+              destinatariosPrincipales = List<String>.from(jsonResponse['destinatarios']);
+              print("Destinatarios principales recibidos del servidor: $destinatariosPrincipales");
+            } catch (e) {
+              print("Error al procesar destinatarios principales: $e");
+              // En caso de error, usar al menos el correo del asesor
+              if (widget.asesorData['MAIL'] != null && widget.asesorData['MAIL']!.isNotEmpty) {
+                destinatariosPrincipales.add(widget.asesorData['MAIL']!);
+              }
+            }
+          } else {
+            // Si el servidor no proporciona esta información
+            print("No se recibieron destinatarios principales del servidor");
+            // Incluir al menos el correo del asesor como destinatario principal
             if (widget.asesorData['MAIL'] != null && widget.asesorData['MAIL']!.isNotEmpty) {
               destinatariosPrincipales.add(widget.asesorData['MAIL']!);
             }
           }
-        } else {
-          // Si el servidor no proporciona esta información
-          print("No se recibieron destinatarios principales del servidor");
-          // Incluir al menos el correo del asesor como destinatario principal
-          if (widget.asesorData['MAIL'] != null && widget.asesorData['MAIL']!.isNotEmpty) {
-            destinatariosPrincipales.add(widget.asesorData['MAIL']!);
-          }
-        }
 
-        if (jsonResponse.containsKey('cc') && jsonResponse['cc'] != null) {
-          // Si el servidor devuelve esta información como lista
-          try {
-            destinatariosCC = List<String>.from(jsonResponse['cc']);
-            print("Destinatarios CC recibidos del servidor: $destinatariosCC");
-          } catch (e) {
-            print("Error al procesar destinatarios CC: $e");
-            // En caso de error, usar al menos el correo del cliente
+          if (jsonResponse.containsKey('cc') && jsonResponse['cc'] != null) {
+            // Si el servidor devuelve esta información como lista
+            try {
+              destinatariosCC = List<String>.from(jsonResponse['cc']);
+              print("Destinatarios CC recibidos del servidor: $destinatariosCC");
+            } catch (e) {
+              print("Error al procesar destinatarios CC: $e");
+              // En caso de error, usar al menos el correo del cliente
+              if (emailCliente.isNotEmpty) {
+                destinatariosCC.add(emailCliente);
+              }
+            }
+          } else {
+            // Si el servidor no proporciona esta información
+            print("No se recibieron destinatarios CC del servidor");
+            // Incluir el correo del cliente en copia
             if (emailCliente.isNotEmpty) {
               destinatariosCC.add(emailCliente);
             }
           }
-        } else {
-          // Si el servidor no proporciona esta información
-          print("No se recibieron destinatarios CC del servidor");
-          // Incluir el correo del cliente en copia
-          if (emailCliente.isNotEmpty) {
-            destinatariosCC.add(emailCliente);
-          }
-        }
 
-        // Imprimir diagnóstico
-        print("Total destinatarios principales a mostrar: ${destinatariosPrincipales.length}");
-        print("Total destinatarios CC a mostrar: ${destinatariosCC.length}");
-        
-        // Mostrar diálogo de éxito mejorado
-        showDialog(
-          context: context,
-          barrierDismissible: false, // No permitir cerrar tocando fuera
-          builder: (BuildContext context) {
-            return AlertDialog(
-              title: Text('Correo enviado'),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Center(
-                      child: Icon(Icons.check_circle, color: Colors.green, size: 48),
-                    ),
-                    SizedBox(height: 16),
-                    Center(
-                      child: Text('La orden ha sido enviada correctamente'),
-                    ),
-                    SizedBox(height: 16),
-                    
-                    // Sección de destinatarios principales
-                    if (destinatariosPrincipales.isNotEmpty) ...[
-                      Text('Destinatarios principales:',
-                        style: TextStyle(fontWeight: FontWeight.bold)),
-                      SizedBox(height: 4),
-                      Container(
-                        width: double.infinity,
-                        padding: EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: Colors.blue.withOpacity(0.3)),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: destinatariosPrincipales.map((email) => 
-                            Padding(
-                              padding: EdgeInsets.symmetric(vertical: 2),
-                              child: Text(email),
-                            )
-                          ).toList(),
-                        ),
+          // Imprimir diagnóstico
+          print("Total destinatarios principales a mostrar: ${destinatariosPrincipales.length}");
+          print("Total destinatarios CC a mostrar: ${destinatariosCC.length}");
+          
+          // Mostrar diálogo de éxito mejorado
+          showDialog(
+            context: context,
+            barrierDismissible: false, // No permitir cerrar tocando fuera
+            builder: (BuildContext context) {
+              return AlertDialog(
+                title: Text('Correo enviado'),
+                content: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: Icon(Icons.check_circle, color: Colors.green, size: 48),
                       ),
-                      SizedBox(height: 12),
-                    ],
-                    
-                    // Sección de destinatarios en copia (CC)
-                    if (destinatariosCC.isNotEmpty) ...[
-                      Text('Con copia a:',
-                        style: TextStyle(fontWeight: FontWeight.bold)),
-                      SizedBox(height: 4),
-                      Container(
-                        width: double.infinity,
-                        padding: EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: Colors.grey.withOpacity(0.3)),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: destinatariosCC.map((email) => 
-                            Padding(
-                              padding: EdgeInsets.symmetric(vertical: 2),
-                              child: Text(email),
-                            )
-                          ).toList(),
-                        ),
+                      SizedBox(height: 16),
+                      Center(
+                        child: Text('La orden ha sido enviada correctamente'),
                       ),
+                      SizedBox(height: 16),
+                      
+                      // Sección de destinatarios principales
+                      if (destinatariosPrincipales.isNotEmpty) ...[
+                        Text('Destinatarios principales:',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                        SizedBox(height: 4),
+                        Container(
+                          width: double.infinity,
+                          padding: EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: destinatariosPrincipales.map((email) => 
+                              Padding(
+                                padding: EdgeInsets.symmetric(vertical: 2),
+                                child: Text(email),
+                              )
+                            ).toList(),
+                          ),
+                        ),
+                        SizedBox(height: 12),
+                      ],
+                      
+                      // Sección de destinatarios en copia (CC)
+                      if (destinatariosCC.isNotEmpty) ...[
+                        Text('Con copia a:',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                        SizedBox(height: 4),
+                        Container(
+                          width: double.infinity,
+                          padding: EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(color: Colors.grey.withOpacity(0.3)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: destinatariosCC.map((email) => 
+                              Padding(
+                                padding: EdgeInsets.symmetric(vertical: 2),
+                                child: Text(email),
+                              )
+                            ).toList(),
+                          ),
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
-              ),
-              actions: [
-                TextButton(
-                  child: Text('Aceptar'),
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    
-                    // CAMBIO PRINCIPAL: Después de cerrar el diálogo, volver a la pantalla principal
-                    Navigator.of(context).popUntil((route) => route.isFirst);
-                  },
-                ),
-              ],
-            );
-          },
-        );
-      } else {
-        throw Exception("Error del servidor: ${jsonResponse['message']}");
-      }
-    } else if (response.statusCode == 409) {
-      // Código especial para número duplicado
-      try {
-        final jsonResponse = json.decode(response.body);
-        final nuevoNumero = jsonResponse['nuevoNumero'];
-        
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              title: Text('Número de orden duplicado'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.warning, color: Colors.orange, size: 48),
-                  SizedBox(height: 16),
-                  Text('El número de orden ${widget.ordenNumero} ya ha sido utilizado.'),
-                  Text('Se ha generado un nuevo número: $nuevoNumero'),
-                  SizedBox(height: 16),
-                  Text('Por favor, vuelva a intentar con el nuevo número.'),
+                actions: [
+                  TextButton(
+                    child: Text('Aceptar'),
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      
+                      // CAMBIO PRINCIPAL: Después de cerrar el diálogo, volver a la pantalla principal
+                      Navigator.of(context).popUntil((route) => route.isFirst);
+                    },
+                  ),
                 ],
+              );
+            },
+          );
+        } else {
+          throw Exception("Error del servidor: ${jsonResponse['message']}");
+        }
+      } else if (response.statusCode == 409) {
+        // Código especial para número duplicado
+        try {
+          final jsonResponse = json.decode(response.body);
+          final nuevoNumero = jsonResponse['nuevoNumero'];
+          
+          // MODIFICACIÓN: Guardar el nuevo número en vez de perderlo
+          showDialog(
+  context: context,
+  barrierDismissible: false,
+  builder: (BuildContext context) {
+    // Obtener el tamaño de la pantalla para hacer el diálogo adaptable
+    final screenSize = MediaQuery.of(context).size;
+    final isSmallScreen = screenSize.width < 400;
+    
+    return AlertDialog(
+      // Reducir el padding general para pantallas pequeñas
+      contentPadding: isSmallScreen 
+        ? EdgeInsets.fromLTRB(16, 16, 16, 0)  // Padding reducido para móviles
+        : EdgeInsets.fromLTRB(24, 20, 24, 0), // Padding normal
+      
+      title: Text(
+        'Número de orden duplicado',
+        style: TextStyle(
+          fontSize: isSmallScreen ? 18 : 20, // Reducir tamaño del título
+        ),
+      ),
+      
+      content: SingleChildScrollView( // Usar SingleChildScrollView para permitir scroll
+        child: Container(
+          width: double.infinity,
+          child: Column(
+            mainAxisSize: MainAxisSize.min, // Importante para que se adapte al contenido
+            children: [
+              Icon(Icons.warning, color: Colors.orange, size: isSmallScreen ? 40 : 48),
+              SizedBox(height: 12), // Reducido de 16 a 12 para móviles
+              
+              Text(
+                'El número de orden ${numeroOrdenActual} ya ha sido utilizado.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: isSmallScreen ? 13 : 14),
               ),
-              actions: [
+              
+              Text(
+                'Se ha generado un nuevo número: $nuevoNumero',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: isSmallScreen ? 13 : 14),
+              ),
+              
+              SizedBox(height: 12), // Reducido de 16 a 12 para móviles
+              
+              Text(
+                '¿Desea continuar con el nuevo número de orden?',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: isSmallScreen ? 13 : 14),
+              ),
+            ],
+          ),
+        ),
+      ),
+      
+      // Botones en columna para pantallas pequeñas
+      actions: [
+        isSmallScreen
+          // Para pantallas pequeñas, botones uno debajo del otro
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
                 TextButton(
-                  child: Text('Entendido'),
+                  child: Text('Cancelar', style: TextStyle(fontSize: 13)),
                   onPressed: () {
                     Navigator.of(context).pop();
-                    Navigator.of(context).popUntil((route) => route.isFirst);
+                  },
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(0xFF1A4379),
+                    foregroundColor: Colors.white,
+                    minimumSize: Size(double.infinity, 36), // Botón a ancho completo
+                  ),
+                  child: Text('Continuar con nuevo número', style: TextStyle(fontSize: 13)),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    setState(() {
+                      numeroOrdenActual = nuevoNumero;
+                    });
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Número de orden actualizado a: $nuevoNumero'))
+                    );
+                    _enviarCorreoPorServidor();
+                  },
+                ),
+                SizedBox(height: 8), // Espacio inferior para compensar el padding reducido
+              ],
+            )
+          // Para pantallas normales, botones uno al lado del otro
+          : Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  child: Text('Cancelar'),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(0xFF1A4379),
+                    foregroundColor: Colors.white,
+                  ),
+                  child: Text('Continuar con nuevo número'),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    setState(() {
+                      numeroOrdenActual = nuevoNumero;
+                    });
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Número de orden actualizado a: $nuevoNumero'))
+                    );
+                    _enviarCorreoPorServidor();
                   },
                 ),
               ],
-            );
-          },
-        );
-      } catch (e) {
-        throw Exception("Error con número duplicado: ${response.body}");
-      }
-    } else {
-      throw Exception("Error de conexión: ${response.statusCode}");
-    }
-  } catch (e) {
-    print("Error detallado: ${e.toString()}");
-    
-    // Mensaje más informativo según el tipo de error
-    String errorMsg = 'Error al enviar el correo: $e';
-    
-    if (e.toString().contains('internet') || 
-        e.toString().contains('conectar') ||
-        e.toString().contains('conexión') ||
-        e.toString().contains('timeout') ||
-        e.toString().contains('SocketException')) {
-      errorMsg = 'No hay conexión a internet. Por favor verifique su conexión y vuelva a intentarlo.';
-    } else if (e.toString().contains('timed out')) {
-      errorMsg = 'No se pudo conectar al servidor (tiempo de espera agotado). Verifica que el servidor esté funcionando y que la IP sea correcta.';
-    } else if (e.toString().contains('connection refused')) {
-      errorMsg = 'Conexión rechazada. Verifica que el servidor esté funcionando en el puerto correcto.';
-    }
-    
-    // Mostrar un diálogo en lugar de un SnackBar
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Error de conexión'),
-          content: Text(errorMsg),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: Text('Aceptar'),
             ),
-          ],
-        );
-      },
+      ],
+      // Asegurar que el diálogo tenga borde redondeado
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
     );
-  } finally {
-    setState(() {
-      isLoading = false;
-    });
+  },
+);
+        } catch (e) {
+          throw Exception("Error con número duplicado: ${response.body}");
+        }
+      } else {
+        throw Exception("Error de conexión: ${response.statusCode}");
+      }
+    } catch (e) {
+      print("Error detallado: ${e.toString()}");
+      
+      // Mensaje más informativo según el tipo de error
+      String errorMsg = 'Error al enviar el correo: $e';
+      
+      if (e.toString().contains('internet') || 
+          e.toString().contains('conectar') ||
+          e.toString().contains('conexión') ||
+          e.toString().contains('timeout') ||
+          e.toString().contains('SocketException')) {
+        errorMsg = 'No hay conexión a internet. Por favor verifique su conexión y vuelva a intentarlo.';
+      } else if (e.toString().contains('timed out')) {
+        errorMsg = 'No se pudo conectar al servidor (tiempo de espera agotado). Verifica que el servidor esté funcionando y que la IP sea correcta.';
+      } else if (e.toString().contains('connection refused')) {
+        errorMsg = 'Conexión rechazada. Verifica que el servidor esté funcionando en el puerto correcto.';
+      }
+      
+      // Mostrar un diálogo en lugar de un SnackBar
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text('Error de conexión'),
+            content: Text(errorMsg),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: Text('Aceptar'),
+              ),
+            ],
+          );
+        },
+      );
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
   }
-}
+
 
 @override
 Widget build(BuildContext context) {
@@ -1975,8 +2078,8 @@ Row(
         children: [
           Text('FECHA: ${obtenerFechaActual()}', 
                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
-          Text('ORDEN DE PEDIDO #: ${widget.ordenNumero}', 
-               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+          Text('ORDEN DE PEDIDO #: ${numeroOrdenActual}', 
+     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
           const SizedBox(height: 10),
 
           // Radio buttons con tamaño moderado
