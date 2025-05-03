@@ -1105,11 +1105,11 @@ pw.Widget _buildPDFDataCell(String text, {pw.TextStyle? style, int? columnIndex}
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Image.asset(
-  'assets/images/logo.png',
-  width: 120,
-  height: 60,
-  fit: BoxFit.contain,
-),
+                                    'assets/images/logo.png',
+                                    width: 120,
+                                    height: 60,
+                                    fit: BoxFit.contain,
+                                  ),
                                   SizedBox(height: 5),
                                   Text('Distribuciones Autoparts S.A.S'),
                                   Text('Nit: 901.110.424-1', style: TextStyle(decoration: TextDecoration.underline)),
@@ -1237,101 +1237,98 @@ pw.Widget _buildPDFDataCell(String text, {pw.TextStyle? style, int? columnIndex}
                             ),
                           ),
 
-                          // Tabla de productos - VERSIÓN CORREGIDA
+                          // Tabla de productos mejorada con columnas fijas y formato similar al PDF
                           Container(
-                      width: MediaQuery.of(context).size.width,
-                      child: Column(
-                        children: [
-                          // Cabecera de la tabla
-                          Table(
-                            border: TableBorder.all(color: const Color(0xFF1A4379)),
-                            columnWidths: const {
-                              0: FractionColumnWidth(0.05), // #
-                              1: FractionColumnWidth(0.09), // CÓDIGO
-                              2: FractionColumnWidth(0.05), // UB
-                              3: FractionColumnWidth(0.09), // REF
-                              4: FractionColumnWidth(0.08), // ORIGEN
-                              5: FractionColumnWidth(0.15), // DESCRIPCIÓN
-                              6: FractionColumnWidth(0.12), // VEHÍCULO
-                              7: FractionColumnWidth(0.09), // MARCA
-                              8: FractionColumnWidth(0.09), // V.ANTES IVA
-                              9: FractionColumnWidth(0.05), // DSCTO
-                              10: FractionColumnWidth(0.05), // CANT
-                              11: FractionColumnWidth(0.09), // V.BRUTO
-                            },
-                            children: [
-                              TableRow(
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF1A4379),
-                                ),
-                                children: [
-                                  _buildHeaderCell('#'),
-                                  _buildHeaderCell('CÓDIGO'),
-                                  _buildHeaderCell('UB'),
-                                  _buildHeaderCell('REF'),
-                                  _buildHeaderCell('ORIGEN'),
-                                  _buildHeaderCell('DESCRIPCIÓN'),
-                                  _buildHeaderCell('VEHÍCULO'),
-                                  _buildHeaderCell('MARCA'),
-                                  _buildHeaderCell('V. ANTES IVA'),
-                                  _buildHeaderCell('DSCTO'),
-                                  _buildHeaderCell('CANT'),
-                                  _buildHeaderCell('V.BRUTO'),
-                                ],
-                              ),
-                            ],
-                          ),
-
-                          // Cuerpo de la tabla con scroll vertical
-                          Container(
-                            height: MediaQuery.of(context).size.height * 0.3,
-                            child: SingleChildScrollView(
-                              physics: const AlwaysScrollableScrollPhysics(),
-                              child: Table(
-                                border: TableBorder.all(color: Colors.grey.shade300),
-                                columnWidths: const {
-                                  0: FractionColumnWidth(0.05), // #
-                                  1: FractionColumnWidth(0.09), // CÓDIGO
-                                  2: FractionColumnWidth(0.05), // UB
-                                  3: FractionColumnWidth(0.09), // REF
-                                  4: FractionColumnWidth(0.08), // ORIGEN
-                                  5: FractionColumnWidth(0.15), // DESCRIPCIÓN
-                                  6: FractionColumnWidth(0.12), // VEHÍCULO
-                                  7: FractionColumnWidth(0.09), // MARCA
-                                  8: FractionColumnWidth(0.09), // V. ANTES IVA
-                                  9: FractionColumnWidth(0.05), // DSCTO
-                                  10: FractionColumnWidth(0.05), // CANT
-                                  11: FractionColumnWidth(0.09), // V.BRUTO
-                                },
-                                defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-                                children: productosAgregados.map((producto) {
-                                  bool isSelected = producto['CODIGO'] == productoCodigoSeleccionado;
-                                  return TableRow(
-                                    decoration: BoxDecoration(
-                                      color: isSelected ? Colors.blue.withOpacity(0.1) : Colors.transparent,
-                                    ),
-                                    children: [
-                                  _buildDataCell(producto['#']?.toString() ?? '', producto: producto),
-                                  _buildDataCell(producto['CODIGO']?.toString() ?? '', producto: producto),
-                                  _buildDataCell(producto['UB']?.toString() ?? '', producto: producto),
-                                  _buildDataCell(producto['REF']?.toString() ?? '', producto: producto),
-                                  _buildDataCell(producto['ORIGEN']?.toString() ?? '', producto: producto),
-                                  _buildDataCell(producto['DESCRIPCION']?.toString() ?? '', maxLines: 2, producto: producto),
-                                  _buildDataCell(producto['VEHICULO']?.toString() ?? '', producto: producto),
-                                  _buildDataCell(producto['MARCA']?.toString() ?? '', producto: producto),
-                                  _buildDataCell(_formatMoneda(producto['VLR ANTES DE IVA']), producto: producto),
-                                  _buildDataCell(formatearPorcentaje(producto['DSCTO']), producto: producto),
-                                  _buildDataCell(producto['CANT']?.toString() ?? '', producto: producto),
-                                  _buildDataCell(_formatMoneda(producto['V.BRUTO']), producto: producto),
-                                    ],
-                                  );
-                                }).toList(),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+  width: double.infinity,
+  decoration: BoxDecoration(
+    border: Border.all(color: Colors.grey.shade300),
+  ),
+  child: Column(
+    children: [
+      // Tabla header
+      Table(
+  border: TableBorder.all(color: const Color(0xFF1A4379)),
+  columnWidths: const {
+    0: FixedColumnWidth(35),    // #
+    1: FixedColumnWidth(50),    // CÓDIGO
+    2: FixedColumnWidth(30),    // UB
+    3: FixedColumnWidth(60),    // REF - aumentado
+    4: FixedColumnWidth(45),    // ORIGEN
+    5: FlexColumnWidth(3.5),    // DESCRIPCIÓN
+    6: FlexColumnWidth(3.0),    // VEHÍCULO
+    7: FixedColumnWidth(45),    // MARCA
+    8: FixedColumnWidth(60),    // V. ANTES IVA
+    9: FixedColumnWidth(40),    // DSCTO
+    10: FixedColumnWidth(30),   // CANT
+    11: FixedColumnWidth(60),   // V.BRUTO
+  }, 
+        children: [
+          TableRow(
+            decoration: BoxDecoration(
+              color: const Color(0xFF1A4379),
+            ),
+            children: [
+              _buildPreviewHeaderCell('#'),
+              _buildPreviewHeaderCell('CÓDIGO'),
+              _buildPreviewHeaderCell('UB'),
+              _buildPreviewHeaderCell('REF'),
+              _buildPreviewHeaderCell('ORIGEN'),
+              _buildPreviewHeaderCell('DESCRIPCIÓN'),
+              _buildPreviewHeaderCell('VEHÍCULO'),
+              _buildPreviewHeaderCell('MARCA'),
+              _buildPreviewHeaderCell('V. ANTES IVA'),
+              _buildPreviewHeaderCell('DSCTO'),
+              _buildPreviewHeaderCell('CANT'),
+              _buildPreviewHeaderCell('V.BRUTO'),
+            ],
+          ),
+        ],
+      ),
+      
+      // Tabla body con scroll vertical
+      Container(
+        height: 250, // Altura fija para área scrollable
+        child: SingleChildScrollView(
+          child: Table(
+  border: TableBorder.all(color: Colors.grey.shade300),
+  columnWidths: const {
+    0: FixedColumnWidth(35),    // # - AMPLIADO para mostrar números largos
+    1: FixedColumnWidth(50),    // CÓDIGO
+    2: FixedColumnWidth(30),    // UB
+    3: FixedColumnWidth(55),    // REF
+    4: FixedColumnWidth(45),    // ORIGEN
+    5: FlexColumnWidth(3.5),    // DESCRIPCIÓN
+    6: FlexColumnWidth(3.0),    // VEHÍCULO
+    7: FixedColumnWidth(45),    // MARCA
+    8: FixedColumnWidth(60),    // V. ANTES IVA
+    9: FixedColumnWidth(40),    // DSCTO
+    10: FixedColumnWidth(30),   // CANT
+    11: FixedColumnWidth(60),   // V.BRUTO
+  },
+            children: productosAgregados.map((producto) {
+              return TableRow(
+                children: [
+                  _buildPreviewDataCell(producto['#']?.toString() ?? '', columnIndex: 0),
+                  _buildPreviewDataCell(producto['CODIGO']?.toString() ?? '', columnIndex: 1),
+                  _buildPreviewDataCell(producto['UB']?.toString() ?? '', columnIndex: 2),
+                  _buildPreviewDataCell(producto['REF']?.toString() ?? '', columnIndex: 3),
+                  _buildPreviewDataCell(producto['ORIGEN']?.toString() ?? '', columnIndex: 4),
+                  _buildPreviewDataCell(producto['DESCRIPCION']?.toString() ?? '', columnIndex: 5, maxLines: 3),
+                  _buildPreviewDataCell(producto['VEHICULO']?.toString() ?? '', columnIndex: 6, maxLines: 3),
+                  _buildPreviewDataCell(producto['MARCA']?.toString() ?? '', columnIndex: 7),
+                  _buildPreviewDataCell(_formatMoneda(producto['VLR ANTES DE IVA']), columnIndex: 8),
+                  _buildPreviewDataCell(formatearPorcentaje(producto['DSCTO']), columnIndex: 9),
+                  _buildPreviewDataCell(producto['CANT']?.toString() ?? '', columnIndex: 10),
+                  _buildPreviewDataCell(_formatMoneda(producto['V.BRUTO']), columnIndex: 11),
+                ],
+              );
+            }).toList(),
+          ),
+        ),
+      ),
+    ],
+  ),
+),
                           
                           SizedBox(height: 20),
                           
@@ -1341,61 +1338,40 @@ pw.Widget _buildPDFDataCell(String text, {pw.TextStyle? style, int? columnIndex}
                             children: [
                               // Observaciones
                               Expanded(
-  flex: 3,
-  child: Container(
-    padding: const EdgeInsets.all(4),
-    height: 90,
-    decoration: BoxDecoration(
-      color: const Color(0xFFCFD5E1),
-      borderRadius: BorderRadius.circular(4),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text('OBSERVACIONES:', 
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10)),
-            // Botón para cerrar el teclado
-            InkWell(
-              onTap: _ocultarTeclado,
-              child: Container(
-                padding: EdgeInsets.all(2),
-                child: Icon(Icons.keyboard_hide, size: 14, color: Colors.black54),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 2), 
-        Expanded(
-          child: TextField(
-            controller: observacionesController,
-            focusNode: observacionesFocusNode,
-            maxLines: null,
-            expands: true,
-            style: TextStyle(fontSize: 10),
-            textAlignVertical: TextAlignVertical.top,
-            // Propiedades adicionales para mejor manejo del teclado
-            textInputAction: TextInputAction.done,
-            onEditingComplete: _ocultarTeclado,
-            decoration: const InputDecoration(
-              filled: true,
-              fillColor: Colors.white,
-              contentPadding: EdgeInsets.all(4),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.all(Radius.circular(4)),
-                borderSide: BorderSide(width: 0.5),
-              ),
-              isDense: true,
-              alignLabelWithHint: true,
-            ),
-          ),
-        ),
-      ],
-    ),
-  ),
-),    
+                                flex: 3,
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  height: 90,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFCFD5E1),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text('OBSERVACIONES:', 
+                                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10)),
+                                      const SizedBox(height: 2), 
+                                      Expanded(
+                                        child: Container(
+                                          width: double.infinity,
+                                          padding: EdgeInsets.all(4),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            border: Border.all(color: Colors.grey.shade400, width: 0.5),
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: Text(
+                                            observacionesController.text.isEmpty ? 
+                                                'Sin observaciones' : observacionesController.text,
+                                            style: TextStyle(fontSize: 10),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),    
                               SizedBox(width: 20),
                               
                               // Totales
@@ -1443,8 +1419,151 @@ pw.Widget _buildPDFDataCell(String text, {pw.TextStyle? style, int? columnIndex}
     },
   );
 }
+// Función para construir la tabla principal de productos
+Widget _buildProductsTable() {
+  return Container(
+    width: MediaQuery.of(context).size.width,
+    child: Column(
+      children: [
+        // Encabezado de la tabla
+        Table(
+          border: TableBorder.all(color: const Color(0xFF1A4379)),
+          columnWidths: const {
+            0: FixedColumnWidth(35),    // #
+            1: FixedColumnWidth(50),    // CÓDIGO
+            2: FixedColumnWidth(30),    // UB - sin cambios
+            3: FixedColumnWidth(60),    // REF - aumentado para mostrar más texto
+            4: FixedColumnWidth(45),    // ORIGEN
+            5: FlexColumnWidth(3.5),    // DESCRIPCIÓN
+            6: FlexColumnWidth(3.0),    // VEHÍCULO
+            7: FixedColumnWidth(45),    // MARCA
+            8: FixedColumnWidth(60),    // V. ANTES IVA
+            9: FixedColumnWidth(40),    // DSCTO
+            10: FixedColumnWidth(30),   // CANT
+            11: FixedColumnWidth(60),   // V.BRUTO
+          },
+          children: [
+            TableRow(
+              decoration: BoxDecoration(
+                color: const Color(0xFF1A4379),
+              ),
+              children: [
+                _buildHeaderCell('#'),
+                _buildHeaderCell('CÓDIGO'),
+                _buildHeaderCell('UB'),
+                _buildHeaderCell('REF'),
+                _buildHeaderCell('ORIGEN'),
+                _buildHeaderCell('DESCRIPCIÓN'),
+                _buildHeaderCell('VEHÍCULO'),
+                _buildHeaderCell('MARCA'),
+                _buildHeaderCell('V. ANTES IVA'),
+                _buildHeaderCell('DSCTO'),
+                _buildHeaderCell('CANT'),
+                _buildHeaderCell('V.BRUTO'),
+              ],
+            ),
+          ],
+        ),
+        
+        // Cuerpo de la tabla con scroll
+        Container(
+          constraints: BoxConstraints(
+            minHeight: 100,
+            maxHeight: MediaQuery.of(context).size.height * 0.33,
+          ),
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Table(
+              border: TableBorder.all(color: Colors.grey.shade300),
+              columnWidths: const {
+                0: FixedColumnWidth(35),    // #
+                1: FixedColumnWidth(50),    // CÓDIGO
+                2: FixedColumnWidth(30),    // UB
+                3: FixedColumnWidth(60),    // REF - aumentado
+                4: FixedColumnWidth(45),    // ORIGEN
+                5: FlexColumnWidth(3.5),    // DESCRIPCIÓN
+                6: FlexColumnWidth(3.0),    // VEHÍCULO
+                7: FixedColumnWidth(45),    // MARCA
+                8: FixedColumnWidth(60),    // V. ANTES IVA
+                9: FixedColumnWidth(40),    // DSCTO
+                10: FixedColumnWidth(30),   // CANT
+                11: FixedColumnWidth(60),   // V.BRUTO
+              },
+              defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+              children: productosAgregados.map((producto) {
+                bool isSelected = producto['CODIGO'] == productoCodigoSeleccionado;
+                return TableRow(
+                  decoration: BoxDecoration(
+                    color: isSelected ? Colors.blue.withOpacity(0.1) : Colors.transparent,
+                  ),
+                  children: [
+                    _buildDataCell(producto['#']?.toString() ?? '', producto: producto, enforceFull: true),
+                    _buildDataCell(producto['CODIGO']?.toString() ?? '', producto: producto, enforceFull: true),
+                    _buildDataCell(producto['UB']?.toString() ?? '', producto: producto, enforceFull: true),
+                    _buildDataCell(producto['REF']?.toString() ?? '', producto: producto, enforceFull: true),
+                    _buildDataCell(producto['ORIGEN']?.toString() ?? '', producto: producto, enforceFull: true),
+                    _buildDataCell(producto['DESCRIPCION']?.toString() ?? '', producto: producto, enforceFull: true),
+                    _buildDataCell(producto['VEHICULO']?.toString() ?? '', producto: producto, enforceFull: true),
+                    _buildDataCell(producto['MARCA']?.toString() ?? '', producto: producto, enforceFull: true),
+                    _buildDataCell(_formatMoneda(producto['VLR ANTES DE IVA']), producto: producto),
+                    _buildDataCell(formatearPorcentaje(producto['DSCTO']), producto: producto),
+                    _buildDataCell(producto['CANT']?.toString() ?? '', producto: producto),
+                    _buildDataCell(_formatMoneda(producto['V.BRUTO']), producto: producto),
+                  ],
+                );
+              }).toList(),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
 
+  Widget _buildPreviewHeaderCell(String text) {
+  return Container(
+    padding: EdgeInsets.all(2),
+    child: Text(
+      text,
+      style: TextStyle(
+        color: Colors.white,
+        fontWeight: FontWeight.bold,
+        fontSize: 7, // Reducido para mejor ajuste
+      ),
+      textAlign: TextAlign.center,
+    ),
+  );
+}
+Widget _buildPreviewDataCell(String text, {int columnIndex = 0, int? maxLines}) {
+  // Definir alineación basada en el índice de columna
+  TextAlign alignment;
   
+  switch (columnIndex) {
+    case 5: // DESCRIPCIÓN
+    case 6: // VEHÍCULO
+      alignment = TextAlign.left;
+      break;
+    case 8: // V. ANTES IVA
+    case 11: // V.BRUTO
+      alignment = TextAlign.right;
+      break;
+    default:
+      alignment = TextAlign.center;
+      break;
+  }
+  
+  return Container(
+    padding: EdgeInsets.all(2),
+    child: Text(
+      text,
+      style: TextStyle(fontSize: 7), // Reducido para evitar truncamiento
+      textAlign: alignment,
+      maxLines: null, // Sin límite de líneas
+      overflow: TextOverflow.visible, // Mostrar todo el texto
+      softWrap: true, // Permitir wrap para ajustar el texto
+    ),
+  );
+}
 
  Future<void> _enviarCorreoPorServidor() async {
     setState(() {
@@ -2041,127 +2160,126 @@ Widget build(BuildContext context) {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Encabezado: información cliente y opciones
                   // Encabezado: información cliente y opciones - Versión reducida
-Row(
-  crossAxisAlignment: CrossAxisAlignment.start,
-  children: [
-    // Información cliente (reducida en un 20% en lugar de 38%)
-    Expanded(
-      flex: 2,
-      child: Container(
-        // Reducir altura con un transform scale de manera más moderada
-        transform: Matrix4.diagonal3Values(1.0, 0.8, 1.0), // Reducción del 20% en altura
-        transformAlignment: Alignment.topLeft, // Alinear desde la esquina superior izquierda
-        child: Table(
-          border: TableBorder.all(color: Colors.white),
-          columnWidths: const {
-            0: FlexColumnWidth(1.5),
-            1: FlexColumnWidth(3),
-          },
-          children: [
-            _buildInfoRow2Balanced('NIT CLIENTE', widget.clienteData['NIT CLIENTE'] ?? '', isHeader: true),
-            _buildInfoRow2Balanced('NOMBRE', widget.clienteData['NOMBRE'] ?? ''),
-            _buildInfoRow2Balanced('ESTABLECIMIENTO', widget.clienteData['ESTABLECIMIENTO'] ?? ''),
-          ],
-        ),
-      ),
-    ),
-    
-    const SizedBox(width: 16),
-    
-    // Información orden y opciones
-    Expanded(
-      flex: 1,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('FECHA: ${obtenerFechaActual()}', 
-               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
-          Text('ORDEN DE PEDIDO #: ${numeroOrdenActual}', 
-     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
-          const SizedBox(height: 10),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Información cliente (reducida en un 20%)
+                      Expanded(
+                        flex: 2,
+                        child: Container(
+                          // Reducir altura con un transform scale de manera más moderada
+                          transform: Matrix4.diagonal3Values(1.0, 0.8, 1.0), // Reducción del 20% en altura
+                          transformAlignment: Alignment.topLeft, // Alinear desde la esquina superior izquierda
+                          child: Table(
+                            border: TableBorder.all(color: Colors.white),
+                            columnWidths: const {
+                              0: FlexColumnWidth(1.5),
+                              1: FlexColumnWidth(3),
+                            },
+                            children: [
+                              _buildInfoRow2Balanced('NIT CLIENTE', widget.clienteData['NIT CLIENTE'] ?? '', isHeader: true),
+                              _buildInfoRow2Balanced('NOMBRE', widget.clienteData['NOMBRE'] ?? ''),
+                              _buildInfoRow2Balanced('ESTABLECIMIENTO', widget.clienteData['ESTABLECIMIENTO'] ?? ''),
+                            ],
+                          ),
+                        ),
+                      ),
+                      
+                      const SizedBox(width: 16),
+                      
+                      // Información orden y opciones
+                      Expanded(
+                        flex: 1,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('FECHA: ${obtenerFechaActual()}', 
+                                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+                            Text('ORDEN DE PEDIDO #: ${numeroOrdenActual}', 
+                                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+                            const SizedBox(height: 10),
 
-          // Radio buttons con tamaño moderado
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Radio button NORMAL
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Radio<TipoPedido>(
-                      value: TipoPedido.normal,
-                      groupValue: tipoPedidoSeleccionado,
-                      onChanged: (TipoPedido? value) {
-                        setState(() {
-                          tipoPedidoSeleccionado = value!;
-                          isNormal = true;
-                          isCondicionado = false;
-                          isContado = false;
-                          actualizarDescuentosSegunModo();
-                        });
-                      },
-                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      visualDensity: VisualDensity.compact,
-                    ),
-                    Text('NORMAL', style: TextStyle(fontSize: 10)),
-                  ],
-                ),
-                // Radio button CONDICIONADO
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Radio<TipoPedido>(
-                      value: TipoPedido.condicionado,
-                      groupValue: tipoPedidoSeleccionado,
-                      onChanged: (TipoPedido? value) {
-                        setState(() {
-                          tipoPedidoSeleccionado = value!;
-                          isNormal = false;
-                          isCondicionado = true;
-                          isContado = false;
-                          actualizarDescuentosSegunModo();
-                        });
-                      },
-                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      visualDensity: VisualDensity.compact,
-                    ),
-                    Text('COND.', style: TextStyle(fontSize: 10)),
-                  ],
-                ),
-                // NUEVO Radio button CONTADO
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Radio<TipoPedido>(
-                      value: TipoPedido.contado,
-                      groupValue: tipoPedidoSeleccionado,
-                      onChanged: (TipoPedido? value) {
-                        setState(() {
-                          tipoPedidoSeleccionado = value!;
-                          isNormal = false;
-                          isCondicionado = false;
-                          isContado = true;
-                          actualizarDescuentosSegunModo();
-                        });
-                      },
-                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      visualDensity: VisualDensity.compact,
-                    ),
-                    Text('CONT.', style: TextStyle(fontSize: 10)),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    ),
-  ],
-),
+                            // Radio buttons con tamaño moderado
+                            SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  // Radio button NORMAL
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Radio<TipoPedido>(
+                                        value: TipoPedido.normal,
+                                        groupValue: tipoPedidoSeleccionado,
+                                        onChanged: (TipoPedido? value) {
+                                          setState(() {
+                                            tipoPedidoSeleccionado = value!;
+                                            isNormal = true;
+                                            isCondicionado = false;
+                                            isContado = false;
+                                            actualizarDescuentosSegunModo();
+                                          });
+                                        },
+                                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                        visualDensity: VisualDensity.compact,
+                                      ),
+                                      Text('NORMAL', style: TextStyle(fontSize: 10)),
+                                    ],
+                                  ),
+                                  // Radio button CONDICIONADO
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Radio<TipoPedido>(
+                                        value: TipoPedido.condicionado,
+                                        groupValue: tipoPedidoSeleccionado,
+                                        onChanged: (TipoPedido? value) {
+                                          setState(() {
+                                            tipoPedidoSeleccionado = value!;
+                                            isNormal = false;
+                                            isCondicionado = true;
+                                            isContado = false;
+                                            actualizarDescuentosSegunModo();
+                                          });
+                                        },
+                                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                        visualDensity: VisualDensity.compact,
+                                      ),
+                                      Text('COND.', style: TextStyle(fontSize: 10)),
+                                    ],
+                                  ),
+                                  // NUEVO Radio button CONTADO
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Radio<TipoPedido>(
+                                        value: TipoPedido.contado,
+                                        groupValue: tipoPedidoSeleccionado,
+                                        onChanged: (TipoPedido? value) {
+                                          setState(() {
+                                            tipoPedidoSeleccionado = value!;
+                                            isNormal = false;
+                                            isCondicionado = false;
+                                            isContado = true;
+                                            actualizarDescuentosSegunModo();
+                                          });
+                                        },
+                                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                        visualDensity: VisualDensity.compact,
+                                      ),
+                                      Text('CONT.', style: TextStyle(fontSize: 10)),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                   
                   const SizedBox(height: 20),
                   
@@ -2208,254 +2326,222 @@ Row(
                   const SizedBox(height: 20),
                   
                   // Tabla de productos
-                  Container(
-                        width: MediaQuery.of(context).size.width,
-                        child: Column(
-                          children: [
-                            // Cabecera de la tabla
-                            Table(
-                              border: TableBorder.all(color: const Color(0xFF1A4379)),
-                              columnWidths: const {
-                                0: FractionColumnWidth(0.05), // #
-                                1: FractionColumnWidth(0.09), // CÓDIGO
-                                2: FractionColumnWidth(0.05), // UB
-                                3: FractionColumnWidth(0.09), // REF
-                                4: FractionColumnWidth(0.08), // ORIGEN
-                                5: FractionColumnWidth(0.15), // DESCRIPCIÓN
-                                6: FractionColumnWidth(0.12), // VEHÍCULO
-                                7: FractionColumnWidth(0.09), // MARCA
-                                8: FractionColumnWidth(0.09), // V. ANTES IVA
-                                9: FractionColumnWidth(0.05), // DSCTO
-                                10: FractionColumnWidth(0.05), // CANT
-                                11: FractionColumnWidth(0.09), // V.BRUTO
-                              },
+                  _buildProductsTable(),
+                  
+                  // AÑADIDO: Espacio adicional entre tabla y sección de observaciones
+                  const SizedBox(height: 16),
+                  
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Imagen del producto
+                      Container(
+                        width: 110,
+                        height: 90,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: _buildImagenProducto(),
+                      ),
+                      
+                      const SizedBox(width: 8),
+                      
+                      // Observaciones
+                      Expanded(
+                        flex: 3,
+                        child: GestureDetector(
+                          onTap: _ocultarTeclado,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            height: 90,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFCFD5E1),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                TableRow(
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF1A4379),
+                                const Text('OBSERVACIONES:', 
+                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10)),
+                                const SizedBox(height: 2), 
+                                Expanded(
+                                  child: TextField(
+                                    controller: observacionesController,
+                                    focusNode: observacionesFocusNode,
+                                    maxLines: null,
+                                    expands: true,
+                                    style: TextStyle(fontSize: 10),
+                                    textAlignVertical: TextAlignVertical.top,
+                                    decoration: const InputDecoration(
+                                      filled: true,
+                                      fillColor: Colors.white,
+                                      contentPadding: EdgeInsets.all(4),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.all(Radius.circular(4)),
+                                        borderSide: BorderSide(width: 0.5),
+                                      ),
+                                      isDense: true,
+                                      alignLabelWithHint: true,
+                                    ),
                                   ),
-                                  children: [
-                                    _buildHeaderCell('#'),
-                                    _buildHeaderCell('CÓDIGO'),
-                                    _buildHeaderCell('UB'),
-                                    _buildHeaderCell('REF'),
-                                    _buildHeaderCell('ORIGEN'),
-                                    _buildHeaderCell('DESCRIPCIÓN'),
-                                    _buildHeaderCell('VEHÍCULO'),
-                                    _buildHeaderCell('MARCA'),
-                                    _buildHeaderCell('V. ANTES IVA'),
-                                    _buildHeaderCell('DSCTO'),
-                                    _buildHeaderCell('CANT'),
-                                    _buildHeaderCell('V.BRUTO'),
-                                  ],
                                 ),
                               ],
                             ),
-
-                            // Cuerpo de la tabla con altura adaptativa
-                            Container(
-                              // Altura mínima para siempre mostrar algo
-                              constraints: BoxConstraints(
-                                minHeight: 100,
-                                // Altura máxima que sea aproximadamente 1/3 de la pantalla
-                                maxHeight: MediaQuery.of(context).size.height * 0.33,
-                              ),
-                              child: SingleChildScrollView(
-                                physics: const AlwaysScrollableScrollPhysics(),
-                                child: Table(
-                                  border: TableBorder.all(color: Colors.grey.shade300),
-                                  columnWidths: const {
-                                    0: FractionColumnWidth(0.05), // #
-                                    1: FractionColumnWidth(0.09), // CÓDIGO
-                                    2: FractionColumnWidth(0.05), // UB
-                                    3: FractionColumnWidth(0.09), // REF
-                                    4: FractionColumnWidth(0.08), // ORIGEN
-                                    5: FractionColumnWidth(0.15), // DESCRIPCIÓN
-                                    6: FractionColumnWidth(0.12), // VEHÍCULO
-                                    7: FractionColumnWidth(0.09), // MARCA
-                                    8: FractionColumnWidth(0.09), // V. ANTES IVA
-                                    9: FractionColumnWidth(0.05), // DSCTO
-                                    10: FractionColumnWidth(0.05), // CANT
-                                    11: FractionColumnWidth(0.09), // V.BRUTO
-                                  },
-                                  defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-                                  children: productosAgregados.map((producto) {
-                                    bool isSelected = producto['CODIGO'] == productoCodigoSeleccionado;
-                                    return TableRow(
-                                      decoration: BoxDecoration(
-                                        color: isSelected ? Colors.blue.withOpacity(0.1) : Colors.transparent,
-                                      ),
-                                      children: [
-                                        _buildDataCell(producto['#']?.toString() ?? '', producto: producto),
-                                        _buildDataCell(producto['CODIGO']?.toString() ?? '', producto: producto),
-                                        _buildDataCell(producto['UB']?.toString() ?? '', producto: producto),
-                                        _buildDataCell(producto['REF']?.toString() ?? '', producto: producto),
-                                        _buildDataCell(producto['ORIGEN']?.toString() ?? '', producto: producto),
-                                        _buildDataCell(producto['DESCRIPCION']?.toString() ?? '', maxLines: 2, producto: producto),
-                                        _buildDataCell(producto['VEHICULO']?.toString() ?? '', producto: producto),
-                                        _buildDataCell(producto['MARCA']?.toString() ?? '', producto: producto),
-                                        _buildDataCell(_formatMoneda(producto['VLR ANTES DE IVA']), producto: producto),
-                                        _buildDataCell('${producto['DSCTO']}%', producto: producto),
-                                        _buildDataCell(producto['CANT']?.toString() ?? '', producto: producto),
-                                        _buildDataCell(_formatMoneda(producto['V.BRUTO']), producto: producto),
-                                      ],
-                                    );
-                                  }).toList(),
-                                ),
-                              ),
-                            ),
+                          ),
+                        ),
+                      ),
+                      
+                      const SizedBox(width: 8),
+                      
+                      // Totales
+                      Container(
+                        width: 150,
+                        child: Table(
+                          border: TableBorder.all(width: 0.5),
+                          columnWidths: const {
+                            0: FlexColumnWidth(1),
+                            1: FlexColumnWidth(1),
+                          },
+                          defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+                          children: [
+                            _buildTotalRowLarge('V.BRUTO', formatCurrency(valorBrutoTotal)),
+                            _buildTotalRowLarge('DSCTO', formatCurrency(descuentoTotal)),
+                            _buildTotalRowLarge('SUBTOTAL', formatCurrency(subtotal)),
+                            _buildTotalRowLarge('IVA', formatCurrency(iva)),
+                            _buildTotalRowLarge('TOTAL', formatCurrency(total), isTotal: true),
                           ],
                         ),
                       ),
-                  
-                  Row(
-  crossAxisAlignment: CrossAxisAlignment.start,
-  children: [
-    // Imagen del producto (30% más grande)
-    Container(
-      width: 110, // Aumentado de 85 a 110 (aproximadamente 30% más)
-      height: 90, // Aumentado de 70 a 90 (aproximadamente 30% más)
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: _buildImagenProducto(),
-    ),
-    
-    const SizedBox(width: 8),
-    
-    // Observaciones (expansible)
-     Expanded(
-    flex: 3,
-    child: GestureDetector(
-      // Al tocar fuera del TextField, se cerrará el teclado
-      onTap: _ocultarTeclado,
-      child: Container(
-        padding: const EdgeInsets.all(4),
-        height: 90,
-        decoration: BoxDecoration(
-          color: const Color(0xFFCFD5E1),
-          borderRadius: BorderRadius.circular(4),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('OBSERVACIONES:', 
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10)),
-            const SizedBox(height: 2), 
-            Expanded(
-              child: TextField(
-                controller: observacionesController,
-                // Asignar el FocusNode al TextField
-                focusNode: observacionesFocusNode,
-                maxLines: null,
-                expands: true,
-                style: TextStyle(fontSize: 10),
-                textAlignVertical: TextAlignVertical.top,
-                decoration: const InputDecoration(
-                  filled: true,
-                  fillColor: Colors.white,
-                  contentPadding: EdgeInsets.all(4),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.all(Radius.circular(4)),
-                    borderSide: BorderSide(width: 0.5),
+                    ],
                   ),
-                  isDense: true,
-                  alignLabelWithHint: true,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    ),
-  ),
-    
-    const SizedBox(width: 8),
-    
-    // Totales (20% más grande)
-    Container(
-      width: 150,
-      child: Table(
-        border: TableBorder.all(width: 0.5),
-        columnWidths: const {
-          0: FlexColumnWidth(1),
-          1: FlexColumnWidth(1),
-        },
-        defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-        children: [
-          _buildTotalRowLarge('V.BRUTO', formatCurrency(valorBrutoTotal)),
-          _buildTotalRowLarge('DSCTO', formatCurrency(descuentoTotal)),
-          _buildTotalRowLarge('SUBTOTAL', formatCurrency(subtotal)),
-          _buildTotalRowLarge('IVA', formatCurrency(iva)),
-          _buildTotalRowLarge('TOTAL', formatCurrency(total), isTotal: true),
-        ],
-      ),
-    ),
-  ],
-),
 
-// NUEVO: Botones de acciones justo después de la fila anterior pero antes de los botones principales
-Container(
-  padding: const EdgeInsets.only(top: 6, bottom: 6),
-  child: _buildBotonesAccion(),
-),
-
-const SizedBox(height: 4),
+                  // MODIFICADO: Reducido drásticamente el espacio entre observaciones y botones de acción
+                  const SizedBox(height: 2),
                   
-// Botones principales (sin cambios)
-Center(
-  child: Row(
-    mainAxisAlignment: MainAxisAlignment.center,
-    children: [
-      // Botón Vista Previa
-      ElevatedButton(
-        onPressed: () {
-          mostrarVistaPrevia();
-        },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Color(0xFF1A4379),
-          foregroundColor: Colors.white,
-          side: const BorderSide(color: Colors.grey),
-          padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
-        ),
-        child: const Text('VISTA PREVIA'),
-      ),
-      SizedBox(width: 20),
-      // Botón Enviar
-      ElevatedButton(
-        onPressed: () {
-          _enviarCorreoPorServidor(); // Cambio aquí
-        },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.green,
-          foregroundColor: Colors.white,
-          side: const BorderSide(color: Colors.grey),
-          padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
-        ),
-        child: const Text('ENVIAR'),
-      ),  
-      SizedBox(width: 20),
-      // Botón Cancelar Orden
-      ElevatedButton(
-        onPressed: () {
-          Navigator.pop(context);
-        },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.white,
-          foregroundColor: Colors.black,
-          side: const BorderSide(color: Colors.grey),
-          padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
-        ),
-        child: const Text('CANCELAR ORDEN'),
-      ),
-    ],
-  ),
-),
+                  // Botones de Editar y Eliminar, centrados
+                  Center(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // Botón Editar
+                        ElevatedButton.icon(
+                          onPressed: productoCodigoSeleccionado != null ? 
+                            () {
+                              // Buscar el producto seleccionado
+                              final producto = productosAgregados.firstWhere(
+                                (p) => p['CODIGO'] == productoCodigoSeleccionado,
+                                orElse: () => <String, dynamic>{},
+                              );
+                              if (producto.isNotEmpty) {
+                                _editarCantidad(producto);
+                              }
+                            } : null,
+                          icon: Icon(Icons.edit, color: Colors.white),
+                          label: Text('Editar', style: TextStyle(color: Colors.white)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.orange,
+                            padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30.0),
+                            ),
+                          ),
+                        ),
+                        
+                        const SizedBox(width: 20),
+                        
+                        // Botón Eliminar
+                        ElevatedButton.icon(
+                          onPressed: productoCodigoSeleccionado != null ? 
+                            () {
+                              // Buscar el producto seleccionado
+                              final producto = productosAgregados.firstWhere(
+                                (p) => p['CODIGO'] == productoCodigoSeleccionado,
+                                orElse: () => <String, dynamic>{},
+                              );
+                              if (producto.isNotEmpty) {
+                                _eliminarProducto(producto);
+                              }
+                            } : null,
+                          icon: Icon(Icons.delete, color: Colors.white),
+                          label: Text('Eliminar', style: TextStyle(color: Colors.white)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30.0),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // MODIFICADO: Reducido el espacio entre botones de acción y botones principales
+                  const SizedBox(height: 5),
+                  
+                  // Botones principales
+                  Center(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // Botón Vista Previa
+                        ElevatedButton(
+                          onPressed: () {
+                            mostrarVistaPrevia();
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Color(0xFF1A4379),
+                            foregroundColor: Colors.white,
+                            side: const BorderSide(color: Colors.grey),
+                            padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30.0),
+                            ),
+                          ),
+                          child: const Text('VISTA PREVIA'),
+                        ),
+                        SizedBox(width: 20),
+                        // Botón Enviar
+                        ElevatedButton(
+                          onPressed: () {
+                            _enviarCorreoPorServidor();
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                            side: const BorderSide(color: Colors.grey),
+                            padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30.0),
+                            ),
+                          ),
+                          child: const Text('ENVIAR'),
+                        ),  
+                        SizedBox(width: 20),
+                        // Botón Cancelar Orden
+                        ElevatedButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: Colors.black,
+                            side: const BorderSide(color: Colors.grey),
+                            padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30.0),
+                            ),
+                          ),
+                          child: const Text('CANCELAR ORDEN'),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
-          ),
+      ),
     );
   }
 
@@ -3142,51 +3228,74 @@ String formatCurrency(dynamic value) {
   
 Widget _buildHeaderCell(String text) {
   return Container(
-    padding: const EdgeInsets.all(4),
+    padding: const EdgeInsets.all(2), // Reducido para maximizar espacio
     child: Text(
       text,
       style: const TextStyle(
         color: Colors.white,
         fontWeight: FontWeight.bold,
-        fontSize: 9, // Texto más pequeño para caber
+        fontSize: 7, // Reducido aún más
       ),
       textAlign: TextAlign.center,
-      maxLines: 2,
-      overflow: TextOverflow.ellipsis,
     ),
   );
 }
 
-Widget _buildDataCell(String text, {int maxLines = 1, Map<String, dynamic>? producto}) {
+
+Widget _buildDataCell(String text, {Map<String, dynamic>? producto, bool enforceFull = false}) {
   bool isSelected = producto != null && producto['CODIGO'] == productoCodigoSeleccionado;
+  
+  // Determinar alineación según tipo de columna
+  TextAlign alignment = TextAlign.center; // Default: centrado
+  
+  // Descripción y vehículo alineados a la izquierda
+  if (producto != null) {
+    if (text == producto['DESCRIPCION'] || text == producto['VEHICULO']) {
+      alignment = TextAlign.left;
+    } 
+    // Valores monetarios alineados a la derecha
+    else if (text.startsWith('\$')) {
+      alignment = TextAlign.right;
+    }
+  }
   
   return GestureDetector(
     onTap: () {
       if (producto != null) {
         seleccionarProducto(producto);
-        
-        // Imprimir información de depuración
-        print("Seleccionó celda del producto #${producto['#']} - ${producto['CODIGO']}");
-        print("Datos del producto seleccionado:");
-        producto.forEach((key, value) {
-          print("  $key: $value");
-        });
       }
     },
     child: Container(
-      padding: const EdgeInsets.all(4),
+      padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2), // Reducido para maximizar espacio
       decoration: BoxDecoration(
         color: isSelected ? Colors.blue.withOpacity(0.1) : Colors.transparent,
       ),
       child: Text(
         text,
-        style: TextStyle(fontSize: 9),
-        overflow: TextOverflow.ellipsis,
-        maxLines: maxLines,
-        textAlign: TextAlign.center,
+        style: TextStyle(fontSize: 7), // Reducido aún más el tamaño
+        overflow: TextOverflow.visible, // Siempre visible
+        softWrap: true, // Permitir wrap
+        maxLines: null, // Sin límite de líneas
+        textAlign: alignment,
       ),
     ),
   );
+}
+
+TextAlign _getTextAlignmentForColumn(String text, Map<String, dynamic>? producto) {
+  // Default to center for most columns
+  if (producto == null) return TextAlign.center;
+  
+  // Align numeric values right (price columns)
+  if (text.startsWith('\$')) return TextAlign.right;
+  
+  // Align descriptions and vehicle info left
+  if (text == producto['DESCRIPCION'] || text == producto['VEHICULO']) {
+    return TextAlign.left;
+  }
+  
+  // Center everything else
+  return TextAlign.center;
 }
   
 }
